@@ -1,0 +1,70 @@
+###############################################################################
+# Destination rule
+###############################################################################
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: ranking-v1
+  namespace: libra
+spec:
+  host: ranking-v1
+  subsets:
+  - name: v0-0-1
+    labels:
+      version: v0.0.1
+---
+
+###############################################################################
+# Service
+###############################################################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: ranking-v1
+  namespace: libra
+  labels:
+    app: ranking-v1
+spec:
+  ports:
+  - port: 80
+    name: grpc
+  selector:
+    app: ranking-v1
+---
+
+###############################################################################
+# Version tagged workloads
+###############################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ranking-v0-0-1
+  namespace: libra
+  labels:
+    app: ranking-v1
+    version: v0.0.1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ranking-v1
+      version: v0.0.1
+  template:
+    metadata:
+      labels:
+        app: ranking-v1
+        version: v0.0.1
+    spec:
+      containers:
+      - name: librad
+        image: ntons/librad:0.0.1
+        imagePullPolicy: Always
+        envFrom:
+        - configMapRef:
+            name: librad-env
+          prefix: LIBRAD_
+        command: ['./librad', '-c', './librad.yaml', '-i', 'ranking']
+        ports:
+        - containerPort: 80
+---
+

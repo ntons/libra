@@ -1,0 +1,158 @@
+################################################################################
+# Edge gateway
+################################################################################
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: edge
+  namespace: libra
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "*"
+---
+
+################################################################################
+# Traffic rule
+################################################################################
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: edge-portal-v1
+  namespace: libra
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - edge
+  http:
+  - name: edge-portal-v1
+    match:
+    - uri:
+        prefix: /libra.v1.Account/
+    route:
+    - destination:
+        host: portal-v1
+        subset: v0-0-1
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: edge-gateway-v1
+  namespace: libra
+spec:
+  hosts:
+  - '*'
+  gateways:
+  - edge
+  http:
+  - name: edge-gateway-v1
+    match:
+    - uri:
+        exact: /libra.v1.Gateway/Access
+    route:
+    - destination:
+        host: gateway-v1
+        subset: v0-0-1
+---
+
+################################################################################
+# External Authz
+#
+# Cluster name contains charactor '|', cause a DPE error on sidecar inbound,
+# see https://github.com/istio/istio/issues/21841 for workaround
+#
+# A better external authorization support maybe introduced some time
+# see https://github.com/istio/istio/issues/27790
+################################################################################
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: authz-v1
+  namespace: libra
+spec:
+  host: authz-v1
+  subsets:
+  - name: v0-0-1
+    labels:
+      version: v0.0.1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: authz-v1
+  namespace: libra
+  labels:
+    app: authz-v1
+spec:
+  ports:
+  - port: 80
+    name: grpc
+  selector:
+    app: portal-v1
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: edge-authz
+  namespace: istio-system
+spec:
+  workloadSelector:
+    labels:
+      istio: ingressgateway
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        portNumber: 8080
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+            #subFilter:
+            #  name: "envoy.filters.http.router"
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.envoy.filters.http.ext_authz
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+          grpc_service:
+            envoy_grpc:
+              cluster_name: patched.authz-v1.libra.svc.cluster.local
+            timeout: 0.2s
+  - applyTo: HTTP_ROUTE
+    match:
+      context: GATEWAY
+      routeConfiguration:
+        portNumber: 80
+        vhost:
+          route:
+            name: edge-portal-v1
+    patch:
+      operation: MERGE
+      value:
+        typed_per_filter_config:
+          envoy.filters.http.ext_authz:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute
+            disabled: true
+  - applyTo: CLUSTER
+    match:
+      context: GATEWAY
+      cluster:
+        service: authz-v1.libra.svc.cluster.local
+    patch:
+      operation: MERGE
+      value:
+        # merge alter the value of name
+        name: patched.authz-v1.libra.svc.cluster.local
+---
+

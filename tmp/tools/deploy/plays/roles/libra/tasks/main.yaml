@@ -1,0 +1,33 @@
+- name: "{{ target }} service"
+  docker_container:
+    name: "{{ target }}"
+    image: "{{ image }}"
+    restart_policy: unless-stopped
+    pull: yes
+    state: "{{ state }}"
+    restart: "{{ restart|default('no') }}"
+    recreate: "{{ recreate|default('no') }}"
+    ports: "{{ ports|default([]) }}"
+    env:
+      ENVOY_CONFIG_TEMPLATE: "{{ envoy_config_template }}"
+      NODE_CLUSTER:          "cluster_{{ target }}"
+      ETCD_ENDPOINTS:        "{{ etcd_endpoints }}"
+      RUNTIMES:              "{{ runtimes }}"
+      SERVER_FROM_GIT:       "{{ server_from_git }}"
+      SERVER_FROM_URL:       "{{ server_from_url }}"
+    command: "{{ command }}"
+
+# 关于iptables配置：
+# 容器内的服务会被配置成可以访问自身所在集群，也就是说会访问自己（的宿主机）。
+# 然而从容器内访问宿主机IP是不走NAT的，所以需要确保宿主机防火墙开放端口访问，
+# 通过docker-proxy访问自身服务。
+#- name: firewall rules
+#  iptables:
+#    chain: INPUT
+#    state: "{{ container_state|default('present') }}"
+#    action: insert
+#    protocol: tcp
+#    destination_port: "{{ 9000 + service_index }}"
+#    ctstate: NEW
+#    jump: ACCEPT
+#

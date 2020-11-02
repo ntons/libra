@@ -1,0 +1,13 @@
+- hosts: librad
+  gather_facts: no
+  roles:
+  - role: libra
+    vars:
+      target: app_greeter
+      image: docker.dev.com/libra
+      etcd_endpoints: http://192.168.10.31:2379
+      envoy_config_template: envoy/node.template.yaml
+      server_from_url: http://192.168.10.11/patch/mvc.tar.bz2
+      command: "./server_mvc -c ./config.yaml"
+      #command: "sleep infinity"
+

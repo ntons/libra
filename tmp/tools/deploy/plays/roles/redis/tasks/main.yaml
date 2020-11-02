@@ -1,0 +1,19 @@
+- name: create /data/redis directory
+  file:
+    path: /data/redis
+    state: directory
+    mode: '0755'
+
+- name: redis service
+  docker_container:
+    name: redis
+    image: redis:5.0
+    restart_policy: unless-stopped
+    state: "{{ container_state }}"
+    restart: "{{ container_restart|default('no') }}"
+    recreate: "{{ container_recreate|default('no') }}"
+    ports:
+      - "6379:6379"
+    volumes:
+      - "/data/redis:/data"
+

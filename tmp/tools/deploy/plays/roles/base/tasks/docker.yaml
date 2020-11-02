@@ -1,0 +1,39 @@
+
+- name: install yum-utils for docker-ce
+  yum:
+    name: yum-utils
+    state: present
+
+- name: add docker-ce repository
+  shell: yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+  args:
+    creates: /etc/yum.repos.d/docker-ce.repo
+
+- name: install docker-ce
+  yum: 
+    name: docker-ce
+    state: present
+
+- name: configurate flannel for docker-ce
+  copy:
+    src: docker.service
+    dest: /lib/systemd/system/docker.service
+
+- name: start docker-ce
+  systemd:
+    name: docker
+    enabled: yes
+    daemon_reload: yes
+    state: started
+    #state: restarted
+
+- name: install pip
+  yum:
+    name: python-pip
+    state: present
+
+- name: install python module for docker
+  pip:
+    name: docker
+    state: present
+

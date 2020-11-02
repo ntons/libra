@@ -1,0 +1,11 @@
+- hosts: librad
+  gather_facts: no
+  roles:
+  - role: libra
+    vars:
+      target: xds
+      image: docker.dev.com/librad
+      etcd_endpoints: http://192.168.10.31:2379
+      envoy_config_template: envoy/xds.template.yaml
+      command: "./librad -c ./librad.yaml -i xds"
+

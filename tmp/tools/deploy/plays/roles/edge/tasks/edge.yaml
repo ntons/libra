@@ -1,0 +1,34 @@
+# front edge proxy
+
+- hosts: edge
+  gather_facts: false
+  tasks:
+    - import_tasks: system.tasks.yaml
+
+    - name: front edge proxy service
+      docker_container:
+        name: libra-edge
+        image: docker.dev.com/librad
+        restart_policy: unless-stopped
+        state: {{ container_state }}
+        {% if container_pull is defined %}
+        pull: true
+        {% endif %}
+        {% if container_restart is defined %}
+        restart: {{ container_restart }}
+        {% endif %}
+        {% if container_recreate is defined %}
+        recreate: {{ container_recreate }}
+        {% endif %}
+        ports:
+          - "8080:8080"
+          - "10000:10000"
+        env:
+          ENVOY_ENABLED: "yes"
+          ENVOY_CONFIG_TEMPLATE: "./etc/envoy/envoy_edge.template.yaml"
+          SERVICE_CLUSTER: "cluster_edge"
+          XDS_CLUSTER_TYPE: "STATIC"
+          XDS_ADDR: "192.168.10.32"
+          XDS_PORT: "80"
+        command: ["sleep", "infinity"]
+

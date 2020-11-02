@@ -1,0 +1,4 @@
+- include: iptables.yaml
+- include: flannel.yaml
+- include: docker.yaml
+

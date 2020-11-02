@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: libra-redis
+  namespace: dev
+  labels:
+    app: libra-redis
+spec:
+  ports:
+  - port: 6379
+    #name: redis
+  selector:
+    app: libra-redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: libra-redis
+  namespace: dev
+  labels:
+    app: libra-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: libra-redis
+  template:
+    metadata:
+      labels:
+        app: libra-redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:5.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 6379
+---
+

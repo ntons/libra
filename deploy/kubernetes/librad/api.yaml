@@ -1,0 +1,64 @@
+################################################################################
+# Dummy service for virutal service
+################################################################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: libra
+  labels:
+    app: api
+spec:
+  ports:
+  - port: 80
+    name: grpc
+---
+
+################################################################################
+# Traffic rules
+################################################################################
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: api
+  namespace: libra
+spec:
+  hosts:
+  - api.libra.svc.cluster.local
+  http:
+  - match:
+    - uri:
+        prefix: /libra.v1.Account/
+    route:
+    - destination:
+        host: portal-v1
+        subset: v0-0-1
+  - match:
+    - uri:
+        prefix: /libra.v1.Gateway/
+    route:
+    - destination:
+        host: gateway-v1
+        subset: v0-0-1
+  - match:
+    - uri:
+        prefix: /libra.v1.Database/
+    - uri:
+        prefix: /libra.v1.Sync/
+    - uri:
+        prefix: /libra.v1.Mailing/
+    route:
+    - destination:
+        host: database-v1
+        subset: v0-0-1
+  - match:
+    - uri:
+        prefix: /libra.v1.Bubble/
+    - uri:
+        prefix: /libra.v1.Leaderboard/
+    route:
+    - destination:
+        host: ranking-v1
+        subset: v0-0-1
+---
+

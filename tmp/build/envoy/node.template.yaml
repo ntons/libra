@@ -1,0 +1,69 @@
+# Minimal configuration for envoy as a mesh node
+
+{% set etcd_prefix      = 'ETCD_PREFIX'     |env            %}
+{% set etcd_endpoints   = 'ETCD_ENDPOINTS'  |env            %}
+{% set node_id          = 'NODE_ID'         |env            %}
+{% set node_cluster     = 'NODE_CLUSTER'    |env            %}
+{% set runtimes         = 'RUNTIMES'        |env|split:","  %}
+
+node:
+  id: {{ node_id }}
+  cluster: {{ node_cluster }}
+
+admin:
+  access_log_path: "/dev/null"
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 8000
+
+dynamic_resources:
+  ads_config:
+    api_type: GRPC
+    transport_api_version: V3
+    grpc_services:
+    - envoy_grpc:
+        cluster_name: cluster_xds
+  lds_config:
+    ads: {}
+    resource_api_version: V3
+  cds_config:
+    ads: {}
+    resource_api_version: V3
+
+static_resources:
+  clusters:
+  - name: cluster_xds
+    type: STATIC
+    connect_timeout: 0.2s
+    http2_protocol_options: {}
+    lb_policy: ROUND_ROBIN
+    load_assignment:
+      cluster_name: cluster_xds
+      endpoints:
+      - lb_endpoints:
+        {% for key in etcd_prefix|add:"/endpoints/cluster_xds/"|etcdls:etcd_endpoints %}{% set xds_endpoint = key|etcdjson:etcd_endpoints %}
+        - endpoint:
+            address:
+              socket_address:
+                address: {{ xds_endpoint.address }}
+                port_value: {{ xds_endpoint.port|integer }}
+        {% endfor %}
+    health_checks:
+    - timeout: 0.2s
+      interval: 10s
+      healthy_threshold: 1
+      unhealthy_threshold: 3
+      grpc_health_check: {}
+
+layered_runtime:
+  layers:
+  {% for runtime in runtimes %}{% if runtime|length > 0 %}
+  - name: {{ runtime }}
+    rtds_layer:
+      name: {{ runtime }}
+      rtds_config:
+        ads: {}
+        resource_api_version: V3
+  {% endif %}{% endfor %}
+
