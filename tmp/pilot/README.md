@@ -1,3 +1,0 @@
-# pilot
-
-control-panel implementation

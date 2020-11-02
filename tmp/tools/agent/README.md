@@ -1,3 +1,0 @@
-# agent
-
-data-panel agent
