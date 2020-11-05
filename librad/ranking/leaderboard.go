@@ -5,23 +5,23 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/ntons/libra-go/api/v1"
-	rkgo "github.com/ntons/ranking-go"
+	rgo "github.com/ntons/ranking-go"
 )
 
-type leaderboard struct {
+type leaderboardServer struct {
 	v1.UnimplementedLeaderboardServer
-	cli rkgo.Client
+	cli rgo.Client
 }
 
-func newLeaderboard(uri string) (lb *leaderboard, err error) {
+func newLeaderboardServer(uri string) (lb *leaderboardServer, err error) {
 	ro, err := redis.ParseURL(uri)
 	if err != nil {
 		return
 	}
-	return &leaderboard{cli: rkgo.New(redis.NewClient(ro))}, nil
+	return &leaderboardServer{cli: rgo.New(redis.NewClient(ro))}, nil
 }
 
-func (lb *leaderboard) SetScore(
+func (lb *leaderboardServer) SetScore(
 	ctx context.Context, req *v1.LeaderboardSetScoreRequest) (
 	resp *v1.LeaderboardSetScoreResponse, err error) {
 	if err = lb.get(req).SetScore(
@@ -31,7 +31,7 @@ func (lb *leaderboard) SetScore(
 	return
 }
 
-func (lb *leaderboard) IncrScore(
+func (lb *leaderboardServer) IncrScore(
 	ctx context.Context, req *v1.LeaderboardIncrScoreRequest) (
 	resp *v1.LeaderboardIncrScoreResponse, err error) {
 	if err = lb.get(req).IncrScore(
@@ -41,7 +41,7 @@ func (lb *leaderboard) IncrScore(
 	return
 }
 
-func (lb *leaderboard) GetRange(
+func (lb *leaderboardServer) GetRange(
 	ctx context.Context, req *v1.LeaderboardGetRangeRequest) (
 	resp *v1.LeaderboardGetRangeResponse, err error) {
 	entries, err := lb.get(req).GetRange(ctx, req.Offset, req.Count)
@@ -52,7 +52,7 @@ func (lb *leaderboard) GetRange(
 	return
 }
 
-func (lb *leaderboard) GetById(
+func (lb *leaderboardServer) GetById(
 	ctx context.Context, req *v1.LeaderboardGetByIdRequest) (
 	resp *v1.LeaderboardGetByIdResponse, err error) {
 	entries, err := lb.get(req).GetById(ctx, req.Ids...)
@@ -63,7 +63,7 @@ func (lb *leaderboard) GetById(
 	return
 }
 
-func (lb *leaderboard) RemoveById(
+func (lb *leaderboardServer) RemoveById(
 	ctx context.Context, req *v1.LeaderboardRemoveByIdRequest) (
 	resp *v1.LeaderboardRemoveByIdResponse, err error) {
 	if err = lb.get(req).RemoveById(ctx, req.Ids...); err != nil {
@@ -72,7 +72,7 @@ func (lb *leaderboard) RemoveById(
 	return
 }
 
-func (lb *leaderboard) SetInfo(
+func (lb *leaderboardServer) SetInfo(
 	ctx context.Context, req *v1.LeaderboardSetInfoRequest) (
 	resp *v1.LeaderboardSetInfoResponse, err error) {
 	if err = lb.get(req).SetInfo(
@@ -82,7 +82,7 @@ func (lb *leaderboard) SetInfo(
 	return
 }
 
-func (lb *leaderboard) get(req request) rkgo.Leaderboard {
+func (lb *leaderboardServer) get(req request) rgo.Leaderboard {
 	return lb.cli.GetLeaderboard(
 		fromChartKey(req.GetKey()), fromChartOptions(req.GetOptions())...)
 }

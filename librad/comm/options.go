@@ -1,4 +1,4 @@
-package srv
+package comm
 
 import (
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"

@@ -10,7 +10,7 @@ import (
 	pb "google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	"github.com/ntons/libra/librad/misc"
+	"github.com/ntons/libra/librad/comm"
 )
 
 var errHubClosed = errors.New("hub closed")
@@ -129,7 +129,7 @@ func (h *hub) Broadcast(
 	if err != nil {
 		return
 	}
-	if err = h.cli.Publish(ctx, key, misc.B2S(b)).Err(); err != nil {
+	if err = h.cli.Publish(ctx, key, comm.B2S(b)).Err(); err != nil {
 		return
 	}
 	return
@@ -160,7 +160,7 @@ func (ch *channel) Serve() {
 			return
 		case msg := <-ch.c:
 			data := &anypb.Any{}
-			if err := pb.Unmarshal(misc.S2B(msg.Payload), data); err != nil {
+			if err := pb.Unmarshal(comm.S2B(msg.Payload), data); err != nil {
 				log.Warn("failed to broadcast: bad message")
 				break
 			}

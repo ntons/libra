@@ -19,16 +19,15 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/ntons/libra-go/api/v1"
-	"github.com/ntons/libra/librad/misc"
-	"github.com/ntons/libra/librad/srv"
+	"github.com/ntons/libra/librad/comm"
 )
 
 func init() {
-	srv.RegisterService("database", create)
+	comm.RegisterService("database", create)
 }
 
-type database struct {
-	srv.UnimplementedServer
+type databaseServer struct {
+	comm.UnimplementedServer
 	v1.UnimplementedSyncServer
 	v1.UnimplementedDatabaseServer
 	v1.UnimplementedMailingServer
@@ -38,13 +37,13 @@ type database struct {
 	mailing  *mailing.Client
 }
 
-func create(b json.RawMessage) (s srv.Service, err error) {
+func create(b json.RawMessage) (s comm.Service, err error) {
 	if err = json.Unmarshal(b, cfg); err != nil {
 		return
 	} else if err = cfg.parse(); err != nil {
 		return
 	}
-	db := &database{}
+	db := &databaseServer{}
 	// initalize remon
 	var ro *redis.Options
 	if ro, err = redis.ParseURL(cfg.ReMon.Redis); err != nil {
@@ -70,14 +69,14 @@ func create(b json.RawMessage) (s srv.Service, err error) {
 	return db, nil
 }
 
-func (db *database) RegisterGrpc(grpcSrv *srv.GrpcServer) (err error) {
-	v1.RegisterDatabaseServer(grpcSrv, db)
-	v1.RegisterSyncServer(grpcSrv, db)
-	v1.RegisterMailingServer(grpcSrv, db)
+func (db *databaseServer) RegisterGrpc(s *comm.GrpcServer) (err error) {
+	v1.RegisterDatabaseServer(s, db)
+	v1.RegisterSyncServer(s, db)
+	v1.RegisterMailingServer(s, db)
 	return
 }
 
-func (db *database) RegisterSchema(
+func (db *databaseServer) RegisterSchema(
 	ctx context.Context, req *v1.DatabaseRegisterSchemaRequest) (
 	res *v1.DatabaseRegisterSchemaResponse, err error) {
 	fd, err := desc.CreateFileDescriptorFromSet(req.DescriptorSet)
@@ -119,7 +118,7 @@ func hasValidKey(req keyedRequest) bool {
 ////////////////////////////////////////////////////////////////////////////////
 // Sync Service
 ////////////////////////////////////////////////////////////////////////////////
-func (db *database) Lock(
+func (db *databaseServer) Lock(
 	ctx context.Context, req *v1.SyncLockRequest) (
 	*v1.SyncLockResponse, error) {
 	if !hasValidKey(req) {
@@ -136,7 +135,7 @@ func (db *database) Lock(
 	return resp, nil
 }
 
-func (db *database) Unlock(
+func (db *databaseServer) Unlock(
 	ctx context.Context, req *v1.SyncUnlockRequest) (
 	*v1.SyncUnlockResponse, error) {
 	if req.Lock == nil {
@@ -155,7 +154,7 @@ func (db *database) Unlock(
 ////////////////////////////////////////////////////////////////////////////////
 // Database Service
 ////////////////////////////////////////////////////////////////////////////////
-func (db *database) Get(
+func (db *databaseServer) Get(
 	ctx context.Context, req *v1.DatabaseGetRequest) (
 	_ *v1.DatabaseGetResponse, err error) {
 	if !hasValidKey(req) {
@@ -188,7 +187,7 @@ func (db *database) Get(
 		if b, err = pb.Marshal(req.AddIfNotFound); err != nil {
 			return nil, protoerror(err)
 		}
-		s, err = db.remon.Get(ctx, dbKey(req), remon.AddIfNotFound(misc.B2S(b)))
+		s, err = db.remon.Get(ctx, dbKey(req), remon.AddIfNotFound(comm.B2S(b)))
 	} else {
 		s, err = db.remon.Get(ctx, dbKey(req))
 	}
@@ -196,13 +195,13 @@ func (db *database) Get(
 		return nil, remonerror(err)
 	}
 	resp.Data = &anypb.Any{}
-	if err = pb.Unmarshal(misc.S2B(s), resp.Data); err != nil {
+	if err = pb.Unmarshal(comm.S2B(s), resp.Data); err != nil {
 		return nil, protoerror(err)
 	}
 	return resp, nil
 }
 
-func (db *database) Set(
+func (db *databaseServer) Set(
 	ctx context.Context, req *v1.DatabaseSetRequest) (
 	_ *v1.DatabaseSetResponse, err error) {
 	// 在处理解锁之前检查请求参数，如果请求参数错误，就很难去猜测
@@ -237,7 +236,7 @@ func (db *database) Set(
 	if err != nil {
 		return nil, protoerror(err)
 	}
-	if err = db.remon.Set(ctx, dbKey(req), misc.B2S(b)); err != nil {
+	if err = db.remon.Set(ctx, dbKey(req), comm.B2S(b)); err != nil {
 		return nil, remonerror(err)
 	}
 	return &v1.DatabaseSetResponse{}, nil
@@ -246,7 +245,7 @@ func (db *database) Set(
 ////////////////////////////////////////////////////////////////////////////////
 // Mailing Service
 ////////////////////////////////////////////////////////////////////////////////
-func (db *database) List(
+func (db *databaseServer) List(
 	ctx context.Context, req *v1.MailingListRequest) (
 	_ *v1.MailingListResponse, err error) {
 	if !hasValidKey(req) {
@@ -263,7 +262,7 @@ func (db *database) List(
 	}
 	return resp, nil
 }
-func (db *database) Push(
+func (db *databaseServer) Push(
 	ctx context.Context, req *v1.MailingPushRequest) (
 	_ *v1.MailingPushResponse, err error) {
 	if !hasValidKey(req) {
@@ -277,7 +276,7 @@ func (db *database) Push(
 	}
 	return resp, nil
 }
-func (db *database) Pull(
+func (db *databaseServer) Pull(
 	ctx context.Context, req *v1.MailingPullRequest) (
 	_ *v1.MailingPullResponse, err error) {
 	if !hasValidKey(req) {

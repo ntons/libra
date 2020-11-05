@@ -5,23 +5,23 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/ntons/libra-go/api/v1"
-	rkgo "github.com/ntons/ranking-go"
+	rgo "github.com/ntons/ranking-go"
 )
 
-type bubble struct {
+type bubbleServer struct {
 	v1.UnimplementedBubbleServer
-	cli rkgo.Client
+	cli rgo.Client
 }
 
-func newBubble(uri string) (bb *bubble, err error) {
+func newBubbleServer(uri string) (bb *bubbleServer, err error) {
 	ro, err := redis.ParseURL(uri)
 	if err != nil {
 		return
 	}
-	return &bubble{cli: rkgo.New(redis.NewClient(ro))}, nil
+	return &bubbleServer{cli: rgo.New(redis.NewClient(ro))}, nil
 }
 
-func (bb *bubble) Append(
+func (bb *bubbleServer) Append(
 	ctx context.Context, req *v1.BubbleAppendRequest) (
 	resp *v1.BubbleAppendResponse, err error) {
 	if err = bb.get(req).Append(
@@ -31,7 +31,7 @@ func (bb *bubble) Append(
 	return
 }
 
-func (bb *bubble) SwapById(
+func (bb *bubbleServer) SwapById(
 	ctx context.Context, req *v1.BubbleSwapByIdRequest) (
 	resp *v1.BubbleSwapByIdResponse, err error) {
 	if err = bb.get(req).SwapById(ctx, req.Id0, req.Id1); err != nil {
@@ -40,7 +40,7 @@ func (bb *bubble) SwapById(
 	return
 }
 
-func (bb *bubble) SwapByRank(
+func (bb *bubbleServer) SwapByRank(
 	ctx context.Context, req *v1.BubbleSwapByRankRequest) (
 	resp *v1.BubbleSwapByRankResponse, err error) {
 	if err = bb.get(req).SwapByRank(ctx, req.Rank0, req.Rank1); err != nil {
@@ -49,7 +49,7 @@ func (bb *bubble) SwapByRank(
 	return
 }
 
-func (bb *bubble) GetRange(
+func (bb *bubbleServer) GetRange(
 	ctx context.Context, req *v1.BubbleGetRangeRequest) (
 	resp *v1.BubbleGetRangeResponse, err error) {
 	entries, err := bb.get(req).GetRange(ctx, req.Offset, req.Count)
@@ -60,7 +60,7 @@ func (bb *bubble) GetRange(
 	return
 }
 
-func (bb *bubble) GetById(
+func (bb *bubbleServer) GetById(
 	ctx context.Context, req *v1.BubbleGetByIdRequest) (
 	resp *v1.BubbleGetByIdResponse, err error) {
 	entries, err := bb.get(req).GetById(ctx, req.Ids...)
@@ -71,7 +71,7 @@ func (bb *bubble) GetById(
 	return
 }
 
-func (bb *bubble) RemoveById(
+func (bb *bubbleServer) RemoveById(
 	ctx context.Context, req *v1.BubbleRemoveByIdRequest) (
 	resp *v1.BubbleRemoveByIdResponse, err error) {
 	if err = bb.get(req).RemoveById(ctx, req.Ids...); err != nil {
@@ -80,7 +80,7 @@ func (bb *bubble) RemoveById(
 	return
 }
 
-func (bb *bubble) SetInfo(
+func (bb *bubbleServer) SetInfo(
 	ctx context.Context, req *v1.BubbleSetInfoRequest) (
 	resp *v1.BubbleSetInfoResponse, err error) {
 	if err = bb.get(req).SetInfo(
@@ -90,7 +90,7 @@ func (bb *bubble) SetInfo(
 	return
 }
 
-func (bb *bubble) get(req request) rkgo.Bubble {
+func (bb *bubbleServer) get(req request) rgo.Bubble {
 	return bb.cli.GetBubble(
 		fromChartKey(req.GetKey()), fromChartOptions(req.GetOptions())...)
 }

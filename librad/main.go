@@ -14,12 +14,12 @@ import (
 	log "github.com/ntons/log-go"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/ntons/libra/librad/srv"
+	"github.com/ntons/libra/librad/comm"
 	// register services
-	_ "github.com/ntons/libra/librad/svc/database"
-	_ "github.com/ntons/libra/librad/svc/gateway"
-	_ "github.com/ntons/libra/librad/svc/portal"
-	_ "github.com/ntons/libra/librad/svc/ranking"
+	_ "github.com/ntons/libra/librad/database"
+	_ "github.com/ntons/libra/librad/gateway"
+	_ "github.com/ntons/libra/librad/portal"
+	_ "github.com/ntons/libra/librad/ranking"
 )
 
 // build time variables
@@ -45,7 +45,7 @@ func main() {
 		xCookie = "x-cookie-x-libra-"
 	)
 
-	if err := srv.Serve(srv.WithGrpcGatewayServeMuxOption(
+	if err := comm.Serve(comm.WithGrpcGatewayServeMuxOption(
 		runtime.WithIncomingHeaderMatcher(func(key string) (string, bool) {
 			return key, strings.HasPrefix(strings.ToLower(key), xLibra)
 		}),

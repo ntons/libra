@@ -42,17 +42,17 @@ func toRoles(a []*dbRole) []*v1.Role {
 	return r
 }
 
-type account struct {
+type acctServer struct {
 	v1.UnimplementedAccountServer
 	db *database
 }
 
-func newAccount(db *database) *account {
-	return &account{db: db}
+func newAcctServer(db *database) *acctServer {
+	return &acctServer{db: db}
 }
 
 // implement v1.AcctServer
-func (acct *account) Login(
+func (acct *acctServer) Login(
 	ctx context.Context, req *v1.AccountLoginRequest) (
 	resp *v1.AccountLoginResponse, err error) {
 	app, err := acct.db.getApp(req.AppId)
@@ -78,7 +78,7 @@ func (acct *account) Login(
 	resp = &v1.AccountLoginResponse{Token: token, User: toUser(user)}
 	return
 }
-func (acct *account) checkLoginState(
+func (acct *acctServer) checkLoginState(
 	app *dbApp, any *anypb.Any) (acctId []string, err error) {
 	state, err := anypb.UnmarshalNew(any, proto.UnmarshalOptions{})
 	if err != nil {
@@ -103,7 +103,7 @@ func (acct *account) checkLoginState(
 	return
 }
 
-func (acct *account) Bind(
+func (acct *acctServer) Bind(
 	ctx context.Context, req *v1.AccountBindRequest) (
 	resp *v1.AccountBindResponse, err error) {
 	app, userId, err := acct.checkToken(ctx, req)
@@ -117,7 +117,7 @@ func (acct *account) Bind(
 	return
 }
 
-func (acct *account) ListRoles(
+func (acct *acctServer) ListRoles(
 	ctx context.Context, req *v1.AccountListRolesRequest) (
 	resp *v1.AccountListRolesResponse, err error) {
 	app, userId, err := acct.checkToken(ctx, req)
@@ -129,7 +129,7 @@ func (acct *account) ListRoles(
 	return
 }
 
-func (acct *account) CreateRole(
+func (acct *acctServer) CreateRole(
 	ctx context.Context, req *v1.AccountCreateRoleRequest) (
 	resp *v1.AccountCreateRoleResponse, err error) {
 	app, userId, err := acct.checkToken(ctx, req)
@@ -144,7 +144,7 @@ func (acct *account) CreateRole(
 	return
 }
 
-func (acct *account) SignIn(
+func (acct *acctServer) SignIn(
 	ctx context.Context, req *v1.AccountSignInRequest) (
 	resp *v1.AccountSignInResponse, err error) {
 	app, userId, err := acct.checkToken(ctx, req)
@@ -166,7 +166,7 @@ func (acct *account) SignIn(
 	return
 }
 
-func (acct *account) SetUserMetadata(
+func (acct *acctServer) SetUserMetadata(
 	ctx context.Context, req *v1.AccountSetUserMetadataRequest) (
 	resp *v1.AccountSetUserMetadataResponse, err error) {
 	app, userId, err := acct.checkToken(ctx, req)
@@ -179,7 +179,7 @@ func (acct *account) SetUserMetadata(
 	}
 	return
 }
-func (acct *account) SetRoleMetadata(
+func (acct *acctServer) SetRoleMetadata(
 	ctx context.Context, req *v1.AccountSetRoleMetadataRequest) (
 	resp *v1.AccountSetRoleMetadataResponse, err error) {
 	app, userId, err := acct.checkToken(ctx, req)
@@ -198,7 +198,7 @@ type apiReq interface {
 	GetToken() string
 }
 
-func (acct *account) checkToken(
+func (acct *acctServer) checkToken(
 	ctx context.Context, req apiReq) (app *dbApp, userId string, err error) {
 	if app, err = acct.db.getApp(req.GetAppId()); err != nil {
 		return

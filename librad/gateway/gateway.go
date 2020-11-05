@@ -14,15 +14,15 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	"github.com/ntons/libra/librad/srv"
+	"github.com/ntons/libra/librad/comm"
 )
 
 func init() {
-	srv.RegisterService("gateway", create)
+	comm.RegisterService("gateway", create)
 }
 
-type gateway struct {
-	srv.UnimplementedServer
+type gatewayServer struct {
+	comm.UnimplementedServer
 	v1.UnimplementedGatewayServer
 	//
 	ctx    context.Context
@@ -34,7 +34,7 @@ type gateway struct {
 	hub *hub
 }
 
-func create(b json.RawMessage) (s srv.Service, err error) {
+func create(b json.RawMessage) (s comm.Service, err error) {
 	var cfg config
 	if err = json.Unmarshal(b, &cfg); err != nil {
 		return
@@ -43,24 +43,22 @@ func create(b json.RawMessage) (s srv.Service, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("bad redis address: %v", cfg.Broadcast.Redis)
 	}
-	gw := &gateway{m: make(map[string]*session)}
+	gw := &gatewayServer{m: make(map[string]*session)}
 	gw.ctx, gw.cancel = context.WithCancel(context.Background())
 	gw.hub = newHub(gw.ctx, redis.NewClient(ropts))
 	return gw, nil
 }
 
 // implement comm.Service
-func (gw *gateway) RegisterGrpc(grpcSrv *srv.GrpcServer) (err error) {
-	v1.RegisterGatewayServer(grpcSrv, gw)
+func (gw *gatewayServer) RegisterGrpc(s *comm.GrpcServer) (err error) {
+	v1.RegisterGatewayServer(s, gw)
 	return
 }
-
-func (gw *gateway) Serve() { gw.hub.Serve() }
-
-func (gw *gateway) Stop() { gw.cancel() }
+func (gw *gatewayServer) Serve() { gw.hub.Serve() }
+func (gw *gatewayServer) Stop()  { gw.cancel() }
 
 // implement gwapi.Access
-func (gw *gateway) Access(
+func (gw *gatewayServer) Access(
 	req *v1.GatewayAccessRequest, stream v1.Gateway_AccessServer) error {
 	roleId, err := xLibraRoleId(stream.Context())
 	if err != nil {
@@ -88,7 +86,7 @@ func (gw *gateway) Access(
 	return s.Serve()
 }
 
-func (gw *gateway) Push(
+func (gw *gatewayServer) Push(
 	ctx context.Context, req *v1.GatewayPushRequest) (
 	*v1.GatewayPushResponse, error) {
 	roleId, err := xLibraRoleId(ctx)
@@ -107,7 +105,7 @@ func (gw *gateway) Push(
 	return &v1.GatewayPushResponse{}, nil
 }
 
-func (gw *gateway) Subscribe(
+func (gw *gatewayServer) Subscribe(
 	ctx context.Context, req *v1.GatewaySubscribeRequest) (
 	*v1.GatewaySubscribeResponse, error) {
 	roleId, err := xLibraRoleId(ctx)
@@ -126,7 +124,7 @@ func (gw *gateway) Subscribe(
 	return &v1.GatewaySubscribeResponse{}, nil
 }
 
-func (gw *gateway) Unsubscribe(
+func (gw *gatewayServer) Unsubscribe(
 	ctx context.Context, req *v1.GatewayUnsubscribeRequest) (
 	_ *v1.GatewayUnsubscribeResponse, err error) {
 	roleId, err := xLibraRoleId(ctx)
@@ -143,7 +141,7 @@ func (gw *gateway) Unsubscribe(
 	return &v1.GatewayUnsubscribeResponse{}, nil
 }
 
-func (gw *gateway) Broadcast(
+func (gw *gatewayServer) Broadcast(
 	ctx context.Context, req *v1.GatewayBroadcastRequest) (
 	*v1.GatewayBroadcastResponse, error) {
 	if err := gw.hub.Broadcast(ctx, req.Key, req.Data); err != nil {
