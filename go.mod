@@ -10,11 +10,11 @@ require (
 	github.com/golang/protobuf v1.4.3
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/jhump/protoreflect v1.7.0
-	github.com/ntons/distlock-go v0.0.0-20200925082035-6939009d14db
+	github.com/ntons/distlock v0.0.0-20201109033245-a6602209da5c
 	github.com/ntons/libra-go v0.0.0-20201009070654-4f9136104137
 	github.com/ntons/log-go v0.0.0-20200924092648-d9caee8882d8
-	github.com/ntons/ranking-go v0.1.5-0.20200928014144-2dea290d9c64
-	github.com/ntons/remon-go v0.1.3-0.20200929081220-9795d86d51fc
+	github.com/ntons/ranking v0.1.5-0.20201109024847-20e38406c2bd
+	github.com/ntons/remon v0.1.3-0.20201109030114-00566b661e90
 	github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5
 	go.mongodb.org/mongo-driver v1.4.3
 	go.uber.org/zap v1.16.0

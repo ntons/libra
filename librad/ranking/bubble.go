@@ -5,12 +5,12 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/ntons/libra-go/api/v1"
-	rgo "github.com/ntons/ranking-go"
+	"github.com/ntons/ranking"
 )
 
 type bubbleServer struct {
 	v1.UnimplementedBubbleServer
-	cli rgo.Client
+	cli ranking.Client
 }
 
 func newBubbleServer(uri string) (bb *bubbleServer, err error) {
@@ -18,7 +18,7 @@ func newBubbleServer(uri string) (bb *bubbleServer, err error) {
 	if err != nil {
 		return
 	}
-	return &bubbleServer{cli: rgo.New(redis.NewClient(ro))}, nil
+	return &bubbleServer{cli: ranking.New(redis.NewClient(ro))}, nil
 }
 
 func (bb *bubbleServer) Append(
@@ -90,7 +90,7 @@ func (bb *bubbleServer) SetInfo(
 	return
 }
 
-func (bb *bubbleServer) get(req request) rgo.Bubble {
+func (bb *bubbleServer) get(req request) ranking.Bubble {
 	return bb.cli.GetBubble(
 		fromChartKey(req.GetKey()), fromChartOptions(req.GetOptions())...)
 }

@@ -5,12 +5,12 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/ntons/libra-go/api/v1"
-	rgo "github.com/ntons/ranking-go"
+	"github.com/ntons/ranking"
 )
 
 type leaderboardServer struct {
 	v1.UnimplementedLeaderboardServer
-	cli rgo.Client
+	cli ranking.Client
 }
 
 func newLeaderboardServer(uri string) (lb *leaderboardServer, err error) {
@@ -18,7 +18,7 @@ func newLeaderboardServer(uri string) (lb *leaderboardServer, err error) {
 	if err != nil {
 		return
 	}
-	return &leaderboardServer{cli: rgo.New(redis.NewClient(ro))}, nil
+	return &leaderboardServer{cli: ranking.New(redis.NewClient(ro))}, nil
 }
 
 func (lb *leaderboardServer) SetScore(
@@ -82,7 +82,7 @@ func (lb *leaderboardServer) SetInfo(
 	return
 }
 
-func (lb *leaderboardServer) get(req request) rgo.Leaderboard {
+func (lb *leaderboardServer) get(req request) ranking.Leaderboard {
 	return lb.cli.GetLeaderboard(
 		fromChartKey(req.GetKey()), fromChartOptions(req.GetOptions())...)
 }

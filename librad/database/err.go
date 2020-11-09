@@ -1,8 +1,8 @@
 package database
 
 import (
-	distlock "github.com/ntons/distlock-go"
-	remon "github.com/ntons/remon-go"
+	"github.com/ntons/distlock"
+	"github.com/ntons/remon"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

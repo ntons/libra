@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/ntons/libra-go/api/v1"
-	rgo "github.com/ntons/ranking-go"
+	"github.com/ntons/ranking"
 )
 
-func toChartEntry(in *rgo.Entry) (out *v1.ChartEntry) {
+func toChartEntry(in *ranking.Entry) (out *v1.ChartEntry) {
 	return &v1.ChartEntry{
 		Rank:  in.Rank,
 		Id:    in.Id,
@@ -16,8 +16,8 @@ func toChartEntry(in *rgo.Entry) (out *v1.ChartEntry) {
 		Score: in.Score,
 	}
 }
-func fromChartEntry(in *v1.ChartEntry) (out *rgo.Entry) {
-	return &rgo.Entry{
+func fromChartEntry(in *v1.ChartEntry) (out *ranking.Entry) {
+	return &ranking.Entry{
 		Rank:  in.Rank,
 		Id:    in.Id,
 		Info:  in.Info,
@@ -25,33 +25,33 @@ func fromChartEntry(in *v1.ChartEntry) (out *rgo.Entry) {
 	}
 }
 
-func toChartEntries(in []*rgo.Entry) (out []*v1.ChartEntry) {
+func toChartEntries(in []*ranking.Entry) (out []*v1.ChartEntry) {
 	for _, e := range in {
 		out = append(out, toChartEntry(e))
 	}
 	return
 }
-func fromChartEntries(in []*v1.ChartEntry) (out []*rgo.Entry) {
+func fromChartEntries(in []*v1.ChartEntry) (out []*ranking.Entry) {
 	for _, e := range in {
 		out = append(out, fromChartEntry(e))
 	}
 	return
 }
 
-func fromChartOptions(in *v1.ChartOptions) (out []rgo.Option) {
+func fromChartOptions(in *v1.ChartOptions) (out []ranking.Option) {
 	if in.Capacity > 0 {
-		out = append(out, rgo.WithCapacity(in.Capacity))
+		out = append(out, ranking.WithCapacity(in.Capacity))
 	} else {
-		out = append(out, rgo.WithCapacity(1000))
+		out = append(out, ranking.WithCapacity(1000))
 	}
 	if in.ConstructFrom != "" {
-		out = append(out, rgo.WithConstructFrom(in.ConstructFrom))
+		out = append(out, ranking.WithConstructFrom(in.ConstructFrom))
 	}
 	if in.ExpireAt > 0 {
-		out = append(out, rgo.WithExpireAt(time.Unix(in.ExpireAt, 0)))
+		out = append(out, ranking.WithExpireAt(time.Unix(in.ExpireAt, 0)))
 	}
 	if in.IdleExpire > 0 {
-		out = append(out, rgo.WithIdleExpire(
+		out = append(out, ranking.WithIdleExpire(
 			time.Duration(in.IdleExpire)*time.Second))
 	}
 	return nil

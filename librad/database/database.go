@@ -10,9 +10,9 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/jhump/protoreflect/desc"
-	distlock "github.com/ntons/distlock-go"
-	remon "github.com/ntons/remon-go"
-	"github.com/ntons/remon-go/mailing"
+	"github.com/ntons/distlock"
+	"github.com/ntons/remon"
+	"github.com/ntons/remon/mailing"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	pb "google.golang.org/protobuf/proto"
