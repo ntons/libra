@@ -1,0 +1,49 @@
+# Ingress for libra
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: apiproxy
+  namespace: libra
+  labels:
+    app: apiproxy
+spec:
+  ports:
+  - port: 80
+    name: grpc
+  selector:
+    app: apiproxy
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apiproxy
+  namespace: libra
+  labels:
+    app: apiproxy
+spec:
+  selector:
+    matchLabels:
+      app: apiproxy
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: apiproxy
+    spec:
+      containers:
+      - name: envoy
+        image: envoyproxy/envoy:v1.14.5
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+        - containerPort: 8000
+        volumeMounts:
+        - name: config
+          mountPath: /etc/envoy
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: apiproxy
+---

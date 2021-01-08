@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: librad-env
+data:
+  DATABASE_REMON_REDIS:      ''
+  DATABASE_REMON_MONGO:      ''
+  DATABASE_DISTLOCK_REDIS:   ''
+  GATEWAY_BROADCAST_REDIS:   ''
+  PORTAL_REDIS:              ''
+  PORTAL_MONGO:              ''
+  RANKING_BUBBLE_REDIS:      ''
+  RANKING_LEADERBOARD_REDIS: ''
+---

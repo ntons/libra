@@ -18,7 +18,7 @@ type session struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	// push stream
-	stream v1.Gateway_AccessServer
+	stream v1.Gateway_ConnectServer
 	// push chan
 	c chan *anypb.Any
 	// be kicked by other session
@@ -31,7 +31,7 @@ type session struct {
 }
 
 func newSession(
-	ctx context.Context, id string, stream v1.Gateway_AccessServer) *session {
+	ctx context.Context, id string, stream v1.Gateway_ConnectServer) *session {
 	s := &session{
 		Id:     id,
 		stream: stream,

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: librad-env
+data:
+  DATABASE_REMON_REDIS:      redis://redis:6379/1
+  DATABASE_REMON_MONGO:      mongodb://mongo:27017/libra
+  DATABASE_DISTLOCK_REDIS:   redis://redis:6379/2
+  GATEWAY_BROADCAST_REDIS:   redis://redis:6379/3
+  PORTAL_REDIS:              redis://redis:6379/4
+  PORTAL_MONGO:              mongodb://mongo:27017/libra
+  RANKING_BUBBLE_REDIS:      redis://redis:6379/5
+  RANKING_LEADERBOARD_REDIS: redis://redis:6379/6
+---

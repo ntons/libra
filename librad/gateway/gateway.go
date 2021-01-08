@@ -9,6 +9,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/ntons/libra-go/api/v1"
 	log "github.com/ntons/log-go"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -22,7 +23,6 @@ func init() {
 }
 
 type gatewayServer struct {
-	comm.UnimplementedServer
 	v1.UnimplementedGatewayServer
 	//
 	ctx    context.Context
@@ -50,16 +50,16 @@ func create(b json.RawMessage) (s comm.Service, err error) {
 }
 
 // implement comm.Service
-func (gw *gatewayServer) RegisterGrpc(s *comm.GrpcServer) (err error) {
+func (gw *gatewayServer) RegisterGrpc(s *grpc.Server) (err error) {
 	v1.RegisterGatewayServer(s, gw)
 	return
 }
 func (gw *gatewayServer) Serve() { gw.hub.Serve() }
-func (gw *gatewayServer) Stop()  { gw.cancel() }
+func (gw *gatewayServer) Close() { gw.cancel() }
 
-// implement gwapi.Access
-func (gw *gatewayServer) Access(
-	req *v1.GatewayAccessRequest, stream v1.Gateway_AccessServer) error {
+// implement gwapi.Connect
+func (gw *gatewayServer) Connect(
+	req *v1.GatewayConnectRequest, stream v1.Gateway_ConnectServer) error {
 	roleId, err := xLibraRoleId(stream.Context())
 	if err != nil {
 		return err
@@ -86,9 +86,9 @@ func (gw *gatewayServer) Access(
 	return s.Serve()
 }
 
-func (gw *gatewayServer) Push(
-	ctx context.Context, req *v1.GatewayPushRequest) (
-	*v1.GatewayPushResponse, error) {
+func (gw *gatewayServer) Send(
+	ctx context.Context, req *v1.GatewaySendRequest) (
+	*v1.GatewaySendResponse, error) {
 	roleId, err := xLibraRoleId(ctx)
 	if err != nil {
 		return nil, err
@@ -102,7 +102,7 @@ func (gw *gatewayServer) Push(
 	if err := s.Send(req.Data); err != nil {
 		return nil, err
 	}
-	return &v1.GatewayPushResponse{}, nil
+	return &v1.GatewaySendResponse{}, nil
 }
 
 func (gw *gatewayServer) Subscribe(

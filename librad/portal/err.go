@@ -23,4 +23,6 @@ var (
 	// Internal
 	errMalformedUserId = status.Errorf(codes.Internal, "malformed user id")
 	errMalformedRoleId = status.Errorf(codes.Internal, "malformed role id")
+	// Unavailable
+	errDatabaseUnavailable = status.Errorf(codes.Unavailable, "database unavailable")
 )

@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-v1
+  namespace: libra
+  labels:
+    app: gateway-v1
+    version: v0.0.1
+spec:
+  clusterIP: None # headless service
+  ports:
+  - port: 80
+    name: grpc
+  selector:
+    app: gateway-v1
+    version: v0.0.1
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: gateway-v0-0-1
+  namespace: libra
+  labels:
+    app: gateway-v1
+    version: v0.0.1
+spec:
+  selector:
+    matchLabels:
+      app: gateway-v1
+      version: v0.0.1
+  serviceName: gateway-v1
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: gateway-v1
+        version: v0.0.1
+    spec:
+      containers:
+      - name: librad
+        image: ntons/librad:0.0.1
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: librad-env
+          prefix: LIBRAD_
+        ports:
+        - containerPort: 80
+        #command: ['./librad', '-c', './librad.yaml', '-i', 'gateway']
+        command: ['sleep', '3600']
+---

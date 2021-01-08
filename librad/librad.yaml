@@ -1,0 +1,32 @@
+# librad configuration
+# enable/disable service(s) by command line options
+
+bind: {{ "127.0.0.1:80"|env:"LIBRAD_BIND" }}
+
+services:
+  portal:
+    #redis: {{ "unspecified"|env:"LIBRAD_PORTAL_REDIS" }}
+    #mongo: {{ "unspecified"|env:"LIBRAD_PORTAL_MONGO" }}
+    redis: redis://192.168.10.11/9
+    mongo: mongodb://admin:My777Joy@192.168.10.11/librad?authSource=admin
+
+  gateway:
+    broadcast:
+      redis: {{ "unspecified"|env:"LIBRAD_GATEWAY_BROADCAST_REDIS" }}
+
+  database:
+    remon:
+      redis: {{ "unspecified"|env:"LIBRAD_DATABASE_REMON_REDIS" }}
+      mongo: {{ "unspecified"|env:"LIBRAD_DATABASE_REMON_MONGO" }}
+    distlock:
+      redis: {{ "unspecified"|env:"LIBRAD_DATABASE_DISTLOCK_REDIS" }}
+      ttl: {{ "10s"|env:"LIBRAD_DATABASE_DISTLOCK_TTL" }}
+
+  ranking:
+    bubble:
+      redis: {{ "unspecified"|env:"LIBRAD_RANKING_BUBBLE_REDIS" }}
+    leaderboard:
+      redis: {{ "unspecified"|env:"LIBRAD_RANKING_LEADERBOARD_REDIS" }}
+
+  echo: {}
+

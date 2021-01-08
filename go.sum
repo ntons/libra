@@ -169,8 +169,9 @@ github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLA
 github.com/nishanths/predeclared v0.0.0-20200524104333-86fad755b4d3/go.mod h1:nt3d53pc1VYcphSCIaYAJtnPYnr3Zyn8fMq2wvPGPso=
 github.com/ntons/distlock v0.0.0-20201109033245-a6602209da5c h1:bqYf7t2jtxZC9meMovTUzJ2gPRzzEJb6IIPOlcEXQxY=
 github.com/ntons/distlock v0.0.0-20201109033245-a6602209da5c/go.mod h1:W0FYN2i5yM9/6Dj4YTErQuEZAEiw4M0BF+N/SMPV8fs=
-github.com/ntons/libra-go v0.0.0-20201009070654-4f9136104137 h1:G3gfg0WwXes1LudKy68bgwoDdqgvZhZn+cqDTct/QRg=
 github.com/ntons/libra-go v0.0.0-20201009070654-4f9136104137/go.mod h1:VhgDcyBg/uTODoAuNLcEBL7S43ibRAodzFMpqZjQrls=
+github.com/ntons/libra-go v0.0.0-20210122002353-a0141e8a94f2 h1:l3KN9aSE6bL3YUnWkcTqCmbWoHBAwRBu/6yFwsgDqF8=
+github.com/ntons/libra-go v0.0.0-20210122002353-a0141e8a94f2/go.mod h1:VhgDcyBg/uTODoAuNLcEBL7S43ibRAodzFMpqZjQrls=
 github.com/ntons/log-go v0.0.0-20200924092648-d9caee8882d8 h1:s03rXpb5trwVS7mi817IkrLB38T2V7D//43mkWO1aIc=
 github.com/ntons/log-go v0.0.0-20200924092648-d9caee8882d8/go.mod h1:R+uLqm/b64q8B6ktCcR+SeCIJRz3WXjVCnhxmWeFDzc=
 github.com/ntons/ranking v0.1.5-0.20201109024847-20e38406c2bd h1:XdaLhGK6eBK0o25rBzuEspj6FSOIBs15HmCa/tfeTLw=
@@ -216,6 +217,10 @@ github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6L
 github.com/rogpeppe/go-internal v1.1.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.2.2/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
+github.com/sigurn/crc8 v0.0.0-20160107002456-e55481d6f45c h1:hk0Jigjfq59yDMgd6bzi22Das5tyxU0CtOkh7a9io84=
+github.com/sigurn/crc8 v0.0.0-20160107002456-e55481d6f45c/go.mod h1:cyrWuItcOVIGX6fBZ/G00z4ykprWM7hH58fSavNkjRg=
+github.com/sigurn/utils v0.0.0-20190728110027-e1fefb11a144 h1:ccb8W1+mYuZvlpn/mJUMAbsFHTMCpcJBS78AsBQxNcY=
+github.com/sigurn/utils v0.0.0-20190728110027-e1fefb11a144/go.mod h1:VRI4lXkrUH5Cygl6mbG1BRUfMMoT2o8BkrtBDUAm+GU=
 github.com/sirupsen/logrus v1.2.0/go.mod h1:LxeOpSwHxABJmUn/MG1IvRgCAasNZTLOkJPxbbu5VWo=
 github.com/sirupsen/logrus v1.4.0/go.mod h1:LxeOpSwHxABJmUn/MG1IvRgCAasNZTLOkJPxbbu5VWo=
 github.com/sirupsen/logrus v1.4.1/go.mod h1:ni0Sbl8bgC9z8RoU9G6nDWqqs/fq4eDPysMBDgk/93Q=

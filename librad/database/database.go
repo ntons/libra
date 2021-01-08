@@ -15,6 +15,7 @@ import (
 	"github.com/ntons/remon/mailing"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"google.golang.org/grpc"
 	pb "google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 
@@ -27,7 +28,6 @@ func init() {
 }
 
 type databaseServer struct {
-	comm.UnimplementedServer
 	v1.UnimplementedSyncServer
 	v1.UnimplementedDatabaseServer
 	v1.UnimplementedMailingServer
@@ -69,7 +69,10 @@ func create(b json.RawMessage) (s comm.Service, err error) {
 	return db, nil
 }
 
-func (db *databaseServer) RegisterGrpc(s *comm.GrpcServer) (err error) {
+func (db *databaseServer) Serve() {}
+func (db *databaseServer) Close() {}
+
+func (db *databaseServer) RegisterGrpc(s *grpc.Server) (err error) {
 	v1.RegisterDatabaseServer(s, db)
 	v1.RegisterSyncServer(s, db)
 	v1.RegisterMailingServer(s, db)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/ntons/libra-go/api/v1"
+	"google.golang.org/grpc"
 
 	"github.com/ntons/libra/librad/comm"
 )
@@ -18,7 +19,6 @@ type request interface {
 }
 
 type rankingServer struct {
-	comm.UnimplementedServer
 	bb *bubbleServer
 	lb *leaderboardServer
 }
@@ -39,8 +39,11 @@ func create(b json.RawMessage) (_ comm.Service, err error) {
 	return &rankingServer{bb: bb, lb: lb}, nil
 }
 
-func (r *rankingServer) RegisterGrpc(s *comm.GrpcServer) (err error) {
+func (r *rankingServer) RegisterGrpc(s *grpc.Server) (err error) {
 	v1.RegisterBubbleServer(s, r.bb)
 	v1.RegisterLeaderboardServer(s, r.lb)
 	return
 }
+
+func (r *rankingServer) Serve() {}
+func (r *rankingServer) Close() {}

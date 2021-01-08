@@ -1,0 +1,57 @@
+# LDS for dynamic listener configuration
+
+resources:
+- name: listener_apiproxy
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 8080
+  filter_chains:
+  - filters:
+    - name: envoy.filters.network.http_connection_manager
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+        stat_prefix: listener_apiproxy
+        route_config:
+          name: route_apiproxy
+          virtual_hosts:
+          - name: route_apiproxy
+            domains:
+            - "*"
+            routes:
+            - match:
+                prefix: '/libra.v1.Account/'
+                grpc: {}
+              route:
+                cluster: cluster_portal_v1
+                timeout: 0s
+            - match:
+                safe_regex:
+                  google_re2: {}
+                  regex: '/libra\.v1\.(Bubble|Leaderboard)/.*'
+                grpc: {}
+              route:
+                cluster: cluster_ranking_v1
+                timeout: 0s
+            - match:
+                safe_regex:
+                  google_re2: {}
+                  regex: '/libra\.v1\.(Database|Mailing|Sync)/.*'
+                grpc: {}
+              route:
+                cluster: cluster_database_v1
+                timeout: 0s
+            - match:
+                prefix: '/libra.v1.Gateway/'
+                grpc: {}
+              route:
+                cluster: cluster_gateway_v1
+                timeout: 0s
+                hash_policy:
+                - header:
+                    header_name: x-libra-role-id
+        http_filters:
+        - name: envoy.filters.http.router
+          typed_config: {}
+
+

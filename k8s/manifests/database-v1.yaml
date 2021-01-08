@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: database-v1
+  namespace: libra
+  labels:
+    app: database-v1
+    version: v0.0.1
+spec:
+  ports:
+  - port: 80
+    name: grpc
+  selector:
+    app: database-v1
+    version: v0.0.1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: database-v0-0-1
+  namespace: libra
+  labels:
+    app: database-v1
+    version: v0.0.1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: database-v1
+      version: v0.0.1
+  template:
+    metadata:
+      labels:
+        app: database-v1
+        version: v0.0.1
+    spec:
+      containers:
+      - name: librad
+        image: ntons/librad:0.0.1
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: librad-env
+          prefix: LIBRAD_
+        ports:
+        - containerPort: 80
+        #command: ['./librad', '-c', './librad.yaml', '-i', 'database']
+        command: ['sleep', '3600']
+---
