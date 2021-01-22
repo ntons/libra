@@ -10,6 +10,8 @@ import (
 	grpcgw "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/ntons/libra-go/api/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/ntons/libra/librad/comm"
 )
@@ -27,10 +29,34 @@ const (
 	xLibraRoleIndex    = "x-libra-role-index"
 )
 
-type config struct {
+var (
+	// Unauthenticated
+	errInvalidToken  = status.Errorf(codes.Unauthenticated, "invalid token")
+	errInvalidTicket = status.Errorf(codes.Unauthenticated, "invalid ticket")
+	// NotFound
+	errAppIdNotFound = status.Errorf(codes.NotFound, "app id not found")
+	errUserNotFound  = status.Errorf(codes.NotFound, "user not found")
+	errRoleNotFound  = status.Errorf(codes.NotFound, "role not found")
+	// AlreadyExists
+	errRoleAlreadyExists = status.Errorf(codes.AlreadyExists, "role already exists")
+	// InvalidArgument
+	errInvalidNonce     = status.Errorf(codes.InvalidArgument, "invalid nonce")
+	errInvalidState     = status.Errorf(codes.InvalidArgument, "invalid state")
+	errInvalidSignature = status.Errorf(codes.InvalidArgument, "invalid signature")
+	errInvalidAppId     = status.Errorf(codes.InvalidArgument, "invalid app id")
+	// Internal
+	errMalformedUserId = status.Errorf(codes.Internal, "malformed user id")
+	errMalformedRoleId = status.Errorf(codes.Internal, "malformed role id")
+	// Unavailable
+	errDatabaseUnavailable = status.Errorf(codes.Unavailable, "database unavailable")
+	// PermissionDenied
+	errPermissionDenied = status.Errorf(codes.PermissionDenied, "permission denied")
+)
+
+var cfg = struct {
 	Redis string
 	Mongo string
-}
+}{}
 
 type portalServer struct {
 	ctx    context.Context
@@ -43,13 +69,13 @@ type portalServer struct {
 }
 
 func create(b json.RawMessage) (_ comm.Service, err error) {
-	cfg := &config{}
-	if err = json.Unmarshal(b, cfg); err != nil {
+	if err = json.Unmarshal(b, &cfg); err != nil {
 		return
 	}
+
 	srv := &portalServer{}
 	srv.ctx, srv.cancel = context.WithCancel(context.Background())
-	if db, err = dialDatabase(srv.ctx, cfg); err != nil {
+	if err = dialDatabase(srv.ctx); err != nil {
 		srv.Close()
 		return nil, fmt.Errorf("failed to dail database: %v", err)
 	}
@@ -60,7 +86,7 @@ func create(b json.RawMessage) (_ comm.Service, err error) {
 	return srv, nil
 }
 
-func (srv *portalServer) Serve() { db.Serve() }
+func (srv *portalServer) Serve() { dbServe(srv.ctx) }
 
 func (srv *portalServer) Close() { srv.cancel() }
 

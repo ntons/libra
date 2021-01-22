@@ -1,35 +1,69 @@
 package portal
 
 import (
-	"bytes"
 	"crypto/aes"
+	"fmt"
+	"sync/atomic"
+	"unsafe"
 
 	"math/rand"
 	"testing"
 )
 
 func TestIdentity(t *testing.T) {
-	for i := 0; i < 1000; i++ {
-		appKey := rand.Uint32()
-		idTag := uint8(rand.Int()%2 + 1)
-		id := newId(appKey, idTag)
-		if xIdLen*8/5 != len(encId(id)) {
-			t.Errorf("unexpected id length")
-		}
+	for i := 0; i < 10000; i++ {
 		aesKey := make([]byte, aes.BlockSize)
 		rand.Read(aesKey)
 		block, _ := aes.NewCipher(aesKey)
-		cred := newCred(id, block)
-		if xCredLen*4/3 != len(encCred(cred)) {
-			t.Errorf("unexpected cred length")
+		app := &xApp{
+			Id:    fmt.Sprintf("%x", aesKey[:8]),
+			Key:   rand.Uint32(),
+			block: block,
 		}
-		if v := getAppKeyFromCred(cred); v != appKey {
-			t.Errorf("unexpected app key mismatch")
+		atomic.StorePointer(&apps, unsafe.Pointer(newAppMgr([]*xApp{app})))
+
+		userId := newUserId(app.Key)
+		if len(userId) != rawIdLen*8/5 {
+			t.Errorf("unexpected user id length")
 		}
-		if v, ok := getIdFromCred(cred, block); !ok {
-			t.Errorf("unexpected cred checksum")
-		} else if !bytes.Equal(id[:], v[:]) {
-			t.Errorf("unexpected cred mismatch")
+
+		roleId := newRoleId(app.Key)
+		if len(roleId) != rawIdLen*8/5 {
+			t.Errorf("unexpected role id length")
+		}
+
+		token, err := genToken(app, userId)
+		if err != nil {
+			t.Errorf("failed to generate token: %v", err)
+		}
+		if len(token) != rawTokenLen*4/3 {
+			t.Errorf("unexpected token length: %d", len(token))
+		}
+
+		ticket, err := genTicket(app, userId, roleId)
+		if err != nil {
+			t.Errorf("failed to generate ticket: %v", err)
+		}
+		if len(ticket) != rawTicketLen*4/3 {
+			t.Errorf("unexpected ticket length: %d", len(ticket))
+		}
+
+		if _appId, _userId, err := decToken(token); err != nil {
+			t.Errorf("failed to decode token: %s", err)
+		} else if _appId != app.Id {
+			t.Errorf("unexpected appId decoded from token: %s,%s", _appId, app.Id)
+		} else if _userId != userId {
+			t.Errorf("unexpected userId decoded from token: %s,%s", _userId, userId)
+		}
+
+		if _appId, _userId, _roleId, err := decTicket(ticket); err != nil {
+			t.Errorf("failed to decode ticket: %s", err)
+		} else if _appId != app.Id {
+			t.Errorf("unexpected appId decoded from ticket: %s,%s", _appId, app.Id)
+		} else if _userId != userId {
+			t.Errorf("unexpected userId decoded from ticket: %s,%s", _userId, userId)
+		} else if _roleId != roleId {
+			t.Errorf("unexpected roleId decoded from ticket: %s,%s", _roleId, roleId)
 		}
 	}
 }

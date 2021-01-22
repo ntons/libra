@@ -9,6 +9,7 @@ import (
 	"encoding/base32"
 	"encoding/base64"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"path"
 	"sort"
@@ -17,8 +18,6 @@ import (
 	"github.com/sigurn/crc8"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-
-	"github.com/ntons/libra/librad/comm"
 )
 
 // 对象身份(Id)和身份凭证(Cred)
@@ -31,100 +30,75 @@ import (
 // * 最终输出的运算结果需经过base32编码的，为了空间效率，长度为5的倍数。
 // * 最终输出的运算结果需经过base64编码的，为了空间效率，长度为3的倍数。
 
-// userId{10}: appKey{4}+random{5}+random{1}&0xF0|0x1
-// roleId{10}: appKey{4}+random{5}+random{1}&0xF0|0x2
-// token{18}:  ivSeed{1}+appKey{4}+aes(userId[4:]{6}+random{6}+CRC8)
-// ticket{18}: ivSeed{1}+appKey{4}+aes(userId[4:]{6}+random{6}+CRC8)
+// userId{10}: appKey{4}+rand{5}+rand{1}&0xF0|0x1
+// roleId{10}: appKey{4}+rand{5}+rand{1}&0xF0|0x2
+// token{18}:  ivSeed{1}+appKey{4}+aes(userId[4:]{6}+rand{6}+CRC8)
+// ticket{18}: ivSeed{1}+appKey{4}+aes(roleId[4:]{6}+rand{6}+CRC8)
 
 const (
-	xIdLen   = 10
-	xCredLen = 18
+	rawIdLen   = 10
+	rawCredLen = 18
 )
-
-type xId [xIdLen]byte
-type xCred [xCredLen]byte
 
 var (
 	table = crc8.MakeTable(crc8.CRC8_DVB_S2)
-	b32   = base32.StdEncoding
-	b64   = base64.StdEncoding
 )
 
-// use base32 encoding id for readability
-func encId(id xId) string {
-	return b32.EncodeToString(id[:])
-}
-func decId(s string) (id xId, ok bool) {
-	n, err := b32.Decode(id[:], comm.S2B(s))
-	return id, err == nil && n == xIdLen
-}
-
-func encCred(cred xCred) string {
-	return b64.EncodeToString(cred[:])
-}
-func decCred(s string) (cred xCred, ok bool) {
-	n, err := b64.Decode(cred[:], comm.S2B(s))
-	return cred, err == nil && n == xCredLen
-}
-
 // generate id
-func newId(appKey uint32, tag uint8) (id xId) {
-	binary.BigEndian.PutUint32(id[:], appKey)
+func newId(appKey uint32, tag uint8) string {
+	id := make([]byte, rawIdLen)
+	binary.BigEndian.PutUint32(id, appKey)
 	io.ReadFull(rand.Reader, id[4:])
-	id[xIdLen-1] = id[xIdLen-1]&0xF0 | tag
-	return
+	id[rawIdLen-1] = id[rawIdLen-1]&0xF0 | tag
+	return base32.StdEncoding.EncodeToString(id)
 }
-func newUserId(appKey uint32) string {
-	return encId(newId(appKey, 0x1))
-}
-func newRoleId(appKey uint32) string {
-	return encId(newId(appKey, 0x2))
-}
+func newUserId(appKey uint32) string { return newId(appKey, 0x1) }
+func newRoleId(appKey uint32) string { return newId(appKey, 0x2) }
 
-// generate cred
-func newCred(id xId, block cipher.Block) (cred xCred) {
-	io.ReadFull(rand.Reader, cred[:])
-	copy(cred[1:1+xIdLen], id[:])
-	cred[xCredLen-1] = crc8.Checksum(cred[:xCredLen-1], table)
-	iv := bytes.Repeat(cred[:1], aes.BlockSize)
-	stream := cipher.NewCTR(block, iv)
-	stream.XORKeyStream(cred[5:], cred[5:])
-	return
-}
-
-// extract appKey from cred
-func getAppKeyFromCred(cred xCred) (appKey uint32) {
-	return binary.BigEndian.Uint32(cred[1:5])
-}
-
-// decode cred
-func getIdFromCred(cred xCred, block cipher.Block) (id xId, ok bool) {
-	iv := bytes.Repeat(cred[:1], aes.BlockSize)
-	stream := cipher.NewCTR(block, iv)
-	stream.XORKeyStream(cred[5:], cred[5:])
-	if cred[xCredLen-1] != crc8.Checksum(cred[:xCredLen-1], table) {
-		return id, false
+func genCred(app *xApp, id string) (string, error) {
+	rawId, err := base32.StdEncoding.DecodeString(id)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode id: %w", err)
 	}
-	copy(id[:], cred[1:1+xIdLen])
-	return id, true
+	if len(rawId) != rawIdLen {
+		return "", fmt.Errorf("bad raw role id length: %d", len(rawId))
+	}
+	if app.Key != binary.BigEndian.Uint32(rawId[:4]) {
+		return "", fmt.Errorf("mismatched app key and id")
+	}
+	b := make([]byte, rawCredLen)
+	io.ReadFull(rand.Reader, b[:1])
+	copy(b[1:], rawId[:])
+	io.ReadFull(rand.Reader, b[1+rawIdLen:])
+	b[rawCredLen-1] = crc8.Checksum(b[:rawCredLen-1], table)
+	stream := cipher.NewCTR(app.block, bytes.Repeat(b[:1], aes.BlockSize))
+	stream.XORKeyStream(b[5:], b[5:])
+	return base64.StdEncoding.EncodeToString(b), nil
+}
+func decCred(t string) (app *xApp, id string, err error) {
+	b, err := base64.StdEncoding.DecodeString(t)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to decode cred: %w", err)
+	}
+	if len(b) != rawCredLen {
+		return nil, "", fmt.Errorf("bad raw cred length: %d", len(b))
+	}
+	if app = getAppByKey(binary.BigEndian.Uint32(b[1:5])); app == nil {
+		return nil, "", fmt.Errorf("bad app key")
+	}
+	stream := cipher.NewCTR(app.block, bytes.Repeat(b[:1], aes.BlockSize))
+	stream.XORKeyStream(b[5:], b[5:])
+	if b[rawCredLen-1] != crc8.Checksum(b[:rawCredLen-1], table) {
+		return nil, "", fmt.Errorf("bad checksum")
+	}
+	rawId := make([]byte, rawIdLen)
+	copy(rawId, b[1:1+rawIdLen])
+	return app, base32.StdEncoding.EncodeToString(rawId), nil
 }
 
-// token associated sess
-type xSess struct{ appId, userId string }
-type xSessKey struct{}
-
-func (sess *xSess) getAppId() string {
-	if sess == nil {
-		return ""
-	}
-	return sess.appId
-}
-func (sess *xSess) getUserId() string {
-	if sess == nil {
-		return ""
-	}
-	return sess.userId
-}
+// token associated session
+type xSession struct{ appId, userId string }
+type xSessionKey struct{}
 
 // login state required interceptor
 type tokenRequired struct {
@@ -148,23 +122,16 @@ func (lr *tokenRequired) InterceptUnary(
 	if !ok || len(md.Get(xLibraToken)) == 0 {
 		return nil, errInvalidToken
 	}
-	appId, userId, err := db.checkToken(ctx, md.Get(xLibraToken)[0])
+	appId, userId, err := checkToken(ctx, md.Get(xLibraToken)[0])
 	if err != nil {
 		return
 	}
-	sess := &xSess{appId: appId, userId: userId}
-	return handler(context.WithValue(ctx, xSessKey{}, sess), req)
+	ctx = context.WithValue(ctx, xSessionKey{}, xSession{appId, userId})
+	return handler(ctx, req)
 }
 
-// fetch sess from context
-// sess must exist in login required methods
-func getSessFromContext(ctx context.Context) *xSess {
-	sess, _ := ctx.Value(xSessKey{}).(*xSess)
-	return sess
-}
-func (lr *tokenRequired) getSessAppIdFromContext(ctx context.Context) string {
-	return getSessFromContext(ctx).getAppId()
-}
-func (lr *tokenRequired) getUserIdFromContext(ctx context.Context) string {
-	return getSessFromContext(ctx).getUserId()
+// fetch session from context, session must exist at login required methods
+func getSessionFromContext(ctx context.Context) (appId, userId string) {
+	s, _ := ctx.Value(xSessionKey{}).(xSession)
+	return s.appId, s.userId
 }

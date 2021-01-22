@@ -11,16 +11,17 @@ import (
 	"github.com/ntons/libra/librad/comm"
 )
 
-func toRoleData(x *xRole) *v1.RoleData {
+func fromRole(x *xRole) *v1.RoleData {
 	return &v1.RoleData{
 		Id:       x.Id,
+		Index:    x.Index,
 		Metadata: x.Metadata,
 	}
 }
-func toRoleDataList(a []*xRole) []*v1.RoleData {
+func fromRoleList(a []*xRole) []*v1.RoleData {
 	r := make([]*v1.RoleData, 0, len(a))
 	for _, x := range a {
-		r = append(r, toRoleData(x))
+		r = append(r, fromRole(x))
 	}
 	return r
 }
@@ -39,36 +40,33 @@ func newRoleServer() *roleServer {
 func (srv *roleServer) List(
 	ctx context.Context, req *v1.RoleListRequest) (
 	resp *v1.RoleListResponse, err error) {
-	sess := getSessFromContext(ctx)
-	roles, err := db.listRoles(ctx, sess.appId, sess.userId)
+	appId, userId := getSessionFromContext(ctx)
+	roles, err := listRoles(ctx, appId, userId)
 	if err != nil {
 		log.Warnf("failed to list roles: %v", err)
 		return
 	}
-	return &v1.RoleListResponse{Roles: toRoleDataList(roles)}, nil
+	return &v1.RoleListResponse{Roles: fromRoleList(roles)}, nil
 }
 func (srv *roleServer) Create(
 	ctx context.Context, req *v1.RoleCreateRequest) (
 	resp *v1.RoleCreateResponse, err error) {
-	sess := getSessFromContext(ctx)
-	role, err := db.createRole(ctx, sess.appId, sess.userId, req.Index)
+	appId, userId := getSessionFromContext(ctx)
+	role, err := createRole(ctx, appId, userId, req.Index)
 	if err != nil {
 		return
 	}
-	return &v1.RoleCreateResponse{Role: toRoleData(role)}, nil
+	return &v1.RoleCreateResponse{Role: fromRole(role)}, nil
 }
 func (srv *roleServer) SignIn(
 	ctx context.Context, req *v1.RoleSignInRequest) (
 	resp *v1.RoleSignInResponse, err error) {
-	sess := getSessFromContext(ctx)
-	role, err := db.getRole(ctx, sess.appId, req.RoleId)
+	appId, userId := getSessionFromContext(ctx)
+	role, err := signInRole(ctx, appId, userId, req.RoleId)
 	if err != nil {
 		return
 	}
-	if sess.userId != role.UserId {
-		return nil, errRoleNotFound
-	}
-	ticket, err := db.newTicket(ctx, sess.appId, role.Id)
+	ticket, err := newTicket(ctx, appId, role)
 	if err != nil {
 		return
 	}
@@ -79,9 +77,9 @@ func (srv *roleServer) SignIn(
 func (srv *roleServer) SetMetadata(
 	ctx context.Context, req *v1.RoleSetMetadataRequest) (
 	resp *v1.RoleSetMetadataResponse, err error) {
-	sess := getSessFromContext(ctx)
-	if err = db.setRoleMetadata(
-		ctx, sess.appId, sess.userId, req.RoleId, req.Metadata); err != nil {
+	appId, userId := getSessionFromContext(ctx)
+	if err = setRoleMetadata(
+		ctx, appId, userId, req.RoleId, req.Metadata); err != nil {
 		return
 	}
 	return &v1.RoleSetMetadataResponse{}, nil

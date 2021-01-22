@@ -5,8 +5,11 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"math/rand"
+	"sort"
+	"strings"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -16,6 +19,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"github.com/ntons/libra/librad/comm"
 )
 
 // |- librad_config |- apps
@@ -32,9 +37,22 @@ const (
 )
 
 var (
-	// global database instance
-	db *database
+	mcli *mongo.Client
+	rcli *redis.Client
+
+	dbCtx context.Context
+	// cached collection
+	dbAppCollection     *mongo.Collection
+	dbAppUserCollection = make(map[string]*mongo.Collection)
+	dbAppRoleCollection = make(map[string]*mongo.Collection)
+	// app cache loaded from database
+	apps unsafe.Pointer
 )
+
+func init() {
+	// initialize apps to empty
+	atomic.StorePointer(&apps, unsafe.Pointer(newAppMgr([]*xApp{})))
+}
 
 // Schemes:
 type xApp struct {
@@ -46,6 +64,8 @@ type xApp struct {
 	Secret string `bson:"secret,omitempty"`
 	// 应用指纹指纹，特异化应用数据，增加安全性
 	Fingerprint string `bson:"fingerprint,omitempty"`
+	// 允许的服务
+	Permissions []string `bson:"permissions,omitempty"`
 	// AES密钥，由Fingerprint生成
 	block cipher.Block
 }
@@ -81,6 +101,14 @@ type xRole struct {
 	Metadata map[string]string `bson:"metadata,omitempty"`
 }
 
+// role的一个不可变子集，存在ticket缓存冲用于快速获取。
+// 注意这里的数据必须是不可变的，可变数据的修改无法同步到已生成的ticket中
+type xTicketRole struct {
+	Id     string `json:"id,omitempty"`
+	Index  uint32 `json:"index,omitempty"`
+	UserId string `json:"user_id,omitempty"`
+}
+
 // app manager index apps by id and key
 type xAppMgr struct {
 	idIndex  map[string]*xApp
@@ -96,6 +124,8 @@ func newAppMgr(list []*xApp) *xAppMgr {
 		// hash fingerprint to 32 bytes byte array, NewCipher must success
 		hash := sha256.Sum256([]byte(app.Fingerprint))
 		app.block, _ = aes.NewCipher(hash[:])
+		// sort permissions
+		sort.Strings(app.Permissions)
 		// id and key must unique due to db index
 		mgr.idIndex[app.Id] = app
 		mgr.keyIndex[app.Key] = app
@@ -116,28 +146,14 @@ func ticketKey(roleId string) string {
 	return fmt.Sprintf("ticket:{%s}", roleId)
 }
 
-type database struct {
-	// life-time context
-	ctx context.Context
-	// db handlers
-	r *redis.Client
-	m *mongo.Client
-	// collection handlers
-	appCollection     *mongo.Collection
-	appUserCollection map[string]*mongo.Collection
-	appRoleCollection map[string]*mongo.Collection
-	// app map pointer
-	apps unsafe.Pointer
-}
-
-func dialRedis(cfg *config) (_ *redis.Client, err error) {
+func dialRedis() (_ *redis.Client, err error) {
 	o, err := redis.ParseURL(cfg.Redis)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse redis url: %w", err)
 	}
 	return redis.NewClient(o), nil
 }
-func dialMongo(ctx context.Context, cfg *config) (_ *mongo.Client, err error) {
+func dialMongo(ctx context.Context) (_ *mongo.Client, err error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	cli, err := mongo.NewClient(options.Client().ApplyURI(cfg.Mongo))
@@ -149,33 +165,44 @@ func dialMongo(ctx context.Context, cfg *config) (_ *mongo.Client, err error) {
 	}
 	return cli, nil
 }
-func dialDatabase(ctx context.Context, cfg *config) (_ *database, err error) {
-	r, err := dialRedis(cfg)
-	if err != nil {
+func dialDatabase(ctx context.Context) (err error) {
+	if rcli, err = dialRedis(); err != nil {
 		return
 	}
-	m, err := dialMongo(ctx, cfg)
-	if err != nil {
+	if mcli, err = dialMongo(ctx); err != nil {
 		return
 	}
-	db := &database{
-		ctx:               ctx,
-		r:                 r,
-		m:                 m,
-		appUserCollection: make(map[string]*mongo.Collection),
-		appRoleCollection: make(map[string]*mongo.Collection),
-	}
-	atomic.StorePointer(&db.apps, unsafe.Pointer(newAppMgr([]*xApp{})))
-	return db, nil
+	dbCtx = ctx
+	return
 }
-func (db *database) Serve() {
+
+func dbServe(ctx context.Context) {
+	// load app configurations from database
+	loadApps := func(ctx context.Context) (err error) {
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+		collection, err := getAppCollection(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get app collection: %w", err)
+		}
+		cursor, err := collection.Find(ctx, bson.D{})
+		if err != nil {
+			return fmt.Errorf("failed to query apps: %w", err)
+		}
+		var res []*xApp
+		if err = cursor.All(ctx, &res); err != nil {
+			return
+		}
+		atomic.StorePointer(&apps, unsafe.Pointer(newAppMgr(res)))
+		return
+	}
 	for {
-		if err := db.loadApps(db.ctx); err != nil {
+		if err := loadApps(ctx); err != nil {
 			log.Warnf("failed to load apps: %v", err)
 		}
 		jitter := time.Duration(rand.Int63n(int64(30 * time.Second)))
 		select {
-		case <-db.ctx.Done():
+		case <-ctx.Done():
 			return
 		case <-time.After(45*time.Second + jitter): // [45s,75s)
 		}
@@ -183,14 +210,13 @@ func (db *database) Serve() {
 }
 
 // get app collection
-func (db *database) getAppCollection(
-	ctx context.Context) (*mongo.Collection, error) {
-	if db.appCollection != nil {
-		return db.appCollection, nil
+func getAppCollection(ctx context.Context) (*mongo.Collection, error) {
+	if dbAppCollection != nil {
+		return dbAppCollection, nil
 	}
 	const collectionName = "apps"
 	dbName := dbNamePrefix + "config"
-	collection := db.m.Database(dbName).Collection(collectionName)
+	collection := mcli.Database(dbName).Collection(collectionName)
 	if _, err := collection.Indexes().CreateOne(
 		ctx,
 		mongo.IndexModel{
@@ -200,18 +226,18 @@ func (db *database) getAppCollection(
 	); err != nil {
 		return nil, fmt.Errorf("failed to create index: %w", err)
 	}
-	db.appCollection = collection
+	dbAppCollection = collection
 	return collection, nil
 }
 
 // get user collection of app
-func (db *database) getUserCollection(
+func getUserCollection(
 	ctx context.Context, appId string) (*mongo.Collection, error) {
 	const collectionName = "users"
-	if collection, ok := db.appUserCollection[appId]; ok {
+	if collection, ok := dbAppUserCollection[appId]; ok {
 		return collection, nil
 	}
-	collection := db.m.Database(dbNamePrefix + appId).Collection(collectionName)
+	collection := mcli.Database(dbNamePrefix + appId).Collection(collectionName)
 	if _, err := collection.Indexes().CreateOne(
 		ctx,
 		mongo.IndexModel{
@@ -221,18 +247,18 @@ func (db *database) getUserCollection(
 	); err != nil {
 		return nil, fmt.Errorf("failed to create index: %w", err)
 	}
-	db.appUserCollection[appId] = collection
+	dbAppUserCollection[appId] = collection
 	return collection, nil
 }
 
 // get role collection of app
-func (db *database) getRoleCollection(
+func getRoleCollection(
 	ctx context.Context, appId string) (*mongo.Collection, error) {
 	const collectionName = "roles"
-	if collection, ok := db.appRoleCollection[appId]; ok {
+	if collection, ok := dbAppRoleCollection[appId]; ok {
 		return collection, nil
 	}
-	collection := db.m.Database(dbNamePrefix + appId).Collection(collectionName)
+	collection := mcli.Database(dbNamePrefix + appId).Collection(collectionName)
 	if _, err := collection.Indexes().CreateOne(
 		ctx,
 		mongo.IndexModel{
@@ -242,69 +268,60 @@ func (db *database) getRoleCollection(
 	); err != nil {
 		return nil, fmt.Errorf("failed to create index: %w", err)
 	}
-	db.appRoleCollection[appId] = collection
+	dbAppRoleCollection[appId] = collection
 	return collection, nil
 }
 
-// load app configurations from database
-func (db *database) loadApps(ctx context.Context) (err error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	collection, err := db.getAppCollection(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get app collection: %w", err)
-	}
-	cursor, err := collection.Find(ctx, bson.D{})
-	if err != nil {
-		return fmt.Errorf("failed to query apps: %w", err)
-	}
-	var res []*xApp
-	if err = cursor.All(ctx, &res); err != nil {
-		return
-	}
-	atomic.StorePointer(&db.apps, unsafe.Pointer(newAppMgr(res)))
-	return
+// get app by id or key, nil will be returned when not exists
+func getAppById(appId string) *xApp {
+	return (*xAppMgr)(atomic.LoadPointer(&apps)).findById(appId)
+}
+func getAppByKey(appKey uint32) *xApp {
+	return (*xAppMgr)(atomic.LoadPointer(&apps)).findByKey(appKey)
 }
 
-// get app by id or key, nil will be returned when not exists
-func (db *database) getAppById(appId string) *xApp {
-	return (*xAppMgr)(atomic.LoadPointer(&db.apps)).findById(appId)
-}
-func (db *database) getAppByKey(appKey uint32) *xApp {
-	return (*xAppMgr)(atomic.LoadPointer(&db.apps)).findByKey(appKey)
+func getRoleById(
+	ctx context.Context, appId, roleId string) (_ *xRole, err error) {
+	collection, err := getRoleCollection(ctx, appId)
+	if err != nil {
+		return
+	}
+	role := &xRole{}
+	if err = collection.FindOne(
+		ctx,
+		bson.M{"_id": roleId},
+	).Decode(role); err != nil {
+		if err == mongo.ErrNoDocuments {
+			err = errRoleNotFound
+		} else {
+			err = errDatabaseUnavailable
+		}
+		return
+	}
+	return role, nil
 }
 
 // generate a new token
-func (db *database) newToken(
-	ctx context.Context, app *xApp, userId string) (_ string, err error) {
-	id, ok := decId(userId)
-	if !ok {
-		return "", fmt.Errorf("failed to decode user id: %s", userId)
+func newToken(
+	ctx context.Context, app *xApp, userId string) (token string, err error) {
+	if token, err = genCred(app, userId); err != nil {
+		return
 	}
-	token := encCred(newCred(id, app.block))
-	if err = db.r.Set(ctx, tokenKey(userId), token, 0).Err(); err != nil {
+	if err = rcli.Set(ctx, tokenKey(userId), token, 0).Err(); err != nil {
 		return
 	}
 	return token, nil
 }
 
 // check whether a token is available and retrieve the associated data
-func (db *database) checkToken(
+func checkToken(
 	ctx context.Context, token string) (appId, userId string, err error) {
-	cred, ok := decCred(token)
-	if !ok {
+	app, userId, err := decCred(token)
+	if err != nil {
+		log.Warnf("failed to decode token: %v", err)
 		return "", "", errInvalidToken
 	}
-	app := db.getAppByKey(getAppKeyFromCred(cred))
-	if app == nil {
-		return "", "", errInvalidToken
-	}
-	id, ok := getIdFromCred(cred, app.block)
-	if !ok {
-		return "", "", errInvalidToken
-	}
-	appId, userId = app.Id, encId(id)
-	if target, err := db.r.Get(ctx, tokenKey(userId)).Result(); err != nil {
+	if target, err := rcli.Get(ctx, tokenKey(userId)).Result(); err != nil {
 		if err == redis.Nil {
 			return "", "", errInvalidToken
 		} else {
@@ -314,70 +331,64 @@ func (db *database) checkToken(
 	} else if target != token {
 		return "", "", errInvalidToken
 	}
-	return
+	return app.Id, userId, nil
 }
 
 // generate a new ticket
-func (db *database) newTicket(
-	ctx context.Context, appId, roleId string) (_ string, err error) {
-	ticket := "" //newTicket(appId, roleId)
-	if err = db.r.Set(ctx, ticketKey(roleId), ticket, 0).Err(); err != nil {
+func newTicket(
+	ctx context.Context, appId string, role *xRole) (_ string, err error) {
+	app := getAppById(appId)
+	if err != nil {
+		return "", errInvalidAppId
+	}
+	ticket, err := genCred(app, role.Id)
+	if err != nil {
+		return
+	}
+	data, _ := json.Marshal(&xTicketRole{
+		Index:  role.Index,
+		UserId: role.UserId,
+	})
+	sb := strings.Builder{}
+	sb.Grow(len(ticket) + len(data))
+	sb.WriteString(ticket)
+	sb.Write(data)
+	if err = rcli.Set(
+		ctx, ticketKey(role.Id), sb.String(), 0).Err(); err != nil {
 		return
 	}
 	return ticket, nil
 }
 
 // check whether a ticket is available and retrieve the associated data
-func (db *database) checkTicket(
-	ctx context.Context, ticket string) (appId, roleId string, err error) {
-	cred, ok := decCred(ticket)
-	if !ok {
-		return "", "", errInvalidTicket
+func checkTicket(
+	ctx context.Context, ticket string) (
+	app *xApp, role *xTicketRole, err error) {
+	app, roleId, err := decCred(ticket)
+	if err != nil {
+		return nil, nil, errInvalidTicket
 	}
-	app := db.getAppByKey(getAppKeyFromCred(cred))
-	if app == nil {
-		return "", "", errInvalidTicket
-	}
-	id, ok := getIdFromCred(cred, app.block)
-	if !ok {
-		return "", "", errInvalidTicket
-	}
-	appId, roleId = app.Id, encId(id)
-	if target, err := db.r.Get(ctx, ticketKey(roleId)).Result(); err != nil {
+	v, err := rcli.Get(ctx, ticketKey(roleId)).Result()
+	if err != nil {
 		if err == redis.Nil {
-			return "", "", errInvalidToken
+			return nil, nil, errInvalidToken
 		} else {
 			log.Warnf("failed to get ticket from redis: %v", err)
-			return "", "", errDatabaseUnavailable
+			return nil, nil, errDatabaseUnavailable
 		}
-	} else if target != ticket {
-		return "", "", errInvalidTicket
+	}
+	if !strings.HasPrefix(v, ticket) {
+		return nil, nil, errInvalidTicket
+	}
+	if err = json.Unmarshal(comm.S2B(v[len(ticket):]), &role); err != nil {
+		return nil, nil, errInvalidTicket
 	}
 	return
 }
 
-// get user from database by id
-func (db *database) getUser(
-	ctx context.Context, appId, userId string) (_ *xUser, err error) {
-	collection, err := db.getUserCollection(ctx, appId)
-	if err != nil {
-		return
-	}
-	user := &xUser{}
-	if err = collection.FindOne(
-		ctx, bson.M{"_id": userId}).Decode(user); err != nil {
-		if err == mongo.ErrNoDocuments {
-			err = errUserNotFound
-		}
-		return
-	}
-	return user, nil
-}
-
-// login user by acctId
-func (db *database) loginUser(
+func loginUser(
 	ctx context.Context, app *xApp, acctId []string) (_ *xUser, err error) {
-	collection, err := db.getUserCollection(ctx, app.Id)
+	collection, err := getUserCollection(ctx, app.Id)
 	if err != nil {
 		return
 	}
@@ -403,10 +414,9 @@ func (db *database) loginUser(
 	return user, nil
 }
 
-// bind a new acctId to existed user
-func (db *database) bindAcctIdToUser(
+func bindAcctIdToUser(
 	ctx context.Context, appId, userId, acctId string) (err error) {
-	collection, err := db.getUserCollection(ctx, appId)
+	collection, err := getUserCollection(ctx, appId)
 	if err != nil {
 		return
 	}
@@ -425,11 +435,10 @@ func (db *database) bindAcctIdToUser(
 	return
 }
 
-// set user's metadata
-func (db *database) setUserMetadata(
+func setUserMetadata(
 	ctx context.Context, appId, userId string,
 	md map[string]string) (err error) {
-	collection, err := db.getUserCollection(ctx, appId)
+	collection, err := getUserCollection(ctx, appId)
 	if err != nil {
 		return
 	}
@@ -452,28 +461,9 @@ func (db *database) setUserMetadata(
 	return
 }
 
-// get role by id
-func (db *database) getRole(
-	ctx context.Context, appId, roleId string) (_ *xRole, err error) {
-	collection, err := db.getRoleCollection(ctx, appId)
-	if err != nil {
-		return
-	}
-	role := &xRole{}
-	if err = collection.FindOne(
-		ctx, bson.M{"_id": roleId}).Decode(role); err != nil {
-		if err == mongo.ErrNoDocuments {
-			err = errRoleNotFound
-		}
-		return
-	}
-	return role, nil
-}
-
-// list all roles of user
-func (db *database) listRoles(
+func listRoles(
 	ctx context.Context, appId, userId string) (_ []*xRole, err error) {
-	collection, err := db.getRoleCollection(ctx, appId)
+	collection, err := getRoleCollection(ctx, appId)
 	if err != nil {
 		return
 	}
@@ -488,15 +478,14 @@ func (db *database) listRoles(
 	return roles, nil
 }
 
-// create a new role of user
-func (db *database) createRole(
+func createRole(
 	ctx context.Context, appId, userId string, index uint32) (
 	_ *xRole, err error) {
-	app := db.getAppById(appId)
+	app := getAppById(appId)
 	if app == nil {
 		return nil, errInvalidAppId
 	}
-	collection, err := db.getRoleCollection(ctx, appId)
+	collection, err := getRoleCollection(ctx, appId)
 	if err != nil {
 		return
 	}
@@ -512,32 +501,32 @@ func (db *database) createRole(
 	return role, nil
 }
 
-// sign-in a role
-func (db *database) signInRole(
-	ctx context.Context, appId, roleId string) (_ *xRole, err error) {
-	collection, err := db.getRoleCollection(ctx, appId)
+func signInRole(
+	ctx context.Context, appId, userId, roleId string) (_ *xRole, err error) {
+	collection, err := getRoleCollection(ctx, appId)
 	if err != nil {
 		return
 	}
 	role := &xRole{}
 	if err = collection.FindOneAndUpdate(
 		ctx,
-		bson.M{"_id": roleId},
+		bson.M{"_id": roleId, "user_id": userId},
 		bson.M{"$set": bson.M{"sign_in_time": time.Now()}},
-	).Decode(&role); err != nil {
+	).Decode(role); err != nil {
 		if err == mongo.ErrNoDocuments {
 			err = errRoleNotFound
+		} else {
+			err = errDatabaseUnavailable
 		}
 		return
 	}
 	return
 }
 
-// get role's metadata
-func (db *database) setRoleMetadata(
+func setRoleMetadata(
 	ctx context.Context, appId, userId, roleId string,
 	md map[string]string) (err error) {
-	collection, err := db.getRoleCollection(ctx, appId)
+	collection, err := getRoleCollection(ctx, appId)
 	if err != nil {
 		return
 	}
@@ -551,7 +540,7 @@ func (db *database) setRoleMetadata(
 	}
 	if _, err = collection.UpdateOne(
 		ctx,
-		bson.M{"_id": roleId, "user_id": userId}, // role must belong to user
+		bson.M{"_id": roleId, "user_id": userId},
 		bson.M{"$set": set, "$unset": unset},
 	); err != nil {
 		return

@@ -132,8 +132,9 @@ func newHttpServer() *http.Server {
 // is used instead of grpc http/2 implementation.
 // The x/net/htt2 impact the performance by about 50% lower on some cases.
 // If only grpc services registered, prefer grpc http/2 to x/net/http2
-func serve(cfg *Config) (err error) {
+func serve() (err error) {
 	var (
+		cfg      = comm.Config // for short
 		wg       sync.WaitGroup
 		grpcOnly = true
 		grpcConn *grpc.ClientConn

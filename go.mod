@@ -26,4 +26,4 @@ require (
 	google.golang.org/protobuf v1.25.0
 )
 
-//#replace github.com/ntons/libra-go => /root/ntons/libra-go
+//replace github.com/ntons/libra-go => /root/ntons/libra-go
