@@ -15,15 +15,16 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/ntons/libra/librad/comm"
-	_ "github.com/ntons/libra/librad/database"
-	_ "github.com/ntons/libra/librad/echo"
-	_ "github.com/ntons/libra/librad/gateway"
-	_ "github.com/ntons/libra/librad/portal"
-	_ "github.com/ntons/libra/librad/ranking"
+	"github.com/ntons/libra/librad/internal/comm"
+	_ "github.com/ntons/libra/librad/internal/database"
+	_ "github.com/ntons/libra/librad/internal/gateway"
+	_ "github.com/ntons/libra/librad/internal/portal"
+	_ "github.com/ntons/libra/librad/internal/ranking"
 )
 
 const (
@@ -31,12 +32,33 @@ const (
 	xCookie = "x-cookie-x-libra-"
 )
 
+const (
+	// alian serving status
+	xStatusUnknown    = grpc_health_v1.HealthCheckResponse_UNKNOWN
+	xStatusServing    = grpc_health_v1.HealthCheckResponse_SERVING
+	xStatusNotServing = grpc_health_v1.HealthCheckResponse_NOT_SERVING
+)
+
 var (
 	quit           = make(chan struct{}, 1)
 	grpcServer     = newGrpcServer()
 	grpcGatewayMux = newGrpcGatewayServeMux()
 	httpMux        = http.NewServeMux()
+	healthServer   = health.NewServer()
 )
+
+func registerHealthServer() {
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+}
+
+func shutdownHealthServer() {
+	healthServer.Shutdown()
+}
+
+func setStatus(
+	name string, status grpc_health_v1.HealthCheckResponse_ServingStatus) {
+	healthServer.SetServingStatus(name, status)
+}
 
 func newGrpcServer() *grpc.Server {
 	return grpc.NewServer(
@@ -179,7 +201,7 @@ func serve() (err error) {
 		}
 		wg.Add(1)
 		go func(svc comm.Service) { defer wg.Done(); svc.Serve() }(svc)
-		defer svc.Close()
+		defer svc.Stop()
 		setStatus(name, xStatusServing)
 		log.Infow("service registered", "name", name)
 	}

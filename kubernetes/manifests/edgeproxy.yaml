@@ -1,0 +1,72 @@
+# Gateway for clients accessing libra
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: edgeproxy
+  namespace: libra
+  labels:
+    app: edgeproxy
+spec:
+  ports:
+  - port: 80
+    name: grpc
+    nodePort: 30080
+  type: NodePort # expose service by NodePort
+  selector:
+    app: edgeproxy
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edgeproxy
+  namespace: libra
+  labels:
+    app: edgeproxy
+spec:
+  selector:
+    matchLabels:
+      app: edgeproxy
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: edgeproxy
+    spec:
+      containers:
+      - name: proxy
+        image: envoyproxy/envoy-alpine:v1.16-latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+        - containerPort: 8000
+        volumeMounts:
+        - name: config
+          mountPath: /etc/envoy
+          readOnly: true
+      - name: helper
+        image: instrumentisto/rsync-ssh:latest
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: config
+          mountPath: /etc/envoy
+        - name: configmap
+          mountPath: /tmp/envoy
+        command: ["sh", "-c", "while true; do rsync -dLptgo --delete /tmp/envoy/ /etc/envoy/ && sleep 1 || break; done"]
+      initContainers:
+      - name: init-helper
+        image: instrumentisto/rsync-ssh:latest
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: config
+          mountPath: /etc/envoy
+        - name: configmap
+          mountPath: /tmp/envoy
+        command: ["sh", "-c", "rsync -dLptgo --delete /tmp/envoy/ /etc/envoy/"]
+      volumes:
+      - name: config
+        emptyDir: {}
+      - name: configmap
+        configMap:
+          name: edgeproxy
+---

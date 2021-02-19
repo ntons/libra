@@ -1,10 +1,10 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
-RUN set -x && \
-        apt-get update && \
-        apt-get install -y curl dnsutils net-tools && \
-        apt-get clean && \
-        rm -rf /var/lib/apt/lists/*
+#RUN set -x && \
+#        apt-get update && \
+#        apt-get install -y curl dnsutils net-tools && \
+#        apt-get clean && \
+#        rm -rf /var/lib/apt/lists/*
 
 WORKDIR /data
 

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: librad-env
+  namespace: libra
+data:
+  DEV:                      'on'
+  PORTAL_REDIS:             redis://redis-0.redis.dev.svc.cluster.local:6379/1
+  PORTAL_MONGO:             mongodb://mongo-0.mongo.dev.svc.cluster.local:27017
+  DATABASE_REDIS:           redis://redis-0.redis.dev.svc.cluster.local:6379/2
+  DATABASE_MONGO:           mongodb://mongo-1.mongo.dev.svc.cluster.local:27017
+  MAILBOX_REDIS:            redis://redis-0.redis.dev.svc.cluster.local:6379/3
+  MAILBOX_MONGO:            mongodb://mongo-2.mongo.dev.svc.cluster.local:27017
+  DISTLOCK_REDIS:           redis://redis-0.redis.dev.svc.cluster.local:6379/4
+  DISTLOCK_TTL:             10s
+  BUBBLECHART_REDIS:        redis://redis-0.redis.dev.svc.cluster.local:6379/5
+  LEADERBOARD_REDIS:        redis://redis-0.redis.dev.svc.cluster.local:6379/6
+  GATEWAY_BROADCAST_REDIS:  redis://redis-0.redis.dev.svc.cluster.local:6379/7
+---

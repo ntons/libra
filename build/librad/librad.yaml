@@ -1,28 +1,32 @@
 # librad configuration
 # enable/disable service(s) by command line options
 
-bind: {{ "127.0.0.1:80"|env:"LIBRAD_BIND" }}
+bind: {{ ':80'|env:'LIBRAD_BIND' }}
+dev:  {{ 'off'|env:'LIBRAD_DEV' }}
 
 services:
   portal:
-    redis: {{ "unspecified"|env:"LIBRAD_PORTAL_REDIS" }}
-    mongo: {{ "unspecified"|env:"LIBRAD_PORTAL_MONGO" }}
+    redis: {{ 'unspecified'|env:'LIBRAD_PORTAL_REDIS' }}
+    mongo: {{ 'unspecified'|env:'LIBRAD_PORTAL_MONGO' }}
+
+  database:
+    database:
+      redis: {{ 'unspecified'|env:'LIBRAD_DATABASE_REDIS' }}
+      mongo: {{ 'unspecified'|env:'LIBRAD_DATABASE_MONGO' }}
+    mailbox:
+      redis: {{ 'unspecified'|env:'LIBRAD_MAILBOX_REDIS' }}
+      mongo: {{ 'unspecified'|env:'LIBRAD_MAILBOX_MONGO' }}
+    distlock:
+      redis: {{ 'unspecified'|env:'LIBRAD_DISTLOCK_REDIS' }}
+      ttl: {{ '10s'|env:'LIBRAD_DISTLOCK_TTL' }}
+
+  ranking:
+    bubblechart:
+      redis: {{ 'unspecified'|env:'LIBRAD_BUBBLECHART_REDIS' }}
+    leaderboard:
+      redis: {{ 'unspecified'|env:'LIBRAD_LEADERBOARD_REDIS' }}
 
   gateway:
     broadcast:
-      redis: {{ "unspecified"|env:"LIBRAD_GATEWAY_BROADCAST_REDIS" }}
-
-  database:
-    remon:
-      redis: {{ "unspecified"|env:"LIBRAD_DATABASE_REMON_REDIS" }}
-      mongo: {{ "unspecified"|env:"LIBRAD_DATABASE_REMON_MONGO" }}
-    distlock:
-      redis: {{ "unspecified"|env:"LIBRAD_DATABASE_DISTLOCK_REDIS" }}
-      ttl: {{ "10s"|env:"LIBRAD_DATABASE_DISTLOCK_TTL" }}
-
-  ranking:
-    bubble:
-      redis: {{ "unspecified"|env:"LIBRAD_RANKING_BUBBLE_REDIS" }}
-    leaderboard:
-      redis: {{ "unspecified"|env:"LIBRAD_RANKING_LEADERBOARD_REDIS" }}
+      redis: {{ 'unspecified'|env:'LIBRAD_GATEWAY_BROADCAST_REDIS' }}
 

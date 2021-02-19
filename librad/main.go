@@ -15,7 +15,7 @@ import (
 	log "github.com/ntons/log-go"
 	"go.uber.org/zap"
 
-	"github.com/ntons/libra/librad/comm"
+	"github.com/ntons/libra/librad/internal/comm"
 )
 
 // build time variables
@@ -95,9 +95,9 @@ func main() {
 	}
 }
 
-type Strings []string
+type xStrings []string
 
-func (ss *Strings) String() string {
+func (ss *xStrings) String() string {
 	sb := strings.Builder{}
 	for i, s := range *ss {
 		if i > 0 {
@@ -107,7 +107,7 @@ func (ss *Strings) String() string {
 	}
 	return sb.String()
 }
-func (ss *Strings) Set(v string) (err error) {
+func (ss *xStrings) Set(v string) (err error) {
 	i := sort.SearchStrings(*ss, v)
 	if i == len(*ss) || (*ss)[i] != v {
 		*ss = append(*ss, "")
@@ -118,17 +118,17 @@ func (ss *Strings) Set(v string) (err error) {
 }
 
 // command line options override some fileds of config
-type CommandLineOptions struct {
+type xCommandLineOptions struct {
 	// [-c] configuration file path
 	ConfigFilePath string
 	// [-i] include service(s) even not in configuration
-	IncludeServices Strings
+	IncludeServices xStrings
 	// [-e] exclude service(s) from configuration
-	ExcludeServices Strings
+	ExcludeServices xStrings
 }
 
-func parseCommandLineOptions() (clopts *CommandLineOptions, err error) {
-	clopts = &CommandLineOptions{}
+func parseCommandLineOptions() (clopts *xCommandLineOptions, err error) {
+	clopts = &xCommandLineOptions{}
 	flag.StringVar(&clopts.ConfigFilePath, "c", "", "[C]onfig file path")
 	flag.Var(&clopts.IncludeServices, "i", "[I]nclude service")
 	flag.Var(&clopts.ExcludeServices, "e", "[E]xclude service")

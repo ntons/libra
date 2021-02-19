@@ -1,0 +1,19 @@
+# Bootstrap of api proxy
+
+node:
+  id: apiproxy
+  cluster: cluster_apiproxy
+
+admin:
+  access_log_path: "/dev/null"
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 8000
+
+dynamic_resources:
+  cds_config:
+    path: /etc/envoy/cds.yaml
+  lds_config:
+    path: /etc/envoy/lds.yaml
+

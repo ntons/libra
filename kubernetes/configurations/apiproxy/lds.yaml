@@ -1,0 +1,64 @@
+# LDS for dynamic listener configuration
+
+resources:
+- name: listener_apiproxy
+  "@type": type.googleapis.com/envoy.config.listener.v3.Listener
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 80
+  filter_chains:
+  - filters:
+    - name: envoy.filters.network.http_connection_manager
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+        stat_prefix: listener_apiproxy
+        route_config:
+          name: route_apiproxy
+          virtual_hosts:
+          - name: route_apiproxy
+            domains:
+            - "*"
+            routes:
+            - match:
+                path: '/envoy.service.auth.v3.Authorization/Check'
+                grpc: {}
+              route:
+                cluster: cluster_portal_v1
+                timeout: 1s
+            - match:
+                safe_regex:
+                  google_re2: {}
+                  regex: '/libra\.v1\.(User|Role)/.*'
+                grpc: {}
+              route:
+                cluster: cluster_portal_v1
+                timeout: 1s
+            - match:
+                safe_regex:
+                  google_re2: {}
+                  regex: '/libra\.v1\.(Database|Mailbox|Distlock)/.*'
+                grpc: {}
+              route:
+                cluster: cluster_database_v1
+                timeout: 1s
+            - match:
+                safe_regex:
+                  google_re2: {}
+                  regex: '/libra\.v1\.(BubbleChart|Leaderboard)/.*'
+                grpc: {}
+              route:
+                cluster: cluster_ranking_v1
+                timeout: 1s
+            - match:
+                prefix: '/libra.v1.Gateway/'
+                grpc: {}
+              route:
+                cluster: cluster_gateway_v1
+                timeout: 0s
+                hash_policy:
+                - header:
+                    header_name: x-libra-role-id
+        http_filters:
+        - name: envoy.filters.http.router
+
