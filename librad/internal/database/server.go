@@ -12,9 +12,6 @@ import (
 	"github.com/jhump/protoreflect/desc"
 	"github.com/ntons/distlock"
 	"github.com/ntons/remon"
-	"github.com/ntons/remon/mailing"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
 	pb "google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -32,39 +29,42 @@ type server struct {
 	v1pb.UnimplementedDatabaseServer
 	v1pb.UnimplementedMailboxServer
 
-	remon    *remon.Client
-	distlock *distlock.Client
-	mailing  *mailing.Client
+	db remon.Client     // database
+	mb remon.SetClient  // mailbox
+	dl *distlock.Client // distlock
 }
 
-func create(b json.RawMessage) (s comm.Service, err error) {
-	if err = json.Unmarshal(b, cfg); err != nil {
-		return
+func create(b json.RawMessage) (comm.Service, error) {
+	if err := json.Unmarshal(b, cfg); err != nil {
+		return nil, err
 	} else if err = cfg.parse(); err != nil {
-		return
+		return nil, err
 	}
-	srv := &server{}
-	// initalize remon
-	var ro *redis.Options
-	if ro, err = redis.ParseURL(cfg.ReMon.Redis); err != nil {
-		return
-	}
-	r := redis.NewClient(ro)
-	m, err := mongo.NewClient(options.Client().ApplyURI(cfg.ReMon.Mongo))
-	if err != nil {
-		return
-	}
-	if err = m.Connect(context.Background()); err != nil {
-		return
-	}
-	srv.remon = remon.New(r, m)
-	// initalize distlock
-	if ro, err = redis.ParseURL(cfg.Distlock.Redis); err != nil {
-		return
-	}
-	srv.distlock = distlock.New(redis.NewClient(ro))
 
-	srv.mailing = mailing.New(srv.remon)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	srv := &server{}
+
+	if cli, err := dial(
+		ctx, cfg.Database.Redis, cfg.Database.Mongo); err != nil {
+		return nil, err
+	} else {
+		srv.db = cli
+	}
+
+	if cli, err := dial(
+		ctx, cfg.MailBox.Redis, cfg.MailBox.Mongo); err != nil {
+		return nil, err
+	} else {
+		srv.mb = remon.NewSetClient(cli)
+	}
+
+	if ro, err := redis.ParseURL(cfg.Distlock.Redis); err != nil {
+		return nil, err
+	} else {
+		srv.dl = distlock.New(redis.NewClient(ro))
+	}
 
 	return srv, nil
 }
@@ -127,12 +127,12 @@ func hasValidKey(req keyedRequest) bool {
 func (srv *server) Lock(
 	ctx context.Context, req *v1pb.DistlockLockRequest) (
 	*v1pb.DistlockLockResponse, error) {
-	lock, err := srv.distlock.Obtain(ctx, req.Key, cfg.Distlock.ttl)
+	lock, err := srv.dl.Obtain(ctx, req.Key, cfg.Distlock.ttl)
 	if err != nil {
 		return nil, distlockerror(err)
 	}
 	resp := &v1pb.DistlockLockResponse{}
-	if resp.Lock, err = anypb.New(lock); err != nil {
+	if resp.LockToken, err = anypb.New(lock); err != nil {
 		return nil, protoerror(err)
 	}
 	return resp, nil
@@ -141,14 +141,14 @@ func (srv *server) Lock(
 func (srv *server) Unlock(
 	ctx context.Context, req *v1pb.DistlockUnlockRequest) (
 	*v1pb.DistlockUnlockResponse, error) {
-	if req.Lock == nil {
+	if req.LockToken == nil {
 		return nil, errInvalidArgument
 	}
 	var lock = &distlock.Lock{}
-	if err := req.Lock.UnmarshalTo(lock); err != nil {
+	if err := req.LockToken.UnmarshalTo(lock); err != nil {
 		return nil, protoerror(err)
 	}
-	if err := srv.distlock.Release(ctx, lock); err != nil {
+	if err := srv.dl.Release(ctx, lock); err != nil {
 		return nil, distlockerror(err)
 	}
 	return &v1pb.DistlockUnlockResponse{}, nil
@@ -170,16 +170,16 @@ func (srv *server) Get(
 	resp := &v1pb.DatabaseGetResponse{}
 	if req.LockOptions != nil {
 		var lock *distlock.Lock
-		if lock, err = srv.distlock.Obtain(
+		if lock, err = srv.dl.Obtain(
 			ctx, lockKey(req), cfg.Distlock.ttl); err != nil {
 			return nil, distlockerror(err)
 		}
 		defer func() {
 			if err != nil {
-				srv.distlock.Release(ctx, lock)
+				srv.dl.Release(ctx, lock)
 			}
 		}()
-		if resp.Lock, err = anypb.New(lock); err != nil {
+		if resp.LockToken, err = anypb.New(lock); err != nil {
 			return nil, protoerror(err)
 		}
 	}
@@ -190,9 +190,9 @@ func (srv *server) Get(
 		if b, err = pb.Marshal(req.AddIfNotFound); err != nil {
 			return nil, protoerror(err)
 		}
-		s, err = srv.remon.Get(ctx, dbKey(req), remon.AddIfNotFound(comm.B2S(b)))
+		_, s, err = srv.db.Get(ctx, dbKey(req), remon.AddIfNotFound(comm.B2S(b)))
 	} else {
-		s, err = srv.remon.Get(ctx, dbKey(req))
+		_, s, err = srv.db.Get(ctx, dbKey(req))
 	}
 	if err != nil {
 		return nil, remonerror(err)
@@ -216,21 +216,21 @@ func (srv *server) Set(
 	ctx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
 	// check lock and unlock options
-	if req.Lock != nil {
+	if req.LockToken != nil {
 		lock := &distlock.Lock{}
-		if err = req.Lock.UnmarshalTo(lock); err != nil {
+		if err = req.LockToken.UnmarshalTo(lock); err != nil {
 			return nil, protoerror(err)
 		}
-		if err = srv.distlock.Refresh(
+		if err = srv.dl.Refresh(
 			ctx, lock, cfg.Distlock.ttl); err != nil {
 			return nil, distlockerror(err)
 		}
 		if req.UnlockOptions != nil {
 			defer func() {
 				if err == nil {
-					err = srv.distlock.Release(ctx, lock)
+					err = srv.dl.Release(ctx, lock)
 				} else if req.UnlockOptions.EvenOnFailure {
-					srv.distlock.Release(ctx, lock)
+					srv.dl.Release(ctx, lock)
 				}
 			}()
 		}
@@ -239,7 +239,7 @@ func (srv *server) Set(
 	if err != nil {
 		return nil, protoerror(err)
 	}
-	if err = srv.remon.Set(ctx, dbKey(req), comm.B2S(b)); err != nil {
+	if _, err = srv.db.Set(ctx, dbKey(req), comm.B2S(b)); err != nil {
 		return nil, remonerror(err)
 	}
 	return &v1pb.DatabaseSetResponse{}, nil
@@ -254,14 +254,14 @@ func (srv *server) List(
 	if !hasValidKey(req) {
 		return nil, errInvalidArgument
 	}
-	list, err := srv.mailing.List(ctx, dbKey(req))
+	list, err := srv.mb.List(ctx, dbKey(req))
 	if err != nil {
 		return nil, remonerror(err)
 	}
 	resp := &v1pb.MailboxListResponse{}
 	for _, m := range list {
 		resp.Mails = append(resp.Mails, &v1pb.Mail{
-			Id: m.Id, Content: m.Content})
+			Id: m.Id, Content: m.Val})
 	}
 	return resp, nil
 }
@@ -272,9 +272,9 @@ func (srv *server) Push(
 		return nil, errInvalidArgument
 	}
 	resp := &v1pb.MailboxPushResponse{}
-	if resp.MailId, err = srv.mailing.Push(
-		ctx, dbKey(req), req.Content,
-		mailing.WithCapacity(req.Capacity)); err != nil {
+	if resp.MailId, err = srv.mb.Push(
+		ctx, dbKey(req), req.Content, req.Capacity,
+	); err != nil {
 		return nil, remonerror(err)
 	}
 	return resp, nil
@@ -286,7 +286,7 @@ func (srv *server) Pull(
 		return nil, errInvalidArgument
 	}
 	resp := &v1pb.MailboxPullResponse{}
-	if resp.PulledIds, err = srv.mailing.Pull(
+	if resp.PulledIds, err = srv.mb.Pull(
 		ctx, dbKey(req), req.Ids...); err != nil {
 		return nil, remonerror(err)
 	}

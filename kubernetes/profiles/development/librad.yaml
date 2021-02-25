@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: librad
+  namespace: libra
+data:
+  librad.yaml: |
+    bind: ':80'
+    env: 'dev'
+    services:
+      portal:
+        redis: 'redis://redis-0.redis.dev.svc.cluster.local:6379'
+        mongo: 'mongodb://mongo-0.mongo.dev.svc.cluster.local:27017'
+      database:
+        database: &database
+          redis:
+          - 'redis://redis-1.redis.dev.svc.cluster.local:6379/0'
+          - 'redis://redis-1.redis.dev.svc.cluster.local:6379/1'
+          - 'redis://redis-1.redis.dev.svc.cluster.local:6379/2'
+          - 'redis://redis-1.redis.dev.svc.cluster.local:6379/3'
+          - 'redis://redis-1.redis.dev.svc.cluster.local:6379/4'
+          - 'redis://redis-1.redis.dev.svc.cluster.local:6379/5'
+          - 'redis://redis-1.redis.dev.svc.cluster.local:6379/6'
+          - 'redis://redis-1.redis.dev.svc.cluster.local:6379/7'
+          - 'redis://redis-1.redis.dev.svc.cluster.local:6379/8'
+          - 'redis://redis-1.redis.dev.svc.cluster.local:6379/9'
+          mongo: 'mongodb://mongo-1.mongo.dev.svc.cluster.local:27017'
+        mailbox: &mailbox
+          redis:
+          - 'redis://redis-2.redis.dev.svc.cluster.local:6379/0'
+          - 'redis://redis-2.redis.dev.svc.cluster.local:6379/1'
+          - 'redis://redis-2.redis.dev.svc.cluster.local:6379/2'
+          - 'redis://redis-2.redis.dev.svc.cluster.local:6379/3'
+          - 'redis://redis-2.redis.dev.svc.cluster.local:6379/4'
+          - 'redis://redis-2.redis.dev.svc.cluster.local:6379/5'
+          - 'redis://redis-2.redis.dev.svc.cluster.local:6379/6'
+          - 'redis://redis-2.redis.dev.svc.cluster.local:6379/7'
+          - 'redis://redis-2.redis.dev.svc.cluster.local:6379/8'
+          - 'redis://redis-2.redis.dev.svc.cluster.local:6379/9'
+          mongo: 'mongodb://mongo-2.mongo.dev.svc.cluster.local:27017'
+        distlock:
+          redis:
+          - 'redis://redis-3.redis.dev.svc.cluster.local:6379/0'
+          - 'redis://redis-3.redis.dev.svc.cluster.local:6379/1'
+          - 'redis://redis-3.redis.dev.svc.cluster.local:6379/2'
+          - 'redis://redis-3.redis.dev.svc.cluster.local:6379/3'
+          - 'redis://redis-3.redis.dev.svc.cluster.local:6379/4'
+          - 'redis://redis-3.redis.dev.svc.cluster.local:6379/5'
+          - 'redis://redis-3.redis.dev.svc.cluster.local:6379/6'
+          - 'redis://redis-3.redis.dev.svc.cluster.local:6379/7'
+          - 'redis://redis-3.redis.dev.svc.cluster.local:6379/8'
+          - 'redis://redis-3.redis.dev.svc.cluster.local:6379/9'
+          ttl: '10s'
+      syncer:
+        <<: *database
+        <<: *mailbox
+      ranking:
+        bubblechart:
+          redis: 'redis://redis-4.redis.dev.svc.cluster.local:6379/1'
+        leaderboard:
+          redis: 'redis://redis-4.redis.dev.svc.cluster.local:6379/2'
+      gateway:
+        broadcast:
+          redis: 'redis://redis-5.redis.dev.svc.cluster.local:6379'
+

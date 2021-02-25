@@ -6,8 +6,8 @@ import (
 )
 
 type ReMonConfig struct {
-	Redis string `json:"redis"`
-	Mongo string `json:"mongo"`
+	Redis []string `json:"redis"`
+	Mongo string   `json:"mongo"`
 }
 
 func (cfg *ReMonConfig) parse() (err error) {
@@ -32,14 +32,12 @@ func (cfg *DistlockConfig) parse() (err error) {
 }
 
 type config struct {
-	ReMon    ReMonConfig    `json:"remon"`
+	Database ReMonConfig    `json:"database"`
+	MailBox  ReMonConfig    `json:"mailbox"`
 	Distlock DistlockConfig `json:"distlock"`
 }
 
 func (cfg *config) parse() (err error) {
-	if err = cfg.ReMon.parse(); err != nil {
-		return
-	}
 	if err = cfg.Distlock.parse(); err != nil {
 		return
 	}

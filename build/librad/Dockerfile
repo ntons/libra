@@ -6,11 +6,11 @@ FROM ubuntu:20.04
 #        apt-get clean && \
 #        rm -rf /var/lib/apt/lists/*
 
-WORKDIR /data
+COPY entrypoint.sh  /
+COPY librad         /bin/
+COPY librad.yaml    /etc/
 
-COPY entrypoint.sh librad librad.yaml ./
+ENTRYPOINT ["./entrypoint.sh"]
 
-ENTRYPOINT [ "./entrypoint.sh" ]
-
-CMD ["./librad", "-c", "./librad.yaml"]
+CMD ["/bin/librad","-c","/etc/librad.yaml"]
 

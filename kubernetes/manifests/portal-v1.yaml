@@ -38,11 +38,15 @@ spec:
       - name: librad
         image: ntons/librad:0.0.1
         imagePullPolicy: IfNotPresent
-        envFrom:
-        - configMapRef:
-            name: librad-env
-          prefix: LIBRAD_
         ports:
         - containerPort: 80
-        command: ['./librad', '-c', './librad.yaml', '-i', 'portal']
+        volumeMounts:
+        - name: librad
+          mountPath: /etc/librad.yaml
+          subPath: librad.yaml
+        command: ['/bin/librad','-c','/etc/librad.yaml','-i','portal']
+      volumes:
+      - name: librad
+        configMap:
+          name: librad
 ---

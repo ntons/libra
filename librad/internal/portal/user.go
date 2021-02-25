@@ -40,7 +40,7 @@ func (srv *userServer) checkState(
 	}
 	switch state := state.(type) {
 	case *v1pb.DevLoginState:
-		if !comm.Config.Dev {
+		if !comm.IsDevEnv() {
 			return nil, errInvalidState
 		}
 		acctId = []string{"dev$" + state.Username}

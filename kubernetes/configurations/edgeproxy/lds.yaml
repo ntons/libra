@@ -51,7 +51,7 @@ resources:
                 cluster: cluster_apiproxy
                 timeout: 1s
             - match:
-                prefix: '/examples.echo.Echo/'
+                prefix: '/libra.examples.Echo/'
                 grpc: {}
               route:
                 cluster: cluster_echo_server

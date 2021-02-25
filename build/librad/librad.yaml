@@ -10,15 +10,22 @@ services:
     mongo: {{ 'unspecified'|env:'LIBRAD_PORTAL_MONGO' }}
 
   database:
-    database:
-      redis: {{ 'unspecified'|env:'LIBRAD_DATABASE_REDIS' }}
+    database: &database
+      redis:
+      - {{ 'unspecified'|env:'LIBRAD_DATABASE_REDIS' }}
       mongo: {{ 'unspecified'|env:'LIBRAD_DATABASE_MONGO' }}
-    mailbox:
-      redis: {{ 'unspecified'|env:'LIBRAD_MAILBOX_REDIS' }}
+    mailbox: &mailbox
+      redis:
+      - {{ 'unspecified'|env:'LIBRAD_MAILBOX_REDIS' }}
       mongo: {{ 'unspecified'|env:'LIBRAD_MAILBOX_MONGO' }}
     distlock:
-      redis: {{ 'unspecified'|env:'LIBRAD_DISTLOCK_REDIS' }}
+      redis:
+      - {{ 'unspecified'|env:'LIBRAD_DISTLOCK_REDIS' }}
       ttl: {{ '10s'|env:'LIBRAD_DISTLOCK_TTL' }}
+
+  syncer:
+    <<: *database
+    <<: *mailbox
 
   ranking:
     bubblechart:

@@ -20,14 +20,18 @@ var Config = &struct {
 	UnixDomainSock string
 	// only grpc enabled
 	GrpcOnly bool
-	// development env
-	Dev bool
+	// development | production
+	Env string
 
 	// modularized service configuration
 	Services map[string]json.RawMessage
 	// log configuration
 	Log *zap.Config
 }{}
+
+func IsDevEnv() bool {
+	return strings.HasPrefix(strings.ToLower(Config.Env), "dev")
+}
 
 func LoadConfig(filePath string) (err error) {
 	tpl, err := pongo2.FromFile(filePath)
