@@ -1,4 +1,4 @@
-package comm
+package util
 
 import (
 	"encoding/json"
@@ -9,31 +9,9 @@ import (
 
 	"github.com/flosch/pongo2"
 	"github.com/ghodss/yaml"
-	"go.uber.org/zap"
 )
 
-// bootstrap configuration singleton
-var Config = &struct {
-	// serving address
-	Bind string
-	// unix domain socket used to forward gateway request to
-	UnixDomainSock string
-	// only grpc enabled
-	GrpcOnly bool
-	// development | production
-	Env string
-
-	// modularized service configuration
-	Services map[string]json.RawMessage
-	// log configuration
-	Log *zap.Config
-}{}
-
-func IsDevEnv() bool {
-	return strings.HasPrefix(strings.ToLower(Config.Env), "dev")
-}
-
-func LoadConfig(filePath string) (err error) {
+func LoadFromFile(filePath string, target interface{}) (err error) {
 	tpl, err := pongo2.FromFile(filePath)
 	if err != nil {
 		return
@@ -51,9 +29,7 @@ func LoadConfig(filePath string) (err error) {
 	default:
 		return fmt.Errorf("unknown config file extension: %v", ext)
 	}
-	// some default values
-	Config.UnixDomainSock = fmt.Sprintf("/tmp/%s.sock", RandomString(10))
-	if err = json.Unmarshal(b, &Config); err != nil {
+	if err = json.Unmarshal(b, target); err != nil {
 		return
 	}
 	return

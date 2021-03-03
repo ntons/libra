@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	"github.com/ntons/libra/librad/internal/comm"
+	"github.com/ntons/libra/librad/comm"
 )
 
 func init() {

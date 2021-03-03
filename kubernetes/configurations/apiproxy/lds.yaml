@@ -21,20 +21,6 @@ resources:
             - "*"
             routes:
             - match:
-                path: '/envoy.service.auth.v3.Authorization/Check'
-                grpc: {}
-              route:
-                cluster: cluster_portal_v1
-                timeout: 1s
-            - match:
-                safe_regex:
-                  google_re2: {}
-                  regex: '/libra\.v1\.(User|Role)/.*'
-                grpc: {}
-              route:
-                cluster: cluster_portal_v1
-                timeout: 1s
-            - match:
                 safe_regex:
                   google_re2: {}
                   regex: '/libra\.v1\.(Database|Mailbox|Distlock)/.*'
@@ -60,5 +46,13 @@ resources:
                 - header:
                     header_name: x-libra-role-id
         http_filters:
+        - name: envoy.filters.http.ext_authz
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+            grpc_service:
+              envoy_grpc:
+                cluster_name: cluster_portal_v1
+              timeout: 0.2s
+            transport_api_version: V3
         - name: envoy.filters.http.router
 

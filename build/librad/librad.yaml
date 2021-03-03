@@ -24,8 +24,11 @@ services:
       ttl: {{ '10s'|env:'LIBRAD_DISTLOCK_TTL' }}
 
   syncer:
-    <<: *database
-    <<: *mailbox
+    tasks:
+    - name: db
+      <<: *database
+    - name: mb
+      <<: *mailbox
 
   ranking:
     bubblechart:

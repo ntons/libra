@@ -9,13 +9,13 @@ require (
 	github.com/go-redis/redis/v8 v8.3.3
 	github.com/golang/protobuf v1.4.3
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
-	github.com/jhump/protoreflect v1.7.0
-	github.com/ntons/distlock v0.0.0-20201109033245-a6602209da5c
-	github.com/ntons/libra-go v0.0.0-20210226093704-52bf44721580
+	github.com/ntons/distlock v0.1.1-0.20210304003815-737c837072cf
+	github.com/ntons/libra-go v0.0.0-20210305022616-e09e8fc02e08
 	github.com/ntons/log-go v0.0.0-20200924092648-d9caee8882d8
 	github.com/ntons/ranking v0.1.6
-	github.com/ntons/remon v0.1.3-0.20210226094112-777f69255247
+	github.com/ntons/remon v0.1.3-0.20210305043354-079fbe06b9fb
 	github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5
+	github.com/pierrec/lz4/v4 v4.1.3
 	github.com/sigurn/crc8 v0.0.0-20160107002456-e55481d6f45c
 	github.com/sigurn/utils v0.0.0-20190728110027-e1fefb11a144 // indirect
 	go.mongodb.org/mongo-driver v1.4.3
@@ -28,3 +28,4 @@ require (
 
 //replace github.com/ntons/libra-go => ../libra-go
 //replace github.com/ntons/remon => ../remon
+//replace github.com/ntons/distlock => ../distlock

@@ -41,7 +41,7 @@ spec:
         ports:
         - containerPort: 80
         volumeMounts:
-          name: librad
+        - name: librad
           mountPath: /etc/librad/librad.yaml
           subPath: librad.yaml
         command: ['/bin/librad','-c','/etc/librad/librad.yaml','-i','database']

@@ -9,6 +9,8 @@ import (
 
 var (
 	errInvalidArgument = status.Errorf(codes.InvalidArgument, "invalid argument")
+	errUnauthenticated = status.Errorf(codes.Unauthenticated, "unauthenticated")
+	errTooLarge        = status.Errorf(codes.Unauthenticated, "too large")
 )
 
 func remonerror(err error) error {
@@ -24,7 +26,7 @@ func remonerror(err error) error {
 func distlockerror(err error) error {
 	code := codes.Internal
 	if err == distlock.ErrNotObtained {
-		code = codes.Unavailable
+		code = codes.FailedPrecondition
 	}
 	return status.Errorf(code, "distlock: %s", err)
 }

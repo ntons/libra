@@ -11,7 +11,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	grpcgw "github.com/grpc-ecosystem/grpc-gateway/runtime"
-	log "github.com/ntons/log-go"
+	"github.com/ntons/log-go"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
@@ -20,11 +20,12 @@ import (
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/ntons/libra/librad/internal/comm"
-	_ "github.com/ntons/libra/librad/internal/database"
-	_ "github.com/ntons/libra/librad/internal/gateway"
-	_ "github.com/ntons/libra/librad/internal/portal"
-	_ "github.com/ntons/libra/librad/internal/ranking"
+	"github.com/ntons/libra/librad/comm"
+	_ "github.com/ntons/libra/librad/database"
+	_ "github.com/ntons/libra/librad/gateway"
+	_ "github.com/ntons/libra/librad/portal"
+	_ "github.com/ntons/libra/librad/ranking"
+	_ "github.com/ntons/libra/librad/syncer"
 )
 
 const (
@@ -70,6 +71,12 @@ func newGrpcServer() *grpc.Server {
 		grpc.ChainUnaryInterceptor(func(
 			ctx context.Context, req interface{}, info *grpc.UnaryServerInfo,
 			handler grpc.UnaryHandler) (resp interface{}, err error) {
+			if info.Server == healthServer {
+				return handler(ctx, req)
+			}
+			md, _ := metadata.FromIncomingContext(ctx)
+			log.Debugw(
+				"unary request", "method", info.FullMethod, "metadata", md)
 			if inter, ok := info.Server.(comm.GrpcUnaryInterceptor); ok {
 				return inter.InterceptUnary(ctx, req, info, handler)
 			}
@@ -78,6 +85,12 @@ func newGrpcServer() *grpc.Server {
 		grpc.ChainStreamInterceptor(func(
 			srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo,
 			handler grpc.StreamHandler) (err error) {
+			if srv == healthServer {
+				return handler(srv, ss)
+			}
+			md, _ := metadata.FromIncomingContext(ss.Context())
+			log.Debugw(
+				"stream request", "method", info.FullMethod, "metadata", md)
 			if inter, ok := srv.(comm.GrpcStreamInterceptor); ok {
 				return inter.InterceptStream(srv, ss, info, handler)
 			}

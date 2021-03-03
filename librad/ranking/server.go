@@ -6,7 +6,7 @@ import (
 	"github.com/ntons/libra-go/api/v1"
 	"google.golang.org/grpc"
 
-	"github.com/ntons/libra/librad/internal/comm"
+	"github.com/ntons/libra/librad/comm"
 )
 
 func init() {

@@ -20,7 +20,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"github.com/ntons/libra/librad/internal/comm"
+	"github.com/ntons/libra/librad/comm/util"
 )
 
 // |- librad_config |- apps
@@ -381,7 +381,8 @@ func checkTicket(
 	if !strings.HasPrefix(v, ticket) {
 		return nil, nil, errInvalidTicket
 	}
-	if err = json.Unmarshal(comm.S2B(v[len(ticket):]), &role); err != nil {
+	if err = json.Unmarshal(
+		util.StringToBytes(v[len(ticket):]), &role); err != nil {
 		return nil, nil, errInvalidTicket
 	}
 	return

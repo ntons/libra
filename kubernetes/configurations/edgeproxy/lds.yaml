@@ -36,7 +36,7 @@ resources:
             - match:
                 prefix: '/libra.v1.User/Login'
               route:
-                cluster: cluster_apiproxy
+                cluster: cluster_portal_v1
                 timeout: 1s
               typed_per_filter_config:
                 envoy.filters.http.ext_authz:
@@ -48,13 +48,13 @@ resources:
                   regex: '/libra\.v1\.(User|Role)/.*'
                 grpc: {}
               route:
-                cluster: cluster_apiproxy
+                cluster: cluster_portal_v1
                 timeout: 1s
             - match:
-                prefix: '/libra.examples.Echo/'
+                prefix: '/helloworld.Greeter/'
                 grpc: {}
               route:
-                cluster: cluster_echo_server
+                cluster: cluster_greeter_server
                 timeout: 0s # stream
         http_filters:
         - name: envoy.filters.http.ext_authz
@@ -62,7 +62,7 @@ resources:
             "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
             grpc_service:
               envoy_grpc:
-                cluster_name: cluster_apiproxy
+                cluster_name: cluster_portal_v1
               timeout: 0.2s
             transport_api_version: V3
         - name: envoy.filters.http.router

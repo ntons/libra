@@ -1,0 +1,36 @@
+# syncer同时只能有一个实例运行
+# kind: StatefulSet  保证在前一个实例彻底关闭前不会有新实例运行
+# spec.replicas: 1   保证只有一个实例在运行
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: syncer-v1
+  namespace: libra
+  labels:
+    app: syncer-v1
+spec:
+  replicas: 1 # MUST 1
+  serviceName: syncer-v1
+  selector:
+    matchLabels:
+      app: syncer-v1
+  template:
+    metadata:
+      labels:
+        app: syncer-v1
+    spec:
+      containers:
+      - name: librad
+        image: ntons/librad:0.0.1
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: librad
+          mountPath: /etc/librad/librad.yaml
+          subPath: librad.yaml
+        command: ['/bin/librad','-c','/etc/librad/librad.yaml','-i','syncer']
+      volumes:
+      - name: librad
+        configMap:
+          name: librad
+---
