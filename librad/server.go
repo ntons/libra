@@ -11,10 +11,12 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	grpcgw "github.com/grpc-ecosystem/grpc-gateway/runtime"
+	_ "github.com/ntons/grpc-compressor/lz4"
 	"github.com/ntons/log-go"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
+	_ "google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"

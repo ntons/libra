@@ -124,6 +124,8 @@ github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWb
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/ntons/distlock v0.1.1-0.20210304003815-737c837072cf h1:SOEvdTWN0SzuNj4C9KyP/FDPwizN0v9iDQIhFkL5EAI=
 github.com/ntons/distlock v0.1.1-0.20210304003815-737c837072cf/go.mod h1:W0FYN2i5yM9/6Dj4YTErQuEZAEiw4M0BF+N/SMPV8fs=
+github.com/ntons/grpc-compressor/lz4 v0.0.0-20210305100006-06d7d07e537e h1:IP6wQiowvniAYoiO1fMoLv/lRtcuKVIbgGwx3m4EFdY=
+github.com/ntons/grpc-compressor/lz4 v0.0.0-20210305100006-06d7d07e537e/go.mod h1:mafbG0h2psTmYG7r/UYubMBrjQkxdiHKpF123QGj7aM=
 github.com/ntons/libra-go v0.0.0-20210305022616-e09e8fc02e08 h1:+IHvnrgyyr6B2eb0RYF/abQkIPRp5LzEs7f10Dm7fzE=
 github.com/ntons/libra-go v0.0.0-20210305022616-e09e8fc02e08/go.mod h1:qtAUvSiRzZkK313bizKVScmkP6NWhuSRvNWjNDZ8/1o=
 github.com/ntons/log-go v0.0.0-20200924092648-d9caee8882d8 h1:s03rXpb5trwVS7mi817IkrLB38T2V7D//43mkWO1aIc=

@@ -10,6 +10,7 @@ require (
 	github.com/golang/protobuf v1.4.3
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/ntons/distlock v0.1.1-0.20210304003815-737c837072cf
+	github.com/ntons/grpc-compressor/lz4 v0.0.0-20210305100006-06d7d07e537e
 	github.com/ntons/libra-go v0.0.0-20210305022616-e09e8fc02e08
 	github.com/ntons/log-go v0.0.0-20200924092648-d9caee8882d8
 	github.com/ntons/ranking v0.1.6
