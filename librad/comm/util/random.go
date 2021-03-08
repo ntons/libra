@@ -6,9 +6,10 @@ import (
 )
 
 const (
-	Digits    = "0123456789"
 	LowerCase = "abcdefghijklmnopqrstuvwxyz"
 	UpperCase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	Letters   = LowerCase + UpperCase
+	Digits    = "0123456789"
 )
 
 // random n byte string, not used for security!!!

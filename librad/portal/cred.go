@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/sigurn/crc8"
+	"github.com/sigurn/crc16"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -28,16 +28,10 @@ import (
 
 // userId{10}: appKey{4}+rand{5}+rand{1}&0xF0|0x1
 // roleId{10}: appKey{4}+rand{5}+rand{1}&0xF0|0x2
-// token{18}:  ivSeed{1}+appKey{4}+aes(userId[4:]{6}+rand{6}+CRC8)
-// ticket{18}: ivSeed{1}+appKey{4}+aes(roleId[4:]{6}+rand{6}+CRC8)
 
 const (
 	rawIdLen   = 10
 	rawCredLen = 18
-)
-
-var (
-	table = crc8.MakeTable(crc8.CRC8_DVB_S2)
 )
 
 // generate id
@@ -52,44 +46,23 @@ func newUserId(appKey uint32) string { return newId(appKey, 0x1) }
 func newRoleId(appKey uint32) string { return newId(appKey, 0x2) }
 
 func genCred(app *xApp, id string) (string, error) {
-	rawId, err := base32.StdEncoding.DecodeString(id)
+	raw, err := genCredV1(app, id)
 	if err != nil {
-		return "", fmt.Errorf("failed to decode id: %w", err)
+		return "", err
 	}
-	if len(rawId) != rawIdLen {
-		return "", fmt.Errorf("bad raw role id length: %d", len(rawId))
-	}
-	if app.Key != binary.BigEndian.Uint32(rawId[:4]) {
-		return "", fmt.Errorf("mismatched app key and id")
-	}
-	b := make([]byte, rawCredLen)
-	io.ReadFull(rand.Reader, b[:1])
-	copy(b[1:], rawId[:])
-	io.ReadFull(rand.Reader, b[1+rawIdLen:])
-	b[rawCredLen-1] = crc8.Checksum(b[:rawCredLen-1], table)
-	stream := cipher.NewCTR(app.block, bytes.Repeat(b[:1], aes.BlockSize))
-	stream.XORKeyStream(b[5:], b[5:])
-	return base64.StdEncoding.EncodeToString(b), nil
+	return base64.StdEncoding.EncodeToString(raw), nil
 }
 func decCred(t string) (app *xApp, id string, err error) {
-	b, err := base64.StdEncoding.DecodeString(t)
+	raw, err := base64.StdEncoding.DecodeString(t)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to decode cred: %w", err)
 	}
-	if len(b) != rawCredLen {
-		return nil, "", fmt.Errorf("bad raw cred length: %d", len(b))
+	switch raw[0] {
+	case 0x1:
+		return decCredV1(raw)
+	default:
+		return nil, "", fmt.Errorf("bad cred version")
 	}
-	if app = getAppByKey(binary.BigEndian.Uint32(b[1:5])); app == nil {
-		return nil, "", fmt.Errorf("bad app key")
-	}
-	stream := cipher.NewCTR(app.block, bytes.Repeat(b[:1], aes.BlockSize))
-	stream.XORKeyStream(b[5:], b[5:])
-	if b[rawCredLen-1] != crc8.Checksum(b[:rawCredLen-1], table) {
-		return nil, "", fmt.Errorf("bad checksum")
-	}
-	rawId := make([]byte, rawIdLen)
-	copy(rawId, b[1:1+rawIdLen])
-	return app, base32.StdEncoding.EncodeToString(rawId), nil
 }
 
 // fetch session from context, session must exist at login required methods
@@ -109,4 +82,45 @@ func getSessionFromContext(ctx context.Context) (appId, userId string, ok bool) 
 		userId = v[0]
 	}
 	return
+}
+
+// CredV1{24}: 0x1+ivSeed{3}+appKey{4}+aes(rawId[4:]{6}+rand{8}+crc16)
+var t16 = crc16.MakeTable(crc16.CRC16_XMODEM)
+
+func genCredV1(app *xApp, id string) (rawCred []byte, err error) {
+	rawId, err := base32.StdEncoding.DecodeString(id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode id: %w", err)
+	}
+	if len(rawId) != rawIdLen {
+		return nil, fmt.Errorf("bad raw role id length: %d", len(rawId))
+	}
+	if app.Key != binary.BigEndian.Uint32(rawId[:4]) {
+		return nil, fmt.Errorf("mismatched app key and id")
+	}
+	rawCred = make([]byte, 24)
+	rawCred[0] = 0x1
+	io.ReadFull(rand.Reader, rawCred[1:4])
+	copy(rawCred[4:], rawId[:])
+	io.ReadFull(rand.Reader, rawCred[14:22])
+	binary.BigEndian.PutUint16(rawCred[22:], crc16.Checksum(rawCred[:22], t16))
+	iv := bytes.Repeat(rawCred[:4], aes.BlockSize/4)
+	cipher.NewCBCEncrypter(app.block, iv).CryptBlocks(rawCred[8:], rawCred[8:])
+	return rawCred, nil
+}
+func decCredV1(rawCred []byte) (app *xApp, id string, err error) {
+	if len(rawCred) != 24 {
+		return nil, "", fmt.Errorf("bad rawCred cred length: %d", len(rawCred))
+	}
+	if app = getAppByKey(binary.BigEndian.Uint32(rawCred[4:8])); app == nil {
+		return nil, "", fmt.Errorf("bad app key")
+	}
+	iv := bytes.Repeat(rawCred[:4], aes.BlockSize/4)
+	cipher.NewCBCDecrypter(app.block, iv).CryptBlocks(rawCred[8:], rawCred[8:])
+	if binary.BigEndian.Uint16(rawCred[22:]) != crc16.Checksum(rawCred[:22], t16) {
+		return nil, "", fmt.Errorf("bad checksum")
+	}
+	rawId := make([]byte, rawIdLen)
+	copy(rawId, rawCred[4:4+rawIdLen])
+	return app, base32.StdEncoding.EncodeToString(rawId), nil
 }

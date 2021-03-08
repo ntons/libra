@@ -3,9 +3,10 @@ package ranking
 import (
 	"context"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/ntons/libra-go/api/v1"
 	"github.com/ntons/ranking"
+
+	"github.com/ntons/libra/librad/comm/redis"
 )
 
 type bubbleChartServer struct {
@@ -13,12 +14,8 @@ type bubbleChartServer struct {
 	cli ranking.Client
 }
 
-func newBubbleChartServer(uri string) (bb *bubbleChartServer, err error) {
-	ro, err := redis.ParseURL(uri)
-	if err != nil {
-		return
-	}
-	return &bubbleChartServer{cli: ranking.New(redis.NewClient(ro))}, nil
+func newBubbleChartServer(cli redis.Client) *bubbleChartServer {
+	return &bubbleChartServer{cli: ranking.New(cli)}
 }
 
 func (bb *bubbleChartServer) Append(

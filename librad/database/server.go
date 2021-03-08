@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/ntons/distlock"
 	"github.com/ntons/log-go"
 	"github.com/ntons/remon"
@@ -19,6 +18,7 @@ import (
 
 	v1pb "github.com/ntons/libra-go/api/v1"
 	"github.com/ntons/libra/librad/comm"
+	"github.com/ntons/libra/librad/comm/redis"
 	"github.com/ntons/libra/librad/comm/util"
 )
 
@@ -41,28 +41,8 @@ type server struct {
 }
 
 func create(b json.RawMessage) (comm.Service, error) {
-	dialRedis := func(urls []string) (_ redisCluster, err error) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-		opts := make([]*redis.Options, len(urls))
-		for i, url := range urls {
-			if opts[i], err = redis.ParseURL(url); err != nil {
-				return
-			}
-		}
-		cluster := make([]*redis.Client, len(opts))
-		for i, opt := range opts {
-			rdb := redis.NewClient(opt)
-			if err = rdb.Ping(ctx).Err(); err != nil {
-				return
-			}
-			cluster[i] = rdb
-		}
-		return cluster, nil
-	}
-	dialMongo := func(url string) (_ *mongo.Client, err error) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
+	dialMongo := func(
+		ctx context.Context, url string) (_ *mongo.Client, err error) {
 		mdb, err := mongo.NewClient(options.Client().ApplyURI(url))
 		if err != nil {
 			return
@@ -73,6 +53,9 @@ func create(b json.RawMessage) (comm.Service, error) {
 		return mdb, nil
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
 	if err := json.Unmarshal(b, cfg); err != nil {
 		return nil, err
 	} else if err = cfg.parse(); err != nil {
@@ -81,23 +64,23 @@ func create(b json.RawMessage) (comm.Service, error) {
 
 	srv := &server{}
 
-	if rdb, err := dialRedis(cfg.Database.Redis); err != nil {
+	if rdb, err := redis.DialCluster(ctx, cfg.Database.Redis); err != nil {
 		return nil, err
-	} else if mdb, err := dialMongo(cfg.Database.Mongo); err != nil {
+	} else if mdb, err := dialMongo(ctx, cfg.Database.Mongo); err != nil {
 		return nil, err
 	} else {
 		srv.db = remon.New(rdb, mdb)
 	}
 
-	if rdb, err := dialRedis(cfg.MailBox.Redis); err != nil {
+	if rdb, err := redis.DialCluster(ctx, cfg.MailBox.Redis); err != nil {
 		return nil, err
-	} else if mdb, err := dialMongo(cfg.MailBox.Mongo); err != nil {
+	} else if mdb, err := dialMongo(ctx, cfg.MailBox.Mongo); err != nil {
 		return nil, err
 	} else {
 		srv.mb = remon.NewMailClient(remon.New(rdb, mdb))
 	}
 
-	if rdb, err := dialRedis(cfg.Distlock.Redis); err != nil {
+	if rdb, err := redis.DialCluster(ctx, cfg.Distlock.Redis); err != nil {
 		return nil, err
 	} else {
 		srv.dl = distlock.New(rdb)

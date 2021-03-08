@@ -14,12 +14,12 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/ntons/log-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
+	"github.com/ntons/libra/librad/comm/redis"
 	"github.com/ntons/libra/librad/comm/util"
 )
 
@@ -37,8 +37,8 @@ const (
 )
 
 var (
-	mcli *mongo.Client
-	rcli *redis.Client
+	mdb *mongo.Client
+	rdb redis.Client
 
 	dbCtx context.Context
 	// cached collection
@@ -146,13 +146,6 @@ func ticketKey(roleId string) string {
 	return fmt.Sprintf("ticket:{%s}", roleId)
 }
 
-func dialRedis() (_ *redis.Client, err error) {
-	o, err := redis.ParseURL(cfg.Redis)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse redis url: %w", err)
-	}
-	return redis.NewClient(o), nil
-}
 func dialMongo(ctx context.Context) (_ *mongo.Client, err error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -166,10 +159,10 @@ func dialMongo(ctx context.Context) (_ *mongo.Client, err error) {
 	return cli, nil
 }
 func dialDatabase(ctx context.Context) (err error) {
-	if rcli, err = dialRedis(); err != nil {
+	if rdb, err = redis.DialCluster(ctx, cfg.Redis); err != nil {
 		return
 	}
-	if mcli, err = dialMongo(ctx); err != nil {
+	if mdb, err = dialMongo(ctx); err != nil {
 		return
 	}
 	dbCtx = ctx
@@ -216,7 +209,7 @@ func getAppCollection(ctx context.Context) (*mongo.Collection, error) {
 	}
 	const collectionName = "apps"
 	dbName := dbNamePrefix + "config"
-	collection := mcli.Database(dbName).Collection(collectionName)
+	collection := mdb.Database(dbName).Collection(collectionName)
 	if _, err := collection.Indexes().CreateOne(
 		ctx,
 		mongo.IndexModel{
@@ -237,7 +230,7 @@ func getUserCollection(
 	if collection, ok := dbAppUserCollection[appId]; ok {
 		return collection, nil
 	}
-	collection := mcli.Database(dbNamePrefix + appId).Collection(collectionName)
+	collection := mdb.Database(dbNamePrefix + appId).Collection(collectionName)
 	if _, err := collection.Indexes().CreateOne(
 		ctx,
 		mongo.IndexModel{
@@ -258,7 +251,7 @@ func getRoleCollection(
 	if collection, ok := dbAppRoleCollection[appId]; ok {
 		return collection, nil
 	}
-	collection := mcli.Database(dbNamePrefix + appId).Collection(collectionName)
+	collection := mdb.Database(dbNamePrefix + appId).Collection(collectionName)
 	if _, err := collection.Indexes().CreateOne(
 		ctx,
 		mongo.IndexModel{
@@ -307,7 +300,7 @@ func newToken(
 	if token, err = genCred(app, userId); err != nil {
 		return
 	}
-	if err = rcli.Set(ctx, tokenKey(userId), token, 0).Err(); err != nil {
+	if err = rdb.Set(ctx, tokenKey(userId), token, 0).Err(); err != nil {
 		return
 	}
 	return token, nil
@@ -321,7 +314,7 @@ func checkToken(
 		log.Warnf("failed to decode token: %v", err)
 		return "", "", errInvalidToken
 	}
-	if target, err := rcli.Get(ctx, tokenKey(userId)).Result(); err != nil {
+	if target, err := rdb.Get(ctx, tokenKey(userId)).Result(); err != nil {
 		if err == redis.Nil {
 			return "", "", errInvalidToken
 		} else {
@@ -354,7 +347,7 @@ func newTicket(
 	sb.Grow(len(ticket) + len(data))
 	sb.WriteString(ticket)
 	sb.Write(data)
-	if err = rcli.Set(
+	if err = rdb.Set(
 		ctx, ticketKey(role.Id), sb.String(), 0).Err(); err != nil {
 		return
 	}
@@ -369,7 +362,7 @@ func checkTicket(
 	if err != nil {
 		return nil, nil, errInvalidTicket
 	}
-	v, err := rcli.Get(ctx, ticketKey(roleId)).Result()
+	v, err := rdb.Get(ctx, ticketKey(roleId)).Result()
 	if err != nil {
 		if err == redis.Nil {
 			return nil, nil, errInvalidToken

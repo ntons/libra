@@ -9,7 +9,7 @@ resources:
   type: LOGICAL_DNS
   lb_policy: ROUND_ROBIN
   load_assignment:
-    cluster_name: cluster_librad
+    cluster_name: cluster_portal_v1
     endpoints:
     - lb_endpoints:
       - endpoint:
@@ -31,7 +31,7 @@ resources:
   type: LOGICAL_DNS
   lb_policy: ROUND_ROBIN
   load_assignment:
-    cluster_name: cluster_librad
+    cluster_name: cluster_database_v1
     endpoints:
     - lb_endpoints:
       - endpoint:
@@ -53,7 +53,7 @@ resources:
   type: LOGICAL_DNS
   lb_policy: ROUND_ROBIN
   load_assignment:
-    cluster_name: cluster_librad
+    cluster_name: cluster_ranking_v1
     endpoints:
     - lb_endpoints:
       - endpoint:
@@ -75,7 +75,7 @@ resources:
   type: STRICT_DNS # stateful headless service
   lb_policy: MAGLEV
   load_assignment:
-    cluster_name: cluster_librad_stateful
+    cluster_name: cluster_gateway_v1
     endpoints:
     - lb_endpoints:
       - endpoint:

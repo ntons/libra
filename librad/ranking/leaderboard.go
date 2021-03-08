@@ -3,9 +3,10 @@ package ranking
 import (
 	"context"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/ntons/libra-go/api/v1"
 	"github.com/ntons/ranking"
+
+	"github.com/ntons/libra/librad/comm/redis"
 )
 
 type leaderboardServer struct {
@@ -13,12 +14,8 @@ type leaderboardServer struct {
 	cli ranking.Client
 }
 
-func newLeaderboardServer(uri string) (lb *leaderboardServer, err error) {
-	ro, err := redis.ParseURL(uri)
-	if err != nil {
-		return
-	}
-	return &leaderboardServer{cli: ranking.New(redis.NewClient(ro))}, nil
+func newLeaderboardServer(cli redis.Client) *leaderboardServer {
+	return &leaderboardServer{cli: ranking.New(cli)}
 }
 
 func (lb *leaderboardServer) SetScore(

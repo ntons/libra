@@ -11,6 +11,8 @@ spec:
   ports:
   - port: 80
     name: grpc
+    nodePort: 30081
+  type: NodePort # expose service by NodePort
   selector:
     app: apiproxy
 ---

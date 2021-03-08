@@ -34,7 +34,7 @@ const (
 )
 
 var cfg = struct {
-	Redis string
+	Redis []string
 	Mongo string
 }{}
 

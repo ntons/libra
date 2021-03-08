@@ -1,0 +1,10 @@
+FROM alpine:3.12
+
+COPY entrypoint.sh  /librad-entrypoint.sh
+COPY librad         /bin/
+COPY librad.yaml    /etc/
+
+ENTRYPOINT [ "/librad-entrypoint.sh" ]
+
+CMD [ "/bin/librad","-c","/etc/librad.yaml" ]
+

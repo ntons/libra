@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:3.6
+    volumes:
+    - ./mongo/db:/data/db
+    - ./mongo/configdb:/data/configdb
+
+  redis:
+    image: redis:6.0
+    volumes:
+    - ./redis/data:/data
+
+  librad:
+    image: ntons/librad-debug:0.0.1
+    depends_on:
+    - mongo
+    - redis
+    volumes:
+    - ./librad/librad.yaml:/etc/librad.yaml
+    command: ['/bin/librad','-c','/etc/librad.yaml','-e','gateway']
+
+  edgeproxy:
+    image: envoyproxy/envoy-alpine:v1.16-latest
+    init: true
+    depends_on:
+    - librad
+    ports:
+    - "38080:80"
+    volumes:
+    - ./edgeproxy/envoy:/etc/envoy
+
+  apiproxy:
+    image: envoyproxy/envoy-alpine:v1.16-latest
+    init: true
+    depends_on:
+    - librad
+    ports:
+    - "38081:80"
+    volumes:
+    - ./apiproxy/envoy:/etc/envoy
