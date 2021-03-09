@@ -6,7 +6,7 @@ Implementation of libra service and deployment tools
 
 ### 生产环境
 
-`
+```
                         |-----------------|
                         |     Client      |
                         |-----------------|
@@ -35,11 +35,11 @@ Implementation of libra service and deployment tools
 |                           -------                                           |
 |                                                                             |
 |-----------------------------------------------------------------------------|
-`
+```
 
 ### 开发环境
 
-`
+```
                                             |-----------------|
                                             |     Client      |
                                             |-----------------|
@@ -68,4 +68,4 @@ Implementation of libra service and deployment tools
                         |   -------                                           |
                         |                                                     |
                         |-----------------------------------------------------|
-`
+```
