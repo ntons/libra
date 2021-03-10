@@ -23,28 +23,11 @@ resources:
             - match:
                 safe_regex:
                   google_re2: {}
-                  regex: '/libra\.v1\.(Database|Mailbox|Distlock)/.*'
+                  regex: '/libra\.v1\.(BubbleChart|Database|Distlock|Gateway|Leaderboard|Mailbox)/.*'
                 grpc: {}
               route:
                 cluster: cluster_database_v1
                 timeout: 1s
-            - match:
-                safe_regex:
-                  google_re2: {}
-                  regex: '/libra\.v1\.(BubbleChart|Leaderboard)/.*'
-                grpc: {}
-              route:
-                cluster: cluster_ranking_v1
-                timeout: 1s
-            - match:
-                prefix: '/libra.v1.Gateway/'
-                grpc: {}
-              route:
-                cluster: cluster_gateway_v1
-                timeout: 0s
-                hash_policy:
-                - header:
-                    header_name: x-libra-role-id
         http_filters:
         - name: envoy.filters.http.ext_authz
           typed_config:

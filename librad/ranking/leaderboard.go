@@ -6,7 +6,7 @@ import (
 	"github.com/ntons/libra-go/api/v1"
 	"github.com/ntons/ranking"
 
-	"github.com/ntons/libra/librad/comm/redis"
+	"github.com/ntons/libra/librad/internal/redis"
 )
 
 type leaderboardServer struct {

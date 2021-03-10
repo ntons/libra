@@ -6,7 +6,7 @@ import (
 
 	pb "google.golang.org/protobuf/proto"
 
-	"github.com/ntons/libra/librad/comm/util"
+	"github.com/ntons/libra/librad/internal/util"
 )
 
 // 数据过滤链

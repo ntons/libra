@@ -17,9 +17,9 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 
 	v1pb "github.com/ntons/libra-go/api/v1"
-	"github.com/ntons/libra/librad/comm"
-	"github.com/ntons/libra/librad/comm/redis"
-	"github.com/ntons/libra/librad/comm/util"
+	"github.com/ntons/libra/librad/internal/comm"
+	"github.com/ntons/libra/librad/internal/redis"
+	"github.com/ntons/libra/librad/internal/util"
 )
 
 const (
@@ -106,8 +106,7 @@ type keyedRequest interface {
 	GetKey() *v1pb.EntryKey
 }
 
-// map entry key to db key
-func dbKey(ctx context.Context, req keyedRequest) (_ string, err error) {
+func uniKey(ctx context.Context, req keyedRequest) (_ string, err error) {
 	var isValidStr = func(s string, min, max int) bool {
 		if len(s) < min || max < len(s) {
 			return false
@@ -182,7 +181,7 @@ func (srv *server) refresh(
 func (srv *server) Lock(
 	ctx context.Context, req *v1pb.DistlockLockRequest) (
 	_ *v1pb.DistlockLockResponse, err error) {
-	key, err := dbKey(ctx, req)
+	key, err := uniKey(ctx, req)
 	if err != nil {
 		return
 	}
@@ -196,7 +195,7 @@ func (srv *server) Lock(
 func (srv *server) Unlock(
 	ctx context.Context, req *v1pb.DistlockUnlockRequest) (
 	_ *v1pb.DistlockUnlockResponse, err error) {
-	key, err := dbKey(ctx, req)
+	key, err := uniKey(ctx, req)
 	if err != nil {
 		return
 	}
@@ -233,7 +232,7 @@ func (srv *server) Get(
 	ctx context.Context, req *v1pb.DatabaseGetRequest) (
 	_ *v1pb.DatabaseGetResponse, err error) {
 	log.Debugw("database.get", "req", req)
-	key, err := dbKey(ctx, req)
+	key, err := uniKey(ctx, req)
 	if err != nil {
 		return
 	}
@@ -274,7 +273,7 @@ func (srv *server) Set(
 	_ *v1pb.DatabaseSetResponse, err error) {
 	// 在处理解锁之前检查请求参数，如果请求参数错误，就很难去猜测
 	// 这个请求的真正意图要不要处理锁，所以还是不要动的好
-	key, err := dbKey(ctx, req)
+	key, err := uniKey(ctx, req)
 	if err != nil {
 		return
 	}
@@ -312,7 +311,7 @@ func (srv *server) Set(
 func (srv *server) List(
 	ctx context.Context, req *v1pb.MailboxListRequest) (
 	_ *v1pb.MailboxListResponse, err error) {
-	key, err := dbKey(ctx, req)
+	key, err := uniKey(ctx, req)
 	if err != nil {
 		return
 	}
@@ -337,7 +336,7 @@ func (srv *server) List(
 func (srv *server) Push(
 	ctx context.Context, req *v1pb.MailboxPushRequest) (
 	_ *v1pb.MailboxPushResponse, err error) {
-	key, err := dbKey(ctx, req)
+	key, err := uniKey(ctx, req)
 	if err != nil {
 		return
 	}
@@ -356,7 +355,7 @@ func (srv *server) Push(
 func (srv *server) Pull(
 	ctx context.Context, req *v1pb.MailboxPullRequest) (
 	_ *v1pb.MailboxPullResponse, err error) {
-	key, err := dbKey(ctx, req)
+	key, err := uniKey(ctx, req)
 	if err != nil {
 		return
 	}

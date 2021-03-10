@@ -25,7 +25,7 @@ metadata:
   labels:
     app: redis
 spec:
-  replicas: 6
+  replicas: 4
   serviceName: redis
   selector:
     matchLabels:

@@ -15,7 +15,7 @@ import (
 	log "github.com/ntons/log-go"
 	"go.uber.org/zap"
 
-	"github.com/ntons/libra/librad/comm"
+	"github.com/ntons/libra/librad/internal/comm"
 )
 
 // build time variables

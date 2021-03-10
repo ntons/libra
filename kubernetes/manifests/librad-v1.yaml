@@ -1,37 +1,37 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: portal-v1
+  name: librad-v1
   namespace: libra
   labels:
-    app: portal-v1
+    app: librad-v1
     version: v0.0.1
 spec:
   ports:
   - port: 80
     name: grpc
   selector:
-    app: portal-v1
+    app: librad-v1
     version: v0.0.1
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: portal-v0-0-1
+  name: librad-v0-0-1
   namespace: libra
   labels:
-    app: portal-v1
+    app: librad-v1
     version: v0.0.1
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: portal-v1
+      app: librad-v1
       version: v0.0.1
   template:
     metadata:
       labels:
-        app: portal-v1
+        app: librad-v1
         version: v0.0.1
     spec:
       containers:
@@ -44,7 +44,7 @@ spec:
         - name: librad
           mountPath: /etc/librad.yaml
           subPath: librad.yaml
-        command: ['/bin/librad','-c','/etc/librad.yaml','-i','portal']
+        command: ['/bin/librad','-c','/etc/librad.yaml','-e','syncer']
       volumes:
       - name: librad
         configMap:

@@ -10,7 +10,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/sigurn/crc16"
 
-	"github.com/ntons/libra/librad/comm/util"
+	"github.com/ntons/libra/librad/internal/util"
 )
 
 type clusterOptions struct {

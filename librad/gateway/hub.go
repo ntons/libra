@@ -10,7 +10,7 @@ import (
 	pb "google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	"github.com/ntons/libra/librad/comm/util"
+	"github.com/ntons/libra/librad/internal/util"
 )
 
 var errHubClosed = errors.New("hub closed")

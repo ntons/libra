@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/ntons/libra/librad/comm"
+	"github.com/ntons/libra/librad/internal/comm"
 )
 
 func init() {

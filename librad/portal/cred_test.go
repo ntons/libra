@@ -6,7 +6,7 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/ntons/libra/librad/comm/util"
+	"github.com/ntons/libra/librad/internal/util"
 )
 
 func randTestApp() *xApp {

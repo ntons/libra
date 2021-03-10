@@ -4,17 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"net/http"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
-	grpcgw "github.com/grpc-ecosystem/grpc-gateway/runtime"
-	_ "github.com/ntons/grpc-compressor/lz4"
+	_ "github.com/ntons/grpc-compressor/lz4" // register lz4 compressor
 	"github.com/ntons/log-go"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/health"
@@ -22,9 +16,9 @@ import (
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/ntons/libra/librad/comm"
 	_ "github.com/ntons/libra/librad/database"
 	_ "github.com/ntons/libra/librad/gateway"
+	"github.com/ntons/libra/librad/internal/comm"
 	_ "github.com/ntons/libra/librad/portal"
 	_ "github.com/ntons/libra/librad/ranking"
 	_ "github.com/ntons/libra/librad/syncer"
@@ -36,243 +30,101 @@ const (
 )
 
 const (
-	// alian serving status
+	// alian serving status for short
 	xStatusUnknown    = grpc_health_v1.HealthCheckResponse_UNKNOWN
 	xStatusServing    = grpc_health_v1.HealthCheckResponse_SERVING
 	xStatusNotServing = grpc_health_v1.HealthCheckResponse_NOT_SERVING
 )
 
 var (
-	quit           = make(chan struct{}, 1)
-	grpcServer     = newGrpcServer()
-	grpcGatewayMux = newGrpcGatewayServeMux()
-	httpMux        = http.NewServeMux()
-	healthServer   = health.NewServer()
+	quit      = make(chan struct{}, 1)
+	healthsrv = health.NewServer()
 )
 
-func registerHealthServer() {
-	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+// intercept unary calls
+// logging request and providing service-wide intercepting
+func interceptUnary(
+	ctx context.Context, req interface{}, info *grpc.UnaryServerInfo,
+	handler grpc.UnaryHandler) (resp interface{}, err error) {
+	if info.Server == healthsrv {
+		return handler(ctx, req)
+	}
+	md, _ := metadata.FromIncomingContext(ctx)
+	log.Debugw("unary call", "method", info.FullMethod, "metadata", md)
+	if inter, ok := info.Server.(comm.GrpcUnaryInterceptor); ok {
+		return inter.InterceptUnary(ctx, req, info, handler)
+	}
+	return handler(ctx, req)
 }
 
-func shutdownHealthServer() {
-	healthServer.Shutdown()
+// intercept stream calls
+// logging request and providing service-wide intercepting
+func interceptStream(
+	srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo,
+	handler grpc.StreamHandler) (err error) {
+	if srv == healthsrv {
+		return handler(srv, ss)
+	}
+	md, _ := metadata.FromIncomingContext(ss.Context())
+	log.Debugw("stream call", "method", info.FullMethod, "metadata", md)
+	if inter, ok := srv.(comm.GrpcStreamInterceptor); ok {
+		return inter.InterceptStream(srv, ss, info, handler)
+	}
+	return handler(srv, ss)
 }
 
-func setStatus(
-	name string, status grpc_health_v1.HealthCheckResponse_ServingStatus) {
-	healthServer.SetServingStatus(name, status)
-}
+// start serving
+func serve() (err error) {
+	var wg sync.WaitGroup
+	defer wg.Wait() // make sure all go routine exit
 
-func newGrpcServer() *grpc.Server {
-	return grpc.NewServer(
+	grpcsrv := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(interceptUnary),
+		grpc.ChainStreamInterceptor(interceptStream),
 		grpc.KeepaliveEnforcementPolicy(
 			keepalive.EnforcementPolicy{
 				MinTime: 30 * time.Second,
 			},
 		),
-		grpc.ChainUnaryInterceptor(func(
-			ctx context.Context, req interface{}, info *grpc.UnaryServerInfo,
-			handler grpc.UnaryHandler) (resp interface{}, err error) {
-			if info.Server == healthServer {
-				return handler(ctx, req)
-			}
-			md, _ := metadata.FromIncomingContext(ctx)
-			log.Debugw(
-				"unary request", "method", info.FullMethod, "metadata", md)
-			if inter, ok := info.Server.(comm.GrpcUnaryInterceptor); ok {
-				return inter.InterceptUnary(ctx, req, info, handler)
-			}
-			return handler(ctx, req)
-		}),
-		grpc.ChainStreamInterceptor(func(
-			srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo,
-			handler grpc.StreamHandler) (err error) {
-			if srv == healthServer {
-				return handler(srv, ss)
-			}
-			md, _ := metadata.FromIncomingContext(ss.Context())
-			log.Debugw(
-				"stream request", "method", info.FullMethod, "metadata", md)
-			if inter, ok := srv.(comm.GrpcStreamInterceptor); ok {
-				return inter.InterceptStream(srv, ss, info, handler)
-			}
-			return handler(srv, ss)
-		}),
 	)
-}
-
-func newGrpcGatewayServeMux() *grpcgw.ServeMux {
-	return grpcgw.NewServeMux(
-		grpcgw.WithIncomingHeaderMatcher(func(key string) (string, bool) {
-			return key, strings.HasPrefix(strings.ToLower(key), xLibra)
-		}),
-		grpcgw.WithOutgoingHeaderMatcher(func(key string) (string, bool) {
-			return key, strings.HasPrefix(strings.ToLower(key), xLibra)
-		}),
-		grpcgw.WithMetadata(func(
-			ctx context.Context, req *http.Request) metadata.MD {
-			md := make(metadata.MD)
-			for _, cookie := range req.Cookies() {
-				if strings.HasPrefix(strings.ToLower(cookie.Name), xLibra) {
-					md.Set(cookie.Name, cookie.Value)
-				}
-			}
-			return md
-		}),
-		grpcgw.WithForwardResponseOption(func(
-			ctx context.Context, w http.ResponseWriter,
-			_ proto.Message) (_ error) {
-			md, ok := grpcgw.ServerMetadataFromContext(ctx)
-			if !ok {
-				return
-			}
-			for key, vals := range md.HeaderMD {
-				if strings.HasPrefix(strings.ToLower(key), xCookie) {
-					http.SetCookie(w, &http.Cookie{
-						Name:  key[len(xCookie)-len(xLibra):],
-						Value: vals[0],
-					})
-				}
-			}
-			return
-		}),
-	)
-}
-
-func newHttpServer() *http.Server {
-	isContentType := func(r *http.Request, v string) bool {
-		return strings.Contains(r.Header.Get("Content-Type"), v)
-	}
-	return &http.Server{
-		Handler: h2c.NewHandler(http.HandlerFunc(
-			func(w http.ResponseWriter, r *http.Request) {
-				if r.ProtoMajor == 2 {
-					if isContentType(r, "application/grpc") {
-						grpcServer.ServeHTTP(w, r)
-					} else {
-						w.WriteHeader(http.StatusBadRequest)
-					}
-				} else if r.ProtoMajor == 1 {
-					if isContentType(r, "application/grpc-gateway") {
-						grpcGatewayMux.ServeHTTP(w, r)
-					} else {
-						httpMux.ServeHTTP(w, r)
-					}
-				}
-			}),
-			&http2.Server{},
-		),
-	}
-}
-
-// For serving mutilple protocol service on the same port, x/net/http2
-// is used instead of grpc http/2 implementation.
-// The x/net/htt2 impact the performance by about 50% lower on some cases.
-// If only grpc services registered, prefer grpc http/2 to x/net/http2
-func serve() (err error) {
-	var (
-		cfg      = comm.Config // for short
-		wg       sync.WaitGroup
-		grpcOnly = true
-		grpcConn *grpc.ClientConn
-	)
-	defer wg.Wait() // make sure all go routine exit
 
 	// register services
-	registerHealthServer()
-	setStatus("", xStatusServing)
-	for name, b := range cfg.Services {
+	for name, b := range comm.Config.Services {
 		var svc comm.Service
 		if svc, err = comm.CreateService(name, b); err != nil {
 			return
 		}
-		if _svc, ok := svc.(comm.GrpcService); ok {
-			if err = _svc.RegisterGrpc(grpcServer); err != nil {
+		if grpcsvc, ok := svc.(comm.GrpcService); ok {
+			if err = grpcsvc.RegisterGrpc(grpcsrv); err != nil {
 				return
 			}
-		}
-		if _svc, ok := svc.(comm.GrpcGatewayService); ok {
-			if grpcConn == nil {
-				if grpcConn, err = grpc.Dial(
-					"unix://"+cfg.UnixDomainSock,
-					grpc.WithInsecure(),
-				); err != nil {
-					return err
-				}
-				defer grpcConn.Close()
-				log.Infof("connect to %s", cfg.UnixDomainSock)
-			}
-			if err = _svc.RegisterGrpcGateway(
-				grpcConn, grpcGatewayMux); err != nil {
-				return
-			}
-			grpcOnly = false
-		}
-		if _svc, ok := svc.(comm.HttpService); ok {
-			if err = _svc.RegisterHttp(httpMux); err != nil {
-				return
-			}
-			grpcOnly = false
 		}
 		wg.Add(1)
 		go func(svc comm.Service) { defer wg.Done(); svc.Serve() }(svc)
 		defer svc.Stop()
-		setStatus(name, xStatusServing)
+		healthsrv.SetServingStatus(name, xStatusServing)
 		log.Infow("service registered", "name", name)
 	}
+	for name := range grpcsrv.GetServiceInfo() {
+		log.Infow("grpc service registered", "name", name)
+	}
 
-	// primary listener
-	lis, err := net.Listen("tcp", cfg.Bind)
+	grpc_health_v1.RegisterHealthServer(grpcsrv, healthsrv)
+	healthsrv.SetServingStatus("", xStatusServing)
+
+	lis, err := net.Listen("tcp", comm.Config.Bind)
 	if err != nil {
-		return fmt.Errorf("failed to listen at %s: %w", cfg.Bind, err)
+		return fmt.Errorf("failed to listen at %s: %w", comm.Config.Bind, err)
 	}
 	defer lis.Close()
-	log.Infof("listen at %s", cfg.Bind)
 
-	// start serving
-	if grpcOnly || cfg.GrpcOnly {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			grpcServer.Serve(lis)
-			log.Infof("grpc server has shutdown")
-		}()
-		defer grpcServer.GracefulStop()
-		log.Infof("grpc server serve at %s", lis.Addr().String())
-	} else {
-		if grpcConn != nil {
-			ulis, err := net.Listen("unix", cfg.UnixDomainSock)
-			if err != nil {
-				return err
-			}
-			defer ulis.Close()
-			log.Infof("listen at %s", cfg.UnixDomainSock)
+	wg.Add(1)
+	go func() { defer wg.Done(); grpcsrv.Serve(lis) }()
+	defer grpcsrv.GracefulStop()
 
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				grpcServer.Serve(ulis)
-				log.Infof("grpc server has shutdown")
-			}()
-			defer grpcServer.GracefulStop()
-			log.Infof("grpc server serve at %s", ulis.Addr().String())
-		}
-		httpServer := newHttpServer()
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			httpServer.Serve(lis)
-			log.Infof("http server has shutdown")
-		}()
-		defer httpServer.Shutdown(context.Background())
-		log.Infof("http server serve at %s", lis.Addr().String())
-	}
+	defer healthsrv.Shutdown() // mark status first when terminating
 
-	// mark status first when terminate
-	defer shutdownHealthServer()
-
-	// waiting for terminating
-	<-quit
+	<-quit // waiting for terminating
 	return
 }
 

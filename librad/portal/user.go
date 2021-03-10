@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	"github.com/ntons/libra/librad/comm"
+	"github.com/ntons/libra/librad/internal/comm"
 )
 
 func fromUser(x *xUser) *v1pb.UserData {
@@ -32,7 +32,8 @@ func newUserServer() *userServer {
 }
 
 func (srv *userServer) checkState(
-	app *xApp, any *anypb.Any) (acctId []string, err error) {
+	ctx context.Context, app *xApp, any *anypb.Any) (
+	acctId []string, err error) {
 	state, err := anypb.UnmarshalNew(any, proto.UnmarshalOptions{})
 	if err != nil {
 		log.Warnf("failed to unmarshal state: %v", err)
@@ -45,6 +46,11 @@ func (srv *userServer) checkState(
 		}
 		acctId = []string{"dev$" + state.Username}
 	case *v1pb.UniformLoginState:
+		if ok, err := checkNonce(ctx, state.Nonce); err != nil {
+			return nil, errDatabaseUnavailable
+		} else if !ok {
+			return nil, errInvalidNonce
+		}
 		signature := state.Signature
 		state.Signature = ""
 		if !strings.EqualFold(
@@ -67,7 +73,7 @@ func (srv *userServer) Login(
 		log.Warnf("invalid app id: %v", req.AppId)
 		return nil, errInvalidAppId
 	}
-	acctId, err := srv.checkState(app, req.State)
+	acctId, err := srv.checkState(ctx, app, req.State)
 	if err != nil {
 		log.Warnf("failed to check state: %v", err)
 		return

@@ -19,8 +19,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"github.com/ntons/libra/librad/comm/redis"
-	"github.com/ntons/libra/librad/comm/util"
+	"github.com/ntons/libra/librad/internal/redis"
+	"github.com/ntons/libra/librad/internal/util"
 )
 
 // |- librad_config |- apps
@@ -38,7 +38,9 @@ const (
 
 var (
 	mdb *mongo.Client
-	rdb redis.Client
+
+	rdbAuth  redis.Client
+	rdbNonce redis.Client
 
 	dbCtx context.Context
 	// cached collection
@@ -159,7 +161,10 @@ func dialMongo(ctx context.Context) (_ *mongo.Client, err error) {
 	return cli, nil
 }
 func dialDatabase(ctx context.Context) (err error) {
-	if rdb, err = redis.DialCluster(ctx, cfg.Redis); err != nil {
+	if rdbAuth, err = redis.DialCluster(ctx, cfg.Auth.Redis); err != nil {
+		return
+	}
+	if rdbNonce, err = redis.DialCluster(ctx, cfg.Nonce.Redis); err != nil {
 		return
 	}
 	if mdb, err = dialMongo(ctx); err != nil {
@@ -300,7 +305,7 @@ func newToken(
 	if token, err = genCred(app, userId); err != nil {
 		return
 	}
-	if err = rdb.Set(ctx, tokenKey(userId), token, 0).Err(); err != nil {
+	if err = rdbAuth.Set(ctx, tokenKey(userId), token, 0).Err(); err != nil {
 		return
 	}
 	return token, nil
@@ -314,7 +319,7 @@ func checkToken(
 		log.Warnf("failed to decode token: %v", err)
 		return "", "", errInvalidToken
 	}
-	if target, err := rdb.Get(ctx, tokenKey(userId)).Result(); err != nil {
+	if target, err := rdbAuth.Get(ctx, tokenKey(userId)).Result(); err != nil {
 		if err == redis.Nil {
 			return "", "", errInvalidToken
 		} else {
@@ -347,7 +352,7 @@ func newTicket(
 	sb.Grow(len(ticket) + len(data))
 	sb.WriteString(ticket)
 	sb.Write(data)
-	if err = rdb.Set(
+	if err = rdbAuth.Set(
 		ctx, ticketKey(role.Id), sb.String(), 0).Err(); err != nil {
 		return
 	}
@@ -362,7 +367,7 @@ func checkTicket(
 	if err != nil {
 		return nil, nil, errInvalidTicket
 	}
-	v, err := rdb.Get(ctx, ticketKey(roleId)).Result()
+	v, err := rdbAuth.Get(ctx, ticketKey(roleId)).Result()
 	if err != nil {
 		if err == redis.Nil {
 			return nil, nil, errInvalidToken
@@ -379,6 +384,10 @@ func checkTicket(
 		return nil, nil, errInvalidTicket
 	}
 	return
+}
+
+func checkNonce(ctx context.Context, nonce string) (ok bool, err error) {
+	return rdbNonce.SetNX(ctx, nonce, "", cfg.Nonce.timeout).Result()
 }
 
 func loginUser(
