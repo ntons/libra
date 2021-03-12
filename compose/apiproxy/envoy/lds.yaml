@@ -23,20 +23,11 @@ resources:
             - match:
                 safe_regex:
                   google_re2: {}
-                  regex: '/libra\.v1\.(Database|Mailbox|Distlock|BubbleChart|Leaderboard)/.*'
+                  regex: '/libra\.v1\.(BubbleChart|Database|Distlock|Gateway|Leaderboard|Mailbox)/.*'
                 grpc: {}
               route:
                 cluster: cluster_librad_v1
-                timeout: 1s
-            - match:
-                prefix: '/libra.v1.Gateway/'
-                grpc: {}
-              route:
-                cluster: cluster_librad_v1
-                timeout: 0s
-                hash_policy:
-                - header:
-                    header_name: x-libra-role-id
+                idle_timeout: 5s # must be disabled for long-lived and streaming requests
         http_filters:
         - name: envoy.filters.http.ext_authz
           typed_config:
@@ -44,7 +35,8 @@ resources:
             grpc_service:
               envoy_grpc:
                 cluster_name: cluster_librad_v1
-              timeout: 0.2s
+              timeout: 0.5s
             transport_api_version: V3
         - name: envoy.filters.http.router
+
 
