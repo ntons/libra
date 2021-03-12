@@ -47,6 +47,10 @@ spec:
       - name: helper
         image: instrumentisto/rsync-ssh:latest
         imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: 0.1
+            memory: 64Mi
         volumeMounts:
         - name: config
           mountPath: /etc/envoy

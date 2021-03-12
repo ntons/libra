@@ -24,11 +24,18 @@ spec:
       - name: librad
         image: ntons/librad:0.0.1
         imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 0.5
+            memory: 256Mi
+          limits:
+            cpu: 1
+            memory: 512Mi
         volumeMounts:
         - name: librad
-          mountPath: /etc/librad/librad.yaml
+          mountPath: /etc/librad.yaml
           subPath: librad.yaml
-        command: ['/bin/librad','-c','/etc/librad/librad.yaml','-i','syncer']
+        command: ['/bin/librad','-c','/etc/librad.yaml','-i','syncer']
       volumes:
       - name: librad
         configMap:
