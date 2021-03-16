@@ -1,4 +1,4 @@
-SUBDIRS = librad
+SUBDIRS = librad logbus
 
 .PHONY: all $(SUBDIRS)
 

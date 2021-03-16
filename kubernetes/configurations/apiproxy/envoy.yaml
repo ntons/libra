@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: librad
+  name: apiproxy
   namespace: libra
 data:
   envoy.yaml: |
@@ -34,6 +34,11 @@ data:
           typed_config:
             "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
             stat_prefix: listener_apiproxy
+            access_log:
+              name: envoy.access_loggers.file
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog
+                path: /dev/stdout
             route_config:
               name: route_apiproxy
               virtual_hosts:

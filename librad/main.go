@@ -13,6 +13,7 @@ import (
 	"time"
 
 	log "github.com/ntons/log-go"
+	logzap "github.com/ntons/log-go/loggers/zap"
 	"go.uber.org/zap"
 
 	"github.com/ntons/libra/librad/internal/comm"
@@ -28,30 +29,31 @@ var (
 )
 
 func _main() (err error) {
+	clopts, err := parseCommandLineOptions()
+	if err != nil {
+		return fmt.Errorf("failed to parse command line options: %w", err)
+	}
 	log.Infow("server is starting",
 		"Version", Version,
 		"Built", Built,
 		"GitCommit", GitCommit,
 		"GoVersion", GoVersion,
 		"OSArch", OSArch)
+	if clopts.ShowVersionAndExit {
+		return
+	}
 	defer log.Info("server has stopped gracefully")
 
-	rand.Seed(time.Now().UnixNano())
-
-	clopts, err := parseCommandLineOptions()
-	if err != nil {
-		return fmt.Errorf("failed to parse command line options: %w", err)
-	}
 	if err = comm.LoadConfig(clopts.ConfigFilePath); err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
 	if comm.Config.Log != nil {
-		var logger *zap.Logger
-		if logger, err = comm.Config.Log.Build(zap.AddCaller()); err != nil {
+		var zl *zap.Logger
+		if zl, err = comm.Config.Log.Build(zap.AddCaller()); err != nil {
 			return
 		}
-		log.SetZapLogger(logger)
+		log.SetLogger(logzap.New(zl, 2))
 	}
 
 	if len(clopts.IncludeServices) > 0 {
@@ -89,6 +91,21 @@ func _main() (err error) {
 	return
 }
 func main() {
+	rand.Seed(time.Now().UnixNano())
+
+	// initalize default logging style
+	zc := zap.Config{
+		Level:            zap.NewAtomicLevelAt(zap.InfoLevel),
+		Development:      false,
+		Sampling:         nil,
+		Encoding:         "json",
+		EncoderConfig:    zap.NewProductionEncoderConfig(),
+		OutputPaths:      []string{"stderr"},
+		ErrorOutputPaths: []string{"stderr"},
+	}
+	zl, _ := zc.Build(zap.WithCaller(true))
+	log.SetLogger(logzap.New(zl, 2))
+
 	if err := _main(); err != nil {
 		log.Error(err)
 		os.Exit(1)
@@ -125,6 +142,8 @@ type xCommandLineOptions struct {
 	IncludeServices xStrings
 	// [-e] exclude service(s) from configuration
 	ExcludeServices xStrings
+	// [-v] show version and exit
+	ShowVersionAndExit bool
 }
 
 func parseCommandLineOptions() (clopts *xCommandLineOptions, err error) {
@@ -132,6 +151,7 @@ func parseCommandLineOptions() (clopts *xCommandLineOptions, err error) {
 	flag.StringVar(&clopts.ConfigFilePath, "c", "", "[C]onfig file path")
 	flag.Var(&clopts.IncludeServices, "i", "[I]nclude service")
 	flag.Var(&clopts.ExcludeServices, "e", "[E]xclude service")
+	flag.BoolVar(&clopts.ShowVersionAndExit, "v", false, "Show [v]ersion and exit")
 	flag.Parse()
 	return
 }

@@ -10,7 +10,7 @@ metadata:
   labels:
     app: syncer-v1
 spec:
-  replicas: 1 # MUST 1
+  replicas: 1 # MUST BE 1
   serviceName: syncer-v1
   selector:
     matchLabels:
@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
       - name: librad
-        image: ntons/librad:0.0.1
+        image: ntons/librad-alpine:0.0.1
         imagePullPolicy: IfNotPresent
         resources:
           requests:
@@ -35,7 +35,8 @@ spec:
         - name: librad
           mountPath: /etc/librad.yaml
           subPath: librad.yaml
-        command: ['/bin/librad','-c','/etc/librad.yaml','-i','syncer']
+          readOnly: true
+        args: ["-i","syncer"]
       volumes:
       - name: librad
         configMap:

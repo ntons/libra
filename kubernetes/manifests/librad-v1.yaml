@@ -23,7 +23,7 @@ metadata:
     app: librad-v1
     version: v0.0.1
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: librad-v1
@@ -36,7 +36,7 @@ spec:
     spec:
       containers:
       - name: librad
-        image: ntons/librad:0.0.1
+        image: ntons/librad-alpine:0.0.1
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80
@@ -44,7 +44,8 @@ spec:
         - name: librad
           mountPath: /etc/librad.yaml
           subPath: librad.yaml
-        command: ['/bin/librad','-c','/etc/librad.yaml','-e','syncer']
+          readOnly: true
+        args: ["-e","syncer"]
       volumes:
       - name: librad
         configMap:

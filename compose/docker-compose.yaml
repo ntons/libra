@@ -13,13 +13,12 @@ services:
     - ./redis/data:/data
 
   librad:
-    image: ntons/librad-debug:0.0.1
+    image: ntons/librad:0.0.1
     depends_on:
     - mongo
     - redis
     volumes:
     - ./librad/librad.yaml:/etc/librad.yaml
-    command: ['/bin/librad','-c','/etc/librad.yaml','-e','gateway']
 
   edgeproxy:
     image: envoyproxy/envoy-alpine:v1.16-latest

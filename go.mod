@@ -10,7 +10,8 @@ require (
 	github.com/ntons/distlock v0.1.1-0.20210304003815-737c837072cf
 	github.com/ntons/grpc-compressor/lz4 v0.0.0-20210305100006-06d7d07e537e
 	github.com/ntons/libra-go v0.0.0-20210305022616-e09e8fc02e08
-	github.com/ntons/log-go v0.0.0-20200924092648-d9caee8882d8
+	github.com/ntons/log-go v0.0.0-20210317052209-fcced1485be2
+	github.com/ntons/log-go/appenders/timedrollingfile v0.0.0-20210317052209-fcced1485be2
 	github.com/ntons/ranking v0.1.7-0.20210308073015-fcb506a578cb
 	github.com/ntons/remon v0.1.3-0.20210305043354-079fbe06b9fb
 	github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5
@@ -22,6 +23,7 @@ require (
 	google.golang.org/genproto v0.0.0-20201104152603-2e45c02ce95c
 	google.golang.org/grpc v1.35.0
 	google.golang.org/protobuf v1.25.0
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 //replace github.com/ntons/libra-go => ../libra-go
