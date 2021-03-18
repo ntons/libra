@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
       - name: librad
-        image: ntons/librad-alpine:0.0.1
+        image: ntons/librad:0.0.1
         imagePullPolicy: IfNotPresent
         resources:
           requests:

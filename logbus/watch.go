@@ -77,9 +77,8 @@ func WatchHost(ctx context.Context, rdb *redis.Client) {
 			for _, key := range v {
 				if _, ok := keys[key]; ok {
 					continue
-				} else {
-					keys[key] = struct{}{}
 				}
+				keys[key] = struct{}{}
 				wg.Add(1)
 				go func(key string) {
 					defer wg.Done()
