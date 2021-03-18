@@ -32,12 +32,14 @@ func (a WriterArray) Write(ctx context.Context, v ...string) (err error) {
 }
 
 // FileWriter write logs into timed rolling files
-type FileWriter struct{ a *trf.Appender }
+type FileWriter struct {
+	a *trf.Appender
+}
 
 func NewFileWriter(cfg *TimedRollingFileConfig, key string) Writer {
 	return FileWriter{
 		a: &trf.Appender{
-			MaxSize:            cfg.MaxSize,
+			MaxSize:            cfg.maxSize,
 			MaxBackups:         cfg.MaxBackups,
 			LocalTime:          cfg.LocalTime,
 			Compress:           cfg.Compress,

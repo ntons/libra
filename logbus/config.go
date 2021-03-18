@@ -10,12 +10,36 @@ type TimedRollingFileConfig struct {
 	// output datastore
 	Datastore string
 	// timedrollingfile options
-	MaxSize            int
+	MaxSize            string
+	maxSize            int // MiB
 	MaxBackups         int
 	LocalTime          bool
 	Compress           bool
 	BackupTimeFormat   string
 	FilenameTimeFormat string
+}
+
+func (cfg *TimedRollingFileConfig) Parse() error {
+	if cfg.Datastore == "" {
+		cfg.Datastore = "./datastore"
+	}
+	if cfg.MaxSize == "" {
+		cfg.maxSize = 1024
+	} else if v, err := ParseSize(cfg.MaxSize); err != nil {
+		return err
+	} else if cfg.maxSize = v / 1024 / 1024; cfg.maxSize == 0 {
+		cfg.maxSize = 1
+	}
+	if cfg.MaxBackups == 0 {
+		cfg.MaxBackups = 10
+	}
+	if cfg.BackupTimeFormat == "" {
+		cfg.BackupTimeFormat = "0405"
+	}
+	if cfg.FilenameTimeFormat == "" {
+		cfg.FilenameTimeFormat = "2006010215.log"
+	}
+	return nil
 }
 
 type Config struct {
@@ -38,20 +62,8 @@ func loadConfig(fp string) (err error) {
 	if err = yaml.Unmarshal(b, cfg); err != nil {
 		return
 	}
-	if cfg.TimedRollingFile.Datastore == "" {
-		cfg.TimedRollingFile.Datastore = "./datastore"
-	}
-	if cfg.TimedRollingFile.MaxSize == 0 {
-		cfg.TimedRollingFile.MaxSize = 1024 // 1GB
-	}
-	if cfg.TimedRollingFile.MaxBackups == 0 {
-		cfg.TimedRollingFile.MaxBackups = 10
-	}
-	if cfg.TimedRollingFile.BackupTimeFormat == "" {
-		cfg.TimedRollingFile.BackupTimeFormat = "0405"
-	}
-	if cfg.TimedRollingFile.FilenameTimeFormat == "" {
-		cfg.TimedRollingFile.FilenameTimeFormat = "2006010215.log"
+	if err = cfg.TimedRollingFile.Parse(); err != nil {
+		return
 	}
 	return
 }
