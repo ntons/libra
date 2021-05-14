@@ -47,9 +47,11 @@ data:
                 - "*"
                 routes:
                 - match:
+                    #prefix: '/libra.v1.'
                     safe_regex:
                       google_re2: {}
-                      regex: '/libra\.v1\.(BubbleChart|Database|Distlock|Gateway|Leaderboard|Mailbox)/.*'
+                      # \w stand for [0-9a-zA-Z]
+                      regex: '/libra\.v1\.\w+/.*'
                     grpc: {}
                   route:
                     cluster: cluster_librad_v1
@@ -80,7 +82,7 @@ data:
           - endpoint:
               address:
                 socket_address:
-                  address: librad-v1.libra.svc.cluster.local
+                  address: librad-v0-0-1.libra.svc.cluster.local
                   port_value: 80
       #health_checks:
       #- timeout: 0.2s

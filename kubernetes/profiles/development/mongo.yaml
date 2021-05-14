@@ -1,6 +1,4 @@
 # 此配置只用于开发环境快速搭建，生产环境请使用外部实例。
-# WARNING:
-# * Pod使用的Volume类型为emptyDir，因此数据会随着节点释放而被删除。
 
 apiVersion: v1
 kind: Service
@@ -17,6 +15,7 @@ spec:
   selector:
     app: mongo
 ---
+
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -37,15 +36,15 @@ spec:
     spec:
       containers:
       - name: mongo
-        image: mongo:3.6
-        imagePullPolicy: Always
+        image: mongo:4.0-xenial
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 27017
         volumeMounts:
-        - mountPath: /data/configdb
-          name: configdb
-        - mountPath: /data/db
-          name: db
+        - name: configdb
+          mountPath: /data/configdb
+        - name: db
+          mountPath: /data/db
       volumes:
       - name: configdb
         emptyDir: {}
