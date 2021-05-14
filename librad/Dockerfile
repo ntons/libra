@@ -1,7 +1,7 @@
 FROM debian:buster
 
-COPY bin /bin
-COPY etc /etc
+COPY librad      /bin/
+COPY librad.yaml /etc/
 
 ENTRYPOINT ["/bin/librad","-c","/etc/librad.yaml"]
 
