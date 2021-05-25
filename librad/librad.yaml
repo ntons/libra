@@ -5,9 +5,9 @@ bind: {{ ':80'|env:'LIBRAD_BIND' }}
 dev:  {{ 'off'|env:'LIBRAD_DEV' }}
 
 services:
-  portal:
-    redis: {{ 'unspecified'|env:'LIBRAD_PORTAL_REDIS' }}
-    mongo: {{ 'unspecified'|env:'LIBRAD_PORTAL_MONGO' }}
+  registry:
+    redis: {{ 'unspecified'|env:'LIBRAD_REGISTRY_REDIS' }}
+    mongo: {{ 'unspecified'|env:'LIBRAD_REGISTRY_MONGO' }}
 
   database:
     database: &database

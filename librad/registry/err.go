@@ -1,4 +1,4 @@
-package portal
+package registry
 
 import (
 	"google.golang.org/grpc/codes"

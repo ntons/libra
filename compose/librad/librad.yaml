@@ -1,7 +1,7 @@
 bind: ':80'
 env: 'dev'
 services:
-  portal:
+  registry:
     auth:
       redis:
       - 'redis://redis:6379/1'

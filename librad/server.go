@@ -19,8 +19,8 @@ import (
 	_ "github.com/ntons/libra/librad/database"
 	_ "github.com/ntons/libra/librad/gateway"
 	"github.com/ntons/libra/librad/internal/comm"
-	_ "github.com/ntons/libra/librad/portal"
 	_ "github.com/ntons/libra/librad/ranking"
+	_ "github.com/ntons/libra/librad/registry"
 	_ "github.com/ntons/libra/librad/syncer"
 )
 

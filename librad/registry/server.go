@@ -1,4 +1,4 @@
-package portal
+package registry
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"github.com/ntons/libra/librad/internal/comm"
 )
 
-func init() { comm.RegisterService("portal", create) }
+func init() { comm.RegisterService("registry", create) }
 
 const (
 	// session headers

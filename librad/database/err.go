@@ -13,7 +13,7 @@ var (
 	errTooLarge        = status.Errorf(codes.Unauthenticated, "too large")
 )
 
-func remonerror(err error) error {
+func fromRemonError(err error) error {
 	code := codes.Internal
 	if err == remon.ErrNotFound {
 		code = codes.NotFound
@@ -23,7 +23,7 @@ func remonerror(err error) error {
 	return status.Errorf(code, "remon: %s", err)
 }
 
-func distlockerror(err error) error {
+func fromDistlockError(err error) error {
 	code := codes.Internal
 	if err == distlock.ErrNotObtained {
 		code = codes.FailedPrecondition
@@ -31,7 +31,7 @@ func distlockerror(err error) error {
 	return status.Errorf(code, "distlock: %s", err)
 }
 
-func protoerror(err error) error {
+func fromProtoError(err error) error {
 	code := codes.Internal
 	return status.Errorf(code, "proto: %s", err)
 }

@@ -146,7 +146,7 @@ func uniKey(ctx context.Context, req keyedRequest) (_ string, err error) {
 func (srv *server) lock(ctx context.Context, key string) (*anypb.Any, error) {
 	lock, err := srv.dl.Obtain(ctx, key, cfg.Distlock.ttl)
 	if err != nil {
-		return nil, distlockerror(err)
+		return nil, fromDistlockError(err)
 	}
 	return &anypb.Any{
 		TypeUrl: "https://github.com/ntons/distlock",
@@ -161,7 +161,7 @@ func (srv *server) unlock(
 	}
 	lock := distlock.NewLock(key, util.BytesToString(token.Value))
 	if err := srv.dl.Release(ctx, lock); err != nil {
-		return distlockerror(err)
+		return fromDistlockError(err)
 	}
 	return nil
 }
@@ -173,7 +173,7 @@ func (srv *server) refresh(
 	}
 	lock := distlock.NewLock(key, util.BytesToString(token.Value))
 	if err := srv.dl.Refresh(ctx, lock, cfg.Distlock.ttl); err != nil {
-		return distlockerror(err)
+		return fromDistlockError(err)
 	}
 	return nil
 }
@@ -253,15 +253,15 @@ func (srv *server) Get(
 	var opts []remon.GetOption
 	if req.AddIfNotFound != nil {
 		if buf, err := encodeMessage(req.AddIfNotFound); err != nil {
-			return nil, protoerror(err)
+			return nil, fromProtoError(err)
 		} else {
 			opts = append(opts, remon.AddIfNotFound(buf))
 		}
 	}
 	if rev, buf, err := srv.db.Get(ctx, key, opts...); err != nil {
-		return nil, remonerror(err)
+		return nil, fromRemonError(err)
 	} else if err = decodeMessage(buf, resp.Data); err != nil {
-		return nil, protoerror(err)
+		return nil, fromProtoError(err)
 	} else {
 		resp.Revision = rev
 	}
@@ -298,9 +298,9 @@ func (srv *server) Set(
 	}
 	resp := &v1pb.DatabaseSetResponse{}
 	if buf, err := encodeMessage(req.Data); err != nil {
-		return nil, protoerror(err)
+		return nil, fromProtoError(err)
 	} else if resp.Revision, err = srv.db.Set(ctx, key, buf); err != nil {
-		return nil, remonerror(err)
+		return nil, fromRemonError(err)
 	}
 	return resp, nil
 }
@@ -317,7 +317,7 @@ func (srv *server) List(
 	}
 	list, err := srv.mb.List(ctx, key)
 	if err != nil {
-		return nil, remonerror(err)
+		return nil, fromRemonError(err)
 	}
 	resp := &v1pb.MailboxListResponse{}
 	for _, e := range list {
@@ -326,7 +326,7 @@ func (srv *server) List(
 			Data: &anypb.Any{},
 		}
 		if err = decodeMessage(e.Val, m.Data); err != nil {
-			return nil, protoerror(err)
+			return nil, fromProtoError(err)
 		}
 		resp.Mails = append(resp.Mails, m)
 	}
@@ -342,10 +342,10 @@ func (srv *server) Push(
 	}
 	resp := &v1pb.MailboxPushResponse{}
 	if buf, err := encodeMessage(req.Data); err != nil {
-		return nil, protoerror(err)
+		return nil, fromProtoError(err)
 	} else if id, err := srv.mb.Push(
 		ctx, key, buf, remon.WithCapacity(int(req.Capacity))); err != nil {
-		return nil, remonerror(err)
+		return nil, fromRemonError(err)
 	} else {
 		resp.Id = fmt.Sprintf("%x", id)
 	}
@@ -368,7 +368,7 @@ func (srv *server) Pull(
 		ids = append(ids, id)
 	}
 	if ids, err = srv.mb.Pull(ctx, key, ids...); err != nil {
-		return nil, remonerror(err)
+		return nil, fromRemonError(err)
 	}
 	resp := &v1pb.MailboxPullResponse{
 		PulledIds: make([]string, len(ids)),
