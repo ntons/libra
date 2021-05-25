@@ -144,7 +144,12 @@ func uniKey(ctx context.Context, req keyedRequest) (_ string, err error) {
 // Distlock Service
 ////////////////////////////////////////////////////////////////////////////////
 func (srv *server) lock(ctx context.Context, key string) (*anypb.Any, error) {
-	lock, err := srv.dl.Obtain(ctx, key, cfg.Distlock.ttl)
+	lock, err := srv.dl.Obtain(ctx, key, cfg.Distlock.ttl,
+		distlock.WithRetryStrategy(distlock.LimitRetry(
+			// 32 + 32 + 32 + 32 + 32 + 64 + 128 + 256 + 512 + 512 = 1632
+			distlock.ExponentialBackoff(
+				32*time.Millisecond,
+				512*time.Millisecond), 10)))
 	if err != nil {
 		return nil, fromDistlockError(err)
 	}

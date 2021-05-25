@@ -25,8 +25,8 @@ func (cfg *DistlockConfig) parse() (err error) {
 	if cfg.ttl, err = time.ParseDuration(cfg.TTLExpr); err != nil {
 		return fmt.Errorf("malformed ttl value")
 	}
-	if cfg.ttl < time.Second {
-		return fmt.Errorf("ttl could not be less than 1s")
+	if cfg.ttl < 2*time.Second {
+		return fmt.Errorf("ttl could not be less than 2s")
 	}
 	return
 }
