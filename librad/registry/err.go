@@ -5,30 +5,58 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+func newUnauthenticatedError(msg string) error {
+	return status.Errorf(codes.Unauthenticated, msg)
+}
+func newNotFoundError(msg string) error {
+	return status.Errorf(codes.NotFound, msg)
+}
+func newAlreadyExistsError(msg string) error {
+	return status.Errorf(codes.AlreadyExists, msg)
+}
+func newInvalidArgumentError(msg string) error {
+	return status.Errorf(codes.InvalidArgument, msg)
+}
+func newInternalError(msg string) error {
+	return status.Errorf(codes.Internal, msg)
+}
+func newUnavailableError(msg string) error {
+	return status.Errorf(codes.Unavailable, msg)
+}
+func newPermissionDeniedError(msg string) error {
+	return status.Errorf(codes.PermissionDenied, msg)
+}
+
 var (
 	// Unauthenticated
-	errUnauthenticated  = status.Errorf(codes.Unauthenticated, "unauthenticated")
-	errLoginRequired    = status.Errorf(codes.Unauthenticated, "login required")
-	errInvalidToken     = status.Errorf(codes.Unauthenticated, "invalid token")
-	errInvalidTicket    = status.Errorf(codes.Unauthenticated, "invalid ticket")
-	errInvalidAppSecret = status.Errorf(codes.Unauthenticated, "invalid app secret")
+	errUnauthenticated  = newUnauthenticatedError("unauthenticated")
+	errLoginRequired    = newUnauthenticatedError("login required")
+	errInvalidToken     = newUnauthenticatedError("invalid token")
+	errInvalidTicket    = newUnauthenticatedError("invalid ticket")
+	errInvalidAppSecret = newUnauthenticatedError("invalid app secret")
+
 	// NotFound
-	errAppIdNotFound = status.Errorf(codes.NotFound, "app id not found")
-	errUserNotFound  = status.Errorf(codes.NotFound, "user not found")
-	errRoleNotFound  = status.Errorf(codes.NotFound, "role not found")
+	errAppIdNotFound = newNotFoundError("app id not found")
+	errUserNotFound  = newNotFoundError("user not found")
+	errRoleNotFound  = newNotFoundError("role not found")
+
 	// AlreadyExists
-	errRoleAlreadyExists = status.Errorf(codes.AlreadyExists, "role already exists")
+	errRoleAlreadyExists = newAlreadyExistsError("role already exists")
+
 	// InvalidArgument
-	errInvalidNonce     = status.Errorf(codes.InvalidArgument, "invalid nonce")
-	errInvalidState     = status.Errorf(codes.InvalidArgument, "invalid state")
-	errInvalidSignature = status.Errorf(codes.InvalidArgument, "invalid signature")
-	errInvalidAppId     = status.Errorf(codes.InvalidArgument, "invalid app id")
-	errInvalidMetadata  = status.Errorf(codes.InvalidArgument, "invalid metadata")
+	errInvalidNonce     = newInvalidArgumentError("invalid nonce")
+	errInvalidState     = newInvalidArgumentError("invalid state")
+	errInvalidSignature = newInvalidArgumentError("invalid signature")
+	errInvalidAppId     = newInvalidArgumentError("invalid app id")
+	errInvalidMetadata  = newInvalidArgumentError("invalid metadata")
+
 	// Internal
-	errMalformedUserId = status.Errorf(codes.Internal, "malformed user id")
-	errMalformedRoleId = status.Errorf(codes.Internal, "malformed role id")
+	errMalformedUserId = newInternalError("malformed user id")
+	errMalformedRoleId = newInternalError("malformed role id")
+
 	// Unavailable
-	errDatabaseUnavailable = status.Errorf(codes.Unavailable, "database unavailable")
+	errDatabaseUnavailable = newUnavailableError("database unavailable")
+
 	// PermissionDenied
-	errPermissionDenied = status.Errorf(codes.PermissionDenied, "permission denied")
+	errPermissionDenied = newPermissionDeniedError("permission denied")
 )

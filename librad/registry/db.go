@@ -392,6 +392,9 @@ func checkNonce(ctx context.Context, nonce string) (ok bool, err error) {
 
 func loginUser(
 	ctx context.Context, app *xApp, acctId []string) (_ *xUser, err error) {
+	if len(acctId) > 10 {
+		return nil, newInvalidArgumentError("too many acct id")
+	}
 	collection, err := getUserCollection(ctx, app.Id)
 	if err != nil {
 		return
@@ -401,6 +404,9 @@ func loginUser(
 		Id:         newUserId(app.Key),
 		CreateTime: now,
 	}
+	// 这里正确执行隐含了一个前置条件，acct_id字段必须是索引。
+	// 当给进来的acctId列表可以映射到多个User的时候addToSet必然会失败，
+	// 从而可以保证参数 acctId *--1 User 的映射关系成立。
 	if err = collection.FindOneAndUpdate(
 		ctx,
 		bson.M{"acct_id": bson.M{"$elemMatch": bson.M{"$in": acctId}}},
@@ -415,6 +421,24 @@ func loginUser(
 		log.Warnf("failed to access mongo: %v", err)
 		return nil, errDatabaseUnavailable
 	}
+	if len(user.AcctId) > 0 {
+		if _, err := collection.UpdateOne(
+			ctx,
+			bson.M{"_id": user.Id},
+			bson.M{
+				"$push": bson.M{
+					"acct_id": bson.M{
+						"$each":  []string{},
+						"$slice": -10, // keep the last 10
+					},
+				},
+			},
+		); err != nil {
+			log.Warnf("failed to slice acct id: %v, %v, %v",
+				user.Id, len(user.AcctId), err)
+		}
+	}
+
 	return user, nil
 }
 
