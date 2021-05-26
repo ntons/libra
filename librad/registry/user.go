@@ -53,8 +53,10 @@ func (srv *userServer) checkState(
 		}
 		signature := state.Signature
 		state.Signature = ""
-		if !strings.EqualFold(
-			signature, sign.ProtoHMACWithSHA1(state, app.Secret)) {
+		expected := sign.ProtoHMACWithSHA1(state, app.Secret)
+		if !strings.EqualFold(signature, expected) {
+			log.Warnf("signature mismatch: %s, %s, %s, %s",
+				signature, expected, app.Secret, state)
 			return nil, errInvalidSignature
 		}
 		acctId = state.AcctId
