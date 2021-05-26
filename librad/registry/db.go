@@ -387,6 +387,9 @@ func checkTicket(
 }
 
 func checkNonce(ctx context.Context, nonce string) (ok bool, err error) {
+	if len(nonce) < 16 {
+		return false, nil
+	}
 	return rdbNonce.SetNX(ctx, nonce, "", cfg.Nonce.timeout).Result()
 }
 
