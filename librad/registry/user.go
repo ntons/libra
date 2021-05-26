@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 	"strings"
+	"time"
 
 	v1pb "github.com/ntons/libra-go/api/v1"
 	log "github.com/ntons/log-go"
@@ -51,6 +52,14 @@ func (srv *userServer) checkState(
 		} else if !ok {
 			return nil, errInvalidNonce
 		}
+
+		// ts-10 签名有效期只有10秒钟
+		// ts+1  是为了容忍一定的系统时间误差
+		ts := time.Now().Unix()
+		if state.Timestamp < ts-10 || state.Timestamp > ts+1 {
+			return nil, errInvalidTimestamp
+		}
+
 		signature := state.Signature
 		state.Signature = ""
 		expected := sign.ProtoHMACWithSHA1(state, app.Secret)

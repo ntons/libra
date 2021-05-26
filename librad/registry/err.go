@@ -45,6 +45,7 @@ var (
 
 	// InvalidArgument
 	errInvalidNonce     = newInvalidArgumentError("invalid nonce")
+	errInvalidTimestamp = newInvalidArgumentError("invalid timestamp")
 	errInvalidState     = newInvalidArgumentError("invalid state")
 	errInvalidSignature = newInvalidArgumentError("invalid signature")
 	errInvalidAppId     = newInvalidArgumentError("invalid app id")
