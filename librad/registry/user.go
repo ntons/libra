@@ -54,9 +54,9 @@ func (srv *userServer) checkState(
 		}
 
 		// ts-10 签名有效期只有10秒钟
-		// ts+1  是为了容忍一定的系统时间误差
+		// ts+3  是为了容忍一定的系统时间误差
 		ts := time.Now().Unix()
-		if state.Timestamp < ts-10 || state.Timestamp > ts+1 {
+		if state.Timestamp < ts-10 || state.Timestamp > ts+3 {
 			return nil, errInvalidTimestamp
 		}
 
