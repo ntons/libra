@@ -8,6 +8,7 @@ import (
 
 	corepb "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	authpb "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	typepb "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/metadata"
@@ -51,16 +52,26 @@ func (srv authServer) Check(
 	ctx context.Context, req *authpb.CheckRequest) (
 	_ *authpb.CheckResponse, err error) {
 	log.Debugf("Auth.Check|%v", req)
+
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return srv.errToResponse(errInvalidMetadata)
+	}
+
 	var authBy string
-	for key, val := range req.Attributes.Request.Http.Headers {
+	if v := md.Get(xLibraAuthBy); len(v) != 1 {
+		return srv.errToResponse(errInvalidMetadata)
+	} else if authBy = v[0]; authBy == "" {
+		return srv.errToResponse(errInvalidMetadata)
+	}
+
+	for key := range req.Attributes.Request.Http.Headers {
 		// 不允许请求中带有x-libra-trusted-头
 		if strings.HasPrefix(key, xLibraTrustedPrefix) {
 			return srv.errToResponse(errInvalidMetadata)
 		}
-		if key == xLibraAuthBy {
-			authBy = val
-		}
 	}
+
 	switch authBy {
 	case xAuthByToken:
 		return srv.checkToken(ctx, req)
@@ -169,6 +180,14 @@ func (authServer) errToResponse(err error) (*authpb.CheckResponse, error) {
 		Status: &status.Status{
 			Code:    int32(s.Code()),
 			Message: s.Message(),
+		},
+		HttpResponse: &authpb.CheckResponse_DeniedResponse{
+			DeniedResponse: &authpb.DeniedHttpResponse{
+				Status: &typepb.HttpStatus{
+					Code: typepb.StatusCode_Unauthorized,
+				},
+				//Body: fmt.Sprintf("%d, %s", s.Code(), s.Message()),
+			},
 		},
 	}, nil
 }

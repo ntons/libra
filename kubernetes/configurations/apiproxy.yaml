@@ -45,11 +45,6 @@ data:
               - name: route_apiproxy
                 domains:
                 - "*"
-                request_headers_to_add:
-                - header:
-                    key: "x-libra-auth-by"
-                    value: "secret"
-                  append: false
                 routes:
                 - match:
                     #prefix: '/libra.v1.'
@@ -68,6 +63,9 @@ data:
                 grpc_service:
                   envoy_grpc:
                     cluster_name: cluster_librad_v1
+                  initial_metadata:
+                  - key: "x-libra-auth-by"
+                    value: "secret"
                   timeout: 0.5s
                 transport_api_version: V3
             - name: envoy.filters.http.router
