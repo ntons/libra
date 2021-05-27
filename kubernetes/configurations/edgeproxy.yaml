@@ -142,7 +142,7 @@ data:
           - endpoint:
               address:
                 socket_address:
-                  address: librad-v0-0-1.libra.svc.cluster.local
+                  address: librad-0-0-1.libra.svc.cluster.local
                   port_value: 80
       http2_protocol_options:
         initial_stream_window_size: 65536 # 64 KiB

@@ -85,7 +85,7 @@ data:
           - endpoint:
               address:
                 socket_address:
-                  address: librad-v0-0-1.libra.svc.cluster.local
+                  address: librad-0-0-1.libra.svc.cluster.local
                   port_value: 80
       #health_checks:
       #- timeout: 0.2s

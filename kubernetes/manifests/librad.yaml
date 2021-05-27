@@ -4,39 +4,39 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: librad-v0-0-1
+  name: librad-0-0-1
   namespace: libra
   labels:
     app: librad
-    version: v0.0.1
+    version: 0.0.1
 spec:
   ports:
   - port: 80
     name: grpc
   selector:
     app: librad
-    version: v0.0.1
+    version: 0.0.1
 ---
 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: librad-v0-0-1
+  name: librad-0-0-1
   namespace: libra
   labels:
     app: librad
-    version: v0.0.1
+    version: 0.0.1
 spec:
   replicas: 2
   selector:
     matchLabels:
       app: librad
-      version: v0.0.1
+      version: 0.0.1
   template:
     metadata:
       labels:
         app: librad
-        version: v0.0.1
+        version: 0.0.1
     spec:
       containers:
       - name: librad
@@ -67,7 +67,7 @@ metadata:
   namespace: libra
   labels:
     app: syncer
-    version: v0.0.1
+    version: 0.0.1
 spec:
   replicas: 1 # MUST BE 1
   serviceName: syncer
@@ -78,7 +78,7 @@ spec:
     metadata:
       labels:
         app: syncer
-        version: v0.0.1
+        version: 0.0.1
     spec:
       containers:
       - name: librad
