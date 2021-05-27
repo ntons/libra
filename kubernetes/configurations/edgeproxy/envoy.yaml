@@ -89,6 +89,11 @@ data:
               - name: route_edgeproxy
                 domains:
                 - "*"
+                request_headers_to_add:
+                - header:
+                    key: "x-libra-auth-by"
+                    value: "token"
+                  append: false
                 routes:
                 - match:
                     prefix: '/libra.v1.User/Login'

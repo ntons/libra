@@ -5,16 +5,15 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 	"math/rand"
 	"sort"
-	"strings"
 	"sync/atomic"
 	"time"
 	"unsafe"
 
 	"github.com/ntons/log-go"
+	"github.com/vmihailenco/msgpack/v4"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -49,6 +48,13 @@ var (
 	dbAppRoleCollection = make(map[string]*mongo.Collection)
 	// app cache loaded from database
 	apps unsafe.Pointer
+
+	luaUpdateToken = redis.NewScript(`
+local b = redis.call("GET", KEYS[1])
+if not b then return Nil end
+local d = cmsgpack.unpack(b)
+for i=2,#ARGV,2 do d[ARGV[i-1]]=ARGV[i]
+return redis.call("SET", KEYS[1], cmsgpack.pack(d))`)
 )
 
 func init() {
@@ -70,6 +76,24 @@ type xApp struct {
 	Permissions []string `bson:"permissions,omitempty"`
 	// AES密钥，由Fingerprint生成
 	block cipher.Block
+}
+
+const (
+	xSessDataRoleId    = "roleId"
+	xSessDataRoleIndex = "roleIndex"
+)
+
+// 用户会话缓存数据
+type xSessData struct {
+	Token     string `msgpack:"token"`
+	RoleId    string `msgpack:"roleId"`
+	RoleIndex uint32 `msgpack:"roleIndex"`
+}
+
+type xSess struct {
+	xSessData
+	AppId  string
+	UserId string
 }
 
 type xUser struct {
@@ -103,14 +127,6 @@ type xRole struct {
 	Metadata map[string]string `bson:"metadata,omitempty"`
 }
 
-// role的一个不可变子集，存在ticket缓存冲用于快速获取。
-// 注意这里的数据必须是不可变的，可变数据的修改无法同步到已生成的ticket中
-type xTicketRole struct {
-	Id     string `json:"id,omitempty"`
-	Index  uint32 `json:"index,omitempty"`
-	UserId string `json:"user_id,omitempty"`
-}
-
 // app manager index apps by id and key
 type xAppMgr struct {
 	idIndex  map[string]*xApp
@@ -139,13 +155,6 @@ func (mgr *xAppMgr) findById(appId string) *xApp {
 }
 func (mgr *xAppMgr) findByKey(appKey uint32) *xApp {
 	return mgr.keyIndex[appKey]
-}
-
-func tokenKey(userId string) string {
-	return fmt.Sprintf("token:{%s}", userId)
-}
-func ticketKey(roleId string) string {
-	return fmt.Sprintf("ticket:{%s}", roleId)
 }
 
 func dialMongo(ctx context.Context) (_ *mongo.Client, err error) {
@@ -299,104 +308,80 @@ func getRoleById(
 	return role, nil
 }
 
-// generate a new token
-func newToken(
-	ctx context.Context, app *xApp, userId string) (token string, err error) {
-	if token, err = genCred(app, userId); err != nil {
+func newSess(
+	ctx context.Context, app *xApp, userId string) (_ *xSess, err error) {
+	token, err := newToken(app, userId)
+	if err != nil {
 		return
 	}
-	if err = rdbAuth.Set(ctx, tokenKey(userId), token, 0).Err(); err != nil {
-		return
+	s := &xSess{
+		xSessData: xSessData{Token: token},
+		AppId:     app.Id,
+		UserId:    userId,
 	}
-	return token, nil
+	b, _ := msgpack.Marshal(&s.xSessData)
+	if err = rdbAuth.Set(
+		ctx, userId, util.BytesToString(b), 0).Err(); err != nil {
+	}
+	return s, nil
 }
 
-// check whether a token is available and retrieve the associated data
-func checkToken(
-	ctx context.Context, token string) (appId, userId string, err error) {
-	app, userId, err := decCred(token)
+func checkToken(ctx context.Context, token string) (_ *xSess, err error) {
+	app, userId, err := decToken(token)
 	if err != nil {
 		log.Warnf("failed to decode token: %v", err)
-		return "", "", errInvalidToken
+		return nil, errInvalidToken
 	}
-	if target, err := rdbAuth.Get(ctx, tokenKey(userId)).Result(); err != nil {
+	b, err := rdbAuth.Get(ctx, userId).Bytes()
+	if err != nil {
 		if err == redis.Nil {
-			return "", "", errInvalidToken
+			return nil, errInvalidToken
 		} else {
 			log.Warnf("failed to get token from redis: %v", err)
-			return "", "", errDatabaseUnavailable
+			return nil, errDatabaseUnavailable
 		}
-	} else if target != token {
-		return "", "", errInvalidToken
 	}
-	return app.Id, userId, nil
+	s := &xSess{
+		AppId:  app.Id,
+		UserId: userId,
+	}
+	if err = msgpack.Unmarshal(b, &s.xSessData); err != nil {
+		log.Warnf("failed to decode SessData: %v", err)
+		return nil, errMalformedSessData
+	}
+	if s.Token != token {
+		return nil, errInvalidToken
+	}
+	return s, nil
 }
 
-// generate a new ticket
-func newTicket(
-	ctx context.Context, appId string, role *xRole) (_ string, err error) {
-	app := getAppById(appId)
-	if err != nil {
-		return "", errInvalidAppId
-	}
-	ticket, err := genCred(app, role.Id)
-	if err != nil {
-		return
-	}
-	data, _ := json.Marshal(&xTicketRole{
-		Id:     role.Id,
-		Index:  role.Index,
-		UserId: role.UserId,
-	})
-	sb := strings.Builder{}
-	sb.Grow(len(ticket) + len(data))
-	sb.WriteString(ticket)
-	sb.Write(data)
-	if err = rdbAuth.Set(
-		ctx, ticketKey(role.Id), sb.String(), 0).Err(); err != nil {
-		return
-	}
-	return ticket, nil
-}
-
-// check whether a ticket is available and retrieve the associated data
-func checkTicket(
-	ctx context.Context, ticket string) (
-	app *xApp, role *xTicketRole, err error) {
-	app, roleId, err := decCred(ticket)
-	if err != nil {
-		return nil, nil, errInvalidTicket
-	}
-	v, err := rdbAuth.Get(ctx, ticketKey(roleId)).Result()
-	if err != nil {
+// update session by field name
+func updateSess(
+	ctx context.Context, userId string, args ...interface{}) (err error) {
+	if err = luaUpdateToken.Run(
+		ctx, rdbAuth, []string{userId}, args...,
+	).Err(); err != nil {
 		if err == redis.Nil {
-			return nil, nil, errInvalidToken
+			return errInvalidToken
 		} else {
-			log.Warnf("failed to get ticket from redis: %v", err)
-			return nil, nil, errDatabaseUnavailable
+			log.Warnf("failed to update session: %v", err)
+			return errDatabaseUnavailable
 		}
-	}
-	if !strings.HasPrefix(v, ticket) {
-		return nil, nil, errInvalidTicket
-	}
-	if err = json.Unmarshal(
-		util.StringToBytes(v[len(ticket):]), &role); err != nil {
-		return nil, nil, errInvalidTicket
 	}
 	return
 }
 
-func checkNonce(ctx context.Context, nonce string) (ok bool, err error) {
-	if len(nonce) < 16 {
-		return false, nil
-	}
-	return rdbNonce.SetNX(ctx, nonce, "", cfg.Nonce.timeout).Result()
+func checkNonce(ctx context.Context, appId, nonce string) (ok bool, err error) {
+	key := fmt.Sprintf("%s$%s", appId, nonce)
+	return rdbNonce.SetNX(ctx, key, "", cfg.Nonce.timeout).Result()
 }
 
 func loginUser(
-	ctx context.Context, app *xApp, acctId []string) (_ *xUser, err error) {
+	ctx context.Context, app *xApp, acctId []string) (
+	_ *xUser, _ *xSess, err error) {
 	if len(acctId) > 10 {
-		return nil, newInvalidArgumentError("too many acct id")
+		err = newInvalidArgumentError("too many acct id")
+		return
 	}
 	collection, err := getUserCollection(ctx, app.Id)
 	if err != nil {
@@ -422,7 +407,8 @@ func loginUser(
 		options.FindOneAndUpdate().SetReturnDocument(options.After),
 	).Decode(user); err != nil {
 		log.Warnf("failed to access mongo: %v", err)
-		return nil, errDatabaseUnavailable
+		err = errDatabaseUnavailable
+		return
 	}
 	if len(user.AcctId) > 0 {
 		if _, err := collection.UpdateOne(
@@ -442,7 +428,13 @@ func loginUser(
 		}
 	}
 
-	return user, nil
+	// 生成会话
+	sess, err := newSess(ctx, app, user.Id)
+	if err != nil {
+		return
+	}
+
+	return user, sess, nil
 }
 
 func bindAcctIdToUser(
@@ -533,17 +525,17 @@ func createRole(
 }
 
 func signInRole(
-	ctx context.Context, appId, userId, roleId string) (_ *xRole, err error) {
+	ctx context.Context, appId, userId, roleId string) (err error) {
 	collection, err := getRoleCollection(ctx, appId)
 	if err != nil {
 		return
 	}
-	role := &xRole{}
+	var role xRole
 	if err = collection.FindOneAndUpdate(
 		ctx,
 		bson.M{"_id": roleId, "user_id": userId},
 		bson.M{"$set": bson.M{"sign_in_time": time.Now()}},
-	).Decode(role); err != nil {
+	).Decode(&role); err != nil {
 		if err == mongo.ErrNoDocuments {
 			err = errRoleNotFound
 		} else {
@@ -551,7 +543,10 @@ func signInRole(
 		}
 		return
 	}
-	return role, nil
+	return updateSess(
+		ctx, userId,
+		xSessDataRoleId, roleId,
+		xSessDataRoleIndex, role.Index)
 }
 
 func setRoleMetadata(

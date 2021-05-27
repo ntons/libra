@@ -5,8 +5,6 @@ import (
 
 	v1pb "github.com/ntons/libra-go/api/v1"
 	log "github.com/ntons/log-go"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 )
 
 func fromRole(x *xRole) *v1pb.RoleData {
@@ -35,7 +33,7 @@ func newRoleServer() *roleServer {
 func (srv *roleServer) List(
 	ctx context.Context, req *v1pb.RoleListRequest) (
 	resp *v1pb.RoleListResponse, err error) {
-	appId, userId, ok := getSessionFromContext(ctx)
+	appId, userId, ok := getTrustedFromContext(ctx)
 	if !ok {
 		return nil, errLoginRequired
 	}
@@ -49,7 +47,7 @@ func (srv *roleServer) List(
 func (srv *roleServer) Create(
 	ctx context.Context, req *v1pb.RoleCreateRequest) (
 	resp *v1pb.RoleCreateResponse, err error) {
-	appId, userId, ok := getSessionFromContext(ctx)
+	appId, userId, ok := getTrustedFromContext(ctx)
 	if !ok {
 		return nil, errLoginRequired
 	}
@@ -62,26 +60,19 @@ func (srv *roleServer) Create(
 func (srv *roleServer) SignIn(
 	ctx context.Context, req *v1pb.RoleSignInRequest) (
 	resp *v1pb.RoleSignInResponse, err error) {
-	appId, userId, ok := getSessionFromContext(ctx)
+	appId, userId, ok := getTrustedFromContext(ctx)
 	if !ok {
 		return nil, errLoginRequired
 	}
-	role, err := signInRole(ctx, appId, userId, req.RoleId)
-	if err != nil {
+	if err = signInRole(ctx, appId, userId, req.RoleId); err != nil {
 		return
 	}
-	ticket, err := newTicket(ctx, appId, role)
-	if err != nil {
-		return
-	}
-	md := metadata.Pairs(xLibraTicket, ticket, xLibraCookieTicket, ticket)
-	grpc.SetHeader(ctx, md)
 	return &v1pb.RoleSignInResponse{}, nil
 }
 func (srv *roleServer) SetMetadata(
 	ctx context.Context, req *v1pb.RoleSetMetadataRequest) (
 	resp *v1pb.RoleSetMetadataResponse, err error) {
-	appId, userId, ok := getSessionFromContext(ctx)
+	appId, userId, ok := getTrustedFromContext(ctx)
 	if !ok {
 		return nil, errLoginRequired
 	}

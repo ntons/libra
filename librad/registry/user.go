@@ -32,7 +32,7 @@ func newUserServer() *userServer {
 	return &userServer{}
 }
 
-func (srv *userServer) checkState(
+func checkState(
 	ctx context.Context, app *xApp, any *anypb.Any) (
 	acctId []string, err error) {
 	state, err := anypb.UnmarshalNew(any, proto.UnmarshalOptions{})
@@ -47,7 +47,7 @@ func (srv *userServer) checkState(
 		}
 		acctId = []string{"dev$" + state.Username}
 	case *v1pb.UniformLoginState:
-		if ok, err := checkNonce(ctx, state.Nonce); err != nil {
+		if ok, err := checkNonce(ctx, app.Id, state.Nonce); err != nil {
 			return nil, errDatabaseUnavailable
 		} else if !ok {
 			return nil, errInvalidNonce
@@ -84,29 +84,24 @@ func (srv *userServer) Login(
 		log.Warnf("invalid app id: %v", req.AppId)
 		return nil, errInvalidAppId
 	}
-	acctId, err := srv.checkState(ctx, app, req.State)
+	acctId, err := checkState(ctx, app, req.State)
 	if err != nil {
 		log.Warnf("failed to check state: %v", err)
 		return
 	}
-	user, err := loginUser(ctx, app, acctId)
+	user, sess, err := loginUser(ctx, app, acctId)
 	if err != nil {
 		log.Warnf("failed to login user: %v", err)
 		return
 	}
-	token, err := newToken(ctx, app, user.Id)
-	if err != nil {
-		log.Warnf("failed to new token: %v", err)
-		return
-	}
-	grpc.SetHeader(ctx, metadata.Pairs(
-		xLibraToken, token, xLibraCookieToken, token))
+	grpc.SetHeader(ctx, metadata.Pairs(xLibraToken, sess.Token))
 	return &v1pb.UserLoginResponse{User: fromUser(user)}, nil
 }
+
 func (srv *userServer) Bind(
 	ctx context.Context, req *v1pb.UserBindRequest) (
 	resp *v1pb.UserBindResponse, err error) {
-	appId, userId, ok := getSessionFromContext(ctx)
+	appId, userId, ok := getTrustedFromContext(ctx)
 	if !ok {
 		return nil, errLoginRequired
 	}
@@ -116,10 +111,11 @@ func (srv *userServer) Bind(
 	}
 	return &v1pb.UserBindResponse{}, nil
 }
+
 func (srv *userServer) SetMetadata(
 	ctx context.Context, req *v1pb.UserSetMetadataRequest) (
 	resp *v1pb.UserSetMetadataResponse, err error) {
-	appId, userId, ok := getSessionFromContext(ctx)
+	appId, userId, ok := getTrustedFromContext(ctx)
 	if !ok {
 		return nil, errLoginRequired
 	}

@@ -18,6 +18,7 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.3
 	github.com/sigurn/crc16 v0.0.0-20160107003519-da416fad5162
 	github.com/sigurn/utils v0.0.0-20190728110027-e1fefb11a144 // indirect
+	github.com/vmihailenco/msgpack/v4 v4.3.12
 	go.mongodb.org/mongo-driver v1.4.3
 	go.uber.org/zap v1.16.0
 	google.golang.org/genproto v0.0.0-20201104152603-2e45c02ce95c

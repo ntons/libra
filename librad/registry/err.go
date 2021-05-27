@@ -32,7 +32,6 @@ var (
 	errUnauthenticated  = newUnauthenticatedError("unauthenticated")
 	errLoginRequired    = newUnauthenticatedError("login required")
 	errInvalidToken     = newUnauthenticatedError("invalid token")
-	errInvalidTicket    = newUnauthenticatedError("invalid ticket")
 	errInvalidAppSecret = newUnauthenticatedError("invalid app secret")
 
 	// NotFound
@@ -52,8 +51,9 @@ var (
 	errInvalidMetadata  = newInvalidArgumentError("invalid metadata")
 
 	// Internal
-	errMalformedUserId = newInternalError("malformed user id")
-	errMalformedRoleId = newInternalError("malformed role id")
+	errMalformedUserId   = newInternalError("malformed user id")
+	errMalformedRoleId   = newInternalError("malformed role id")
+	errMalformedSessData = newInternalError("malformed session data")
 
 	// Unavailable
 	errDatabaseUnavailable = newUnavailableError("database unavailable")

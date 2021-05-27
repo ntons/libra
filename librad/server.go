@@ -25,8 +25,7 @@ import (
 )
 
 const (
-	xLibra  = "x-libra-"
-	xCookie = "x-cookie-x-libra-"
+	xLibra = "x-libra-"
 )
 
 const (

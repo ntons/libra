@@ -45,6 +45,11 @@ data:
               - name: route_apiproxy
                 domains:
                 - "*"
+                request_headers_to_add:
+                - header:
+                    key: "x-libra-auth-by"
+                    value: "secret"
+                  append: false
                 routes:
                 - match:
                     #prefix: '/libra.v1.'

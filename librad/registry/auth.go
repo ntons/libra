@@ -10,10 +10,16 @@ import (
 	authpb "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/genproto/googleapis/rpc/status"
+	"google.golang.org/grpc/metadata"
 	grpcstatus "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	log "github.com/ntons/log-go"
+)
+
+const (
+	xAuthByToken  = "token"
+	xAuthBySecret = "secret"
 )
 
 func isPermitted(app *xApp, path string) bool {
@@ -45,23 +51,25 @@ func (srv authServer) Check(
 	ctx context.Context, req *authpb.CheckRequest) (
 	_ *authpb.CheckResponse, err error) {
 	log.Debugf("Auth.Check|%v", req)
-	for key := range req.Attributes.Request.Http.Headers {
+	var authBy string
+	for key, val := range req.Attributes.Request.Http.Headers {
 		// 不允许请求中带有x-libra-trusted-头
 		if strings.HasPrefix(key, xLibraTrustedPrefix) {
 			return srv.errToResponse(errInvalidMetadata)
 		}
+		if key == xLibraAuthBy {
+			authBy = val
+		}
 	}
-	if _, ok := req.Attributes.Request.Http.Headers[xLibraAppSecret]; ok {
-		return srv.checkAppSecret(ctx, req)
-	}
-	if _, ok := req.Attributes.Request.Http.Headers[xLibraTicket]; ok {
-		return srv.checkTicket(ctx, req)
-	}
-	if _, ok := req.Attributes.Request.Http.Headers[xLibraToken]; ok {
+	switch authBy {
+	case xAuthByToken:
 		return srv.checkToken(ctx, req)
+	case xAuthBySecret:
+		return srv.checkSecret(ctx, req)
+	default:
+		// 没有任何可用凭证
+		return srv.errToResponse(errUnauthenticated)
 	}
-	// 没有任何可用凭证
-	return srv.errToResponse(errUnauthenticated)
 }
 
 func (srv authServer) checkToken(
@@ -72,88 +80,56 @@ func (srv authServer) checkToken(
 	if token == "" {
 		return srv.errToResponse(errUnauthenticated)
 	}
-	appId, userId, err := checkToken(ctx, token)
+	sess, err := checkToken(ctx, token)
 	if err != nil {
 		return srv.errToResponse(err)
+	}
+
+	headers := []*corepb.HeaderValueOption{}
+	if sess.AppId != "" {
+		headers = append(headers, &corepb.HeaderValueOption{
+			Header: &corepb.HeaderValue{
+				Key:   xLibraTrustedAppId,
+				Value: sess.AppId,
+			},
+		})
+	}
+	if sess.UserId != "" {
+		headers = append(headers, &corepb.HeaderValueOption{
+			Header: &corepb.HeaderValue{
+				Key:   xLibraTrustedUserId,
+				Value: sess.UserId,
+			},
+		})
+	}
+	if sess.RoleId != "" {
+		headers = append(headers, &corepb.HeaderValueOption{
+			Header: &corepb.HeaderValue{
+				Key:   xLibraTrustedRoleId,
+				Value: sess.RoleId,
+			},
+		}, &corepb.HeaderValueOption{
+			Header: &corepb.HeaderValue{
+				Key:   xLibraTrustedRoleIndex,
+				Value: fmt.Sprintf("%d", sess.RoleIndex),
+			},
+		})
+	}
+	for _, header := range headers {
+		header.Append = wrapperspb.Bool(false)
 	}
 	return &authpb.CheckResponse{
 		Status: &status.Status{Code: int32(code.Code_OK)},
 		HttpResponse: &authpb.CheckResponse_OkResponse{
 			OkResponse: &authpb.OkHttpResponse{
-				Headers: []*corepb.HeaderValueOption{
-					{
-						Header: &corepb.HeaderValue{
-							Key:   xLibraTrustedAppId,
-							Value: appId,
-						},
-						Append: wrapperspb.Bool(false),
-					}, {
-						Header: &corepb.HeaderValue{
-							Key:   xLibraTrustedUserId,
-							Value: userId,
-						},
-						Append: wrapperspb.Bool(false),
-					},
-				},
-				//HeadersToRemove: []string{xLibraToken},
+				Headers:         headers,
+				HeadersToRemove: []string{xLibraToken},
 			},
 		},
 	}, nil
 }
 
-func (srv authServer) checkTicket(
-	ctx context.Context, req *authpb.CheckRequest) (
-	_ *authpb.CheckResponse, err error) {
-	log.Debugf("Auth.CheckTicket|%v", req)
-	ticket := req.Attributes.Request.Http.Headers[xLibraTicket]
-	if ticket == "" {
-		return srv.errToResponse(errUnauthenticated)
-	}
-	app, role, err := checkTicket(ctx, ticket)
-	if err != nil {
-		return srv.errToResponse(err)
-	}
-	if !isPermitted(app, req.Attributes.Request.Http.Path) {
-		return srv.errToResponse(errPermissionDenied)
-	}
-	return &authpb.CheckResponse{
-		Status: &status.Status{Code: int32(code.Code_OK)},
-		HttpResponse: &authpb.CheckResponse_OkResponse{
-			OkResponse: &authpb.OkHttpResponse{
-				Headers: []*corepb.HeaderValueOption{
-					{
-						Header: &corepb.HeaderValue{
-							Key:   xLibraTrustedAppId,
-							Value: app.Id,
-						},
-						Append: wrapperspb.Bool(false),
-					}, {
-						Header: &corepb.HeaderValue{
-							Key:   xLibraTrustedUserId,
-							Value: role.UserId,
-						},
-						Append: wrapperspb.Bool(false),
-					}, {
-						Header: &corepb.HeaderValue{
-							Key:   xLibraTrustedRoleId,
-							Value: role.Id,
-						},
-						Append: wrapperspb.Bool(false),
-					}, {
-						Header: &corepb.HeaderValue{
-							Key:   xLibraTrustedRoleIndex,
-							Value: fmt.Sprintf("%d", role.Index),
-						},
-						Append: wrapperspb.Bool(false),
-					},
-				},
-				HeadersToRemove: []string{xLibraTicket},
-			},
-		},
-	}, nil
-}
-
-func (srv authServer) checkAppSecret(
+func (srv authServer) checkSecret(
 	ctx context.Context, req *authpb.CheckRequest) (
 	_ *authpb.CheckResponse, err error) {
 	log.Debugf("Auth.CheckSecret|%v", req)
@@ -195,4 +171,23 @@ func (authServer) errToResponse(err error) (*authpb.CheckResponse, error) {
 			Message: s.Message(),
 		},
 	}, nil
+}
+
+// 获取可信数据
+func getTrustedFromContext(ctx context.Context) (appId, userId string, ok bool) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return
+	}
+	if v := md.Get(xLibraTrustedAppId); len(v) != 1 || v[0] == "" {
+		return "", "", false
+	} else {
+		appId = v[0]
+	}
+	if v := md.Get(xLibraTrustedUserId); len(v) != 1 || v[0] == "" {
+		return "", "", false
+	} else {
+		userId = v[0]
+	}
+	return
 }
