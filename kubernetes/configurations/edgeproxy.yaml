@@ -123,7 +123,7 @@ data:
                     cluster_name: cluster_librad_v1
                   initial_metadata:
                   - key: "x-libra-auth-by"
-                    value: "secret"
+                    value: "token"
                   timeout: 0.2s
                 transport_api_version: V3
             - name: envoy.filters.http.router
