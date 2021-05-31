@@ -1,0 +1,51 @@
+bind: ':80'
+services:
+  registry:
+    auth:
+      redis:
+        - 'redis://redis-0.redis.dev.svc.cluster.local:6379/1'
+        - 'redis://redis-1.redis.dev.svc.cluster.local:6379/1'
+        - 'redis://redis-2.redis.dev.svc.cluster.local:6379/1'
+    nonce:
+      redis:
+        - 'redis://redis-0.redis.dev.svc.cluster.local:6379/2'
+        - 'redis://redis-1.redis.dev.svc.cluster.local:6379/2'
+        - 'redis://redis-2.redis.dev.svc.cluster.local:6379/2'
+    mongo: 'mongodb://mongo-0.mongo.dev.svc.cluster.local:27017'
+  database:
+    database: &database
+      redis:
+        - 'redis://redis-0.redis.dev.svc.cluster.local:6379/3'
+        - 'redis://redis-1.redis.dev.svc.cluster.local:6379/3'
+        - 'redis://redis-2.redis.dev.svc.cluster.local:6379/3'
+      mongo: 'mongodb://mongo-1.mongo.dev.svc.cluster.local:27017'
+    mailbox: &mailbox
+      redis:
+        - 'redis://redis-0.redis.dev.svc.cluster.local:6379/4'
+        - 'redis://redis-1.redis.dev.svc.cluster.local:6379/4'
+        - 'redis://redis-2.redis.dev.svc.cluster.local:6379/4'
+      mongo: 'mongodb://mongo-2.mongo.dev.svc.cluster.local:27017'
+    distlock:
+      redis:
+        - 'redis://redis-0.redis.dev.svc.cluster.local:6379/5'
+        - 'redis://redis-1.redis.dev.svc.cluster.local:6379/5'
+        - 'redis://redis-2.redis.dev.svc.cluster.local:6379/5'
+      ttl: '10s'
+  syncer:
+    tasks:
+    - name: db
+      <<: *database
+    - name: mb
+      <<: *mailbox
+  ranking:
+    bubblechart:
+      redis:
+        - 'redis://redis-0.redis.dev.svc.cluster.local:6379/6'
+        - 'redis://redis-1.redis.dev.svc.cluster.local:6379/6'
+        - 'redis://redis-2.redis.dev.svc.cluster.local:6379/6'
+    leaderboard:
+      redis:
+        - 'redis://redis-0.redis.dev.svc.cluster.local:6379/7'
+        - 'redis://redis-1.redis.dev.svc.cluster.local:6379/7'
+        - 'redis://redis-2.redis.dev.svc.cluster.local:6379/7'
+

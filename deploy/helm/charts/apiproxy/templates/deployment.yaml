@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "apiproxy.name" . }}
+  namespace: {{ include "apiproxy.namespace" . }}
+  labels:
+    {{- include "apiproxy.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "apiproxy.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "apiproxy.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: "proxy"
+          image: envoyproxy/envoy-alpine:v1.16.4
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+            - containerPort: 8000
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/envoy
+              readOnly: true
+        # Configmap mounted volume is implemented as symlinks.
+        # But envoy watch file move by inotify, the linked file change
+        # would not trigger reload.
+        # So that, a helper must exist to watch and move configmap
+        # files to envoy directly.
+        - name: "helper"
+          image: instrumentisto/rsync-ssh:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh","-c","while true; do rsync -dLptgo --delete /tmp/envoy/ /etc/envoy/ && sleep 1 || break; done"]
+          volumeMounts:
+            - name: config
+              mountPath: /etc/envoy
+            - name: source
+              mountPath: /tmp/envoy
+      initContainers:
+        # to make sure envoy configurations exist when proxy start
+        - name: "initializer"
+          image: instrumentisto/rsync-ssh:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh","-c","rsync -dLptgo --delete /tmp/envoy/ /etc/envoy/"]
+          volumeMounts:
+            - name: config
+              mountPath: /etc/envoy
+            - name: source
+              mountPath: /tmp/envoy
+      volumes:
+        - name: config
+          emptyDir: {}
+        - name: source
+          configMap:
+            name: {{ include "apiproxy.name" . }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+

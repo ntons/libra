@@ -50,7 +50,7 @@ func newAuthServer() *authServer { return &authServer{} }
 
 func (srv authServer) Check(
 	ctx context.Context, req *authpb.CheckRequest) (
-	_ *authpb.CheckResponse, err error) {
+	res *authpb.CheckResponse, err error) {
 	log.Debugf("Auth.Check|%v", req)
 
 	md, ok := metadata.FromIncomingContext(ctx)
@@ -65,22 +65,36 @@ func (srv authServer) Check(
 		return srv.errToResponse(errInvalidMetadata)
 	}
 
+	toRemoveHeaders := make(map[string]struct{})
 	for key := range req.Attributes.Request.Http.Headers {
 		// 不允许请求中带有x-libra-trusted-头
 		if strings.HasPrefix(key, xLibraTrustedPrefix) {
-			return srv.errToResponse(errInvalidMetadata)
+			toRemoveHeaders[key] = struct{}{}
 		}
 	}
 
 	switch authBy {
 	case xAuthByToken:
-		return srv.checkToken(ctx, req)
+		res, err = srv.checkToken(ctx, req)
 	case xAuthBySecret:
-		return srv.checkSecret(ctx, req)
+		res, err = srv.checkSecret(ctx, req)
 	default:
 		// 没有任何可用凭证
 		return srv.errToResponse(errUnauthenticated)
 	}
+	if err != nil {
+		return
+	}
+
+	if x := res.GetOkResponse(); x != nil {
+		for _, e := range x.Headers {
+			delete(toRemoveHeaders, e.GetHeader().GetKey())
+		}
+		for key := range toRemoveHeaders {
+			x.HeadersToRemove = append(x.HeadersToRemove, key)
+		}
+	}
+	return
 }
 
 func (srv authServer) checkToken(

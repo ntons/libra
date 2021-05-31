@@ -1,0 +1,36 @@
+resources:
+- name: cluster_librad_v1
+  "@type": type.googleapis.com/envoy.config.cluster.v3.Cluster
+  connect_timeout: 0.2s
+  type: LOGICAL_DNS
+  lb_policy: ROUND_ROBIN
+  load_assignment:
+    cluster_name: cluster_librad_v1
+    endpoints:
+    - lb_endpoints:
+      - endpoint:
+          address:
+            socket_address:
+              address: librad-0-0-1.libra.svc.cluster.local
+              port_value: 80
+  http2_protocol_options:
+    initial_stream_window_size: 65536 # 64 KiB
+    initial_connection_window_size: 1048576 # 1 MiB
+- name: cluster_greeter_server
+  "@type": type.googleapis.com/envoy.config.cluster.v3.Cluster
+  connect_timeout: 0.2s
+  type: LOGICAL_DNS
+  lb_policy: ROUND_ROBIN
+  load_assignment:
+    cluster_name: cluster_greeter_server
+    endpoints:
+    - lb_endpoints:
+      - endpoint:
+          address:
+            socket_address:
+              address: greeter-server.examples.svc.cluster.local
+              port_value: 80
+  http2_protocol_options:
+    initial_stream_window_size: 65536 # 64 KiB
+    initial_connection_window_size: 1048576 # 1 MiB
+

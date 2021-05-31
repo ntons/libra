@@ -1,0 +1,36 @@
+# Syncer同时最多只能有一个实例运行，因此必须保证：
+# kind: StatefulSet  保证在前一个实例彻底关闭前不会有新实例运行
+# spec.replicas: 1   保证只有一个实例在运行
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "syncer.name" . }}
+  namespace: {{ include "syncer.namespace" . }}
+  labels:
+    {{- include "syncer.labels" . | nindent 4 }}
+spec:
+  replicas: 1 # MUST BE 1
+  selector:
+    matchLabels:
+      {{- include "syncer.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "syncer.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: {{ include "syncer.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["-i", "syncer"]
+          volumeMounts:
+          - name: librad
+            mountPath: /etc/librad.yaml
+            subPath: librad.yaml
+            readOnly: true
+      volumes:
+        - name: librad
+          configMap:
+            name: {{ include "librad.name" . }}
+

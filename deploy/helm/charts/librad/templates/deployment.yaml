@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "librad.name" . }}
+  namespace: {{ include "librad.namespace" . }}
+  labels:
+    {{- include "librad.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "librad.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "librad.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: "librad"
+          image: {{ include "librad.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          args: ["-e","syncer"]
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: librad
+              mountPath: /etc/librad.yaml
+              subPath: librad.yaml
+              readOnly: true
+      volumes:
+        - name: librad
+          configMap:
+            name: {{ include "librad.name" . }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
