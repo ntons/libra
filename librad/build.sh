@@ -17,5 +17,5 @@ set -x
 
 go build -ldflags "-X 'main.Version=${VERSION}' -X 'main.Built=${BUILT}' -X 'main.GitCommit=${GIT_COMMIT}' -X 'main.GoVersion=${GO_VERSION}' -X 'main.OSArch=${OS_ARCH}'"
 
-docker build -t ntons/librad:dev .
+docker build -t ntons/librad .
 

@@ -7,10 +7,9 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"math/rand"
-	"sort"
-	"sync/atomic"
+	"regexp"
+	"strings"
 	"time"
-	"unsafe"
 
 	"github.com/ntons/log-go"
 	"github.com/vmihailenco/msgpack/v4"
@@ -42,12 +41,14 @@ var (
 	rdbNonce redis.Client
 
 	dbCtx context.Context
+
 	// cached collection
 	dbAppCollection     *mongo.Collection
 	dbAppUserCollection = make(map[string]*mongo.Collection)
 	dbAppRoleCollection = make(map[string]*mongo.Collection)
+
 	// app cache loaded from database
-	apps unsafe.Pointer
+	dbApps = newAppIndex(nil)
 
 	luaUpdateSessData = redis.NewScript(`
 local b = redis.call("GET", KEYS[1])
@@ -57,12 +58,36 @@ d.data = cmsgpack.unpack(ARGV[1])
 return redis.call("SET", KEYS[1], cmsgpack.pack(d))`)
 )
 
-func init() {
-	// initialize apps to empty
-	atomic.StorePointer(&apps, unsafe.Pointer(newAppMgr([]*xApp{})))
+type xPermission struct {
+	Path   string `json:"path,omitempty" bson:"path,omitempty"`
+	Prefix string `json:"prefix,omitempty" bson:"prefix,omitempty"`
+	Regexp string `json:"regexp,omitempty" bson:"regexp,omitempty"`
+	// pre-compiled regexp
+	re *regexp.Regexp
 }
 
-// Schemes:
+func (x *xPermission) parse() (err error) {
+	if x.Regexp != "" {
+		if x.re, err = regexp.Compile(x.Regexp); err != nil {
+			return
+		}
+	}
+	return
+}
+
+func (x *xPermission) match(path string) bool {
+	if x.Path != "" && path != x.Path {
+		return false
+	}
+	if x.Prefix != "" && !strings.HasPrefix(path, x.Prefix) {
+		return false
+	}
+	if x.re != nil && !x.re.MatchString(path) {
+		return false
+	}
+	return true
+}
+
 type xApp struct {
 	// 应用ID
 	Id string `bson:"_id"`
@@ -73,27 +98,73 @@ type xApp struct {
 	// 应用指纹指纹，特异化应用数据，增加安全性
 	Fingerprint string `bson:"fingerprint,omitempty"`
 	// 允许的服务
-	Permissions []string `bson:"permissions,omitempty"`
+	Permissions []*xPermission `bson:"permissions,omitempty"`
 	// AES密钥，由Fingerprint生成
 	block cipher.Block
 }
 
-const (
-	xSessDataRoleId    = "roleId"
-	xSessDataRoleIndex = "roleIndex"
-)
+func (x *xApp) parse() (err error) {
+	// check permission expression
+	for _, p := range x.Permissions {
+		if err = p.parse(); err != nil {
+			return
+		}
+	}
+	// hash fingerprint to 32 bytes byte array, NewCipher must success
+	hash := sha256.Sum256([]byte(x.Fingerprint))
+	x.block, _ = aes.NewCipher(hash[:])
+	return
+}
+func (x *xApp) isPermitted(path string) bool {
+	if cfg.isPermitted(path) {
+		return true
+	}
+	for _, p := range x.Permissions {
+		if p.match(path) {
+			return true
+		}
+	}
+	return false
+}
 
-// 用户会话缓存数据
+// App collection with index
+type xAppIndex struct {
+	idIndex  map[string]*xApp
+	keyIndex map[uint32]*xApp
+}
+
+func newAppIndex(apps []*xApp) *xAppIndex {
+	var (
+		idIndex  = make(map[string]*xApp)
+		keyIndex = make(map[uint32]*xApp)
+	)
+	for _, a := range apps {
+		idIndex[a.Id] = a
+		keyIndex[a.Key] = a
+	}
+	return &xAppIndex{idIndex: idIndex, keyIndex: keyIndex}
+}
+func (x xAppIndex) findById(id string) *xApp {
+	a, _ := x.idIndex[id]
+	return a
+}
+func (x xAppIndex) findByKey(key uint32) *xApp {
+	a, _ := x.keyIndex[key]
+	return a
+}
+
+// 会话缓存数据
 type xSessData struct {
 	RoleId    string `msgpack:"roleId"`
 	RoleIndex uint32 `msgpack:"roleIndex"`
 }
-
 type xSess struct {
 	AppId  string    `msgpack:"-"`
 	UserId string    `msgpack:"-"`
 	Token  string    `msgpack:"token"`
 	Data   xSessData `msgpack:"data"`
+	//// 中转数据
+	app *xApp `msgpack:"-"`
 }
 
 type xUser struct {
@@ -127,36 +198,6 @@ type xRole struct {
 	Metadata map[string]string `bson:"metadata,omitempty"`
 }
 
-// app manager index apps by id and key
-type xAppMgr struct {
-	idIndex  map[string]*xApp
-	keyIndex map[uint32]*xApp
-}
-
-func newAppMgr(list []*xApp) *xAppMgr {
-	mgr := &xAppMgr{
-		idIndex:  make(map[string]*xApp),
-		keyIndex: make(map[uint32]*xApp),
-	}
-	for _, app := range list {
-		// hash fingerprint to 32 bytes byte array, NewCipher must success
-		hash := sha256.Sum256([]byte(app.Fingerprint))
-		app.block, _ = aes.NewCipher(hash[:])
-		// sort permissions
-		sort.Strings(app.Permissions)
-		// id and key must unique due to db index
-		mgr.idIndex[app.Id] = app
-		mgr.keyIndex[app.Key] = app
-	}
-	return mgr
-}
-func (mgr *xAppMgr) findById(appId string) *xApp {
-	return mgr.idIndex[appId]
-}
-func (mgr *xAppMgr) findByKey(appKey uint32) *xApp {
-	return mgr.keyIndex[appKey]
-}
-
 func dialMongo(ctx context.Context) (_ *mongo.Client, err error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -169,6 +210,7 @@ func dialMongo(ctx context.Context) (_ *mongo.Client, err error) {
 	}
 	return cli, nil
 }
+
 func dialDatabase(ctx context.Context) (err error) {
 	if rdbAuth, err = redis.DialCluster(ctx, cfg.Auth.Redis); err != nil {
 		return
@@ -200,7 +242,12 @@ func dbServe(ctx context.Context) {
 		if err = cursor.All(ctx, &res); err != nil {
 			return
 		}
-		atomic.StorePointer(&apps, unsafe.Pointer(newAppMgr(res)))
+		for _, a := range res {
+			if err = a.parse(); err != nil {
+				return
+			}
+		}
+		dbApps = newAppIndex(res)
 		return
 	}
 	for {
@@ -279,14 +326,6 @@ func getRoleCollection(
 	return collection, nil
 }
 
-// get app by id or key, nil will be returned when not exists
-func getAppById(appId string) *xApp {
-	return (*xAppMgr)(atomic.LoadPointer(&apps)).findById(appId)
-}
-func getAppByKey(appKey uint32) *xApp {
-	return (*xAppMgr)(atomic.LoadPointer(&apps)).findByKey(appKey)
-}
-
 func getRoleById(
 	ctx context.Context, appId, roleId string) (_ *xRole, err error) {
 	collection, err := getRoleCollection(ctx, appId)
@@ -344,6 +383,7 @@ func checkToken(ctx context.Context, token string) (_ *xSess, err error) {
 	s := &xSess{
 		AppId:  app.Id,
 		UserId: userId,
+		app:    app,
 	}
 	if err = msgpack.Unmarshal(b, &s); err != nil {
 		log.Warnf("failed to decode SessData: %v", err)
@@ -488,7 +528,7 @@ func listRoles(
 func createRole(
 	ctx context.Context, appId, userId string, index uint32) (
 	_ *xRole, err error) {
-	app := getAppById(appId)
+	app := dbApps.findById(appId)
 	if app == nil {
 		return nil, errInvalidAppId
 	}

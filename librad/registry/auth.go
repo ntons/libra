@@ -3,7 +3,6 @@ package registry
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 
 	corepb "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -22,24 +21,6 @@ const (
 	xAuthByToken  = "token"
 	xAuthBySecret = "secret"
 )
-
-func isPermitted(app *xApp, path string) bool {
-	if len(path) < 3 || path[0] != '/' {
-		return false
-	}
-	i := strings.IndexByte(path[1:], '/')
-	if i < 0 {
-		return false
-	}
-	svc := path[1 : 1+i]
-	if strings.HasPrefix(svc, "libra.") {
-		return true // libra services are controlled by edge route rule
-	}
-	if sort.SearchStrings(app.Permissions, svc) < len(app.Permissions) {
-		return true // only permitted services are allowed
-	}
-	return false
-}
 
 // 只支持V3版本的验证服务，V2版本缺少Header剔除功能，无法满足安全需求。
 type authServer struct {
@@ -67,7 +48,7 @@ func (srv authServer) Check(
 
 	toRemoveHeaders := make(map[string]struct{})
 	for key := range req.Attributes.Request.Http.Headers {
-		// 不允许请求中带有x-libra-trusted-头
+		// 去掉请求中带的x-libra-trusted-
 		if strings.HasPrefix(key, xLibraTrustedPrefix) {
 			toRemoveHeaders[key] = struct{}{}
 		}
@@ -105,9 +86,12 @@ func (srv authServer) checkToken(
 	if token == "" {
 		return srv.errToResponse(errUnauthenticated)
 	}
-	sess, err := checkToken(ctx, token)
-	if err != nil {
+
+	var sess *xSess
+	if sess, err = checkToken(ctx, token); err != nil {
 		return srv.errToResponse(err)
+	} else if !sess.app.isPermitted(req.Attributes.Request.Http.Path) {
+		return srv.errToResponse(errPermissionDenied)
 	}
 
 	headers := []*corepb.HeaderValueOption{}
@@ -163,8 +147,10 @@ func (srv authServer) checkSecret(
 	if appId == "" || appSecret == "" {
 		return srv.errToResponse(errUnauthenticated)
 	}
-	if app := getAppById(appId); app == nil || app.Secret != appSecret {
+	if app := dbApps.findById(appId); app == nil || app.Secret != appSecret {
 		return srv.errToResponse(errInvalidAppSecret)
+	} else if !app.isPermitted(req.Attributes.Request.Http.Path) {
+		return srv.errToResponse(errPermissionDenied)
 	}
 	return &authpb.CheckResponse{
 		Status: &status.Status{Code: int32(code.Code_OK)},

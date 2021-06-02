@@ -95,7 +95,8 @@ func decTokenV1(rawToken []byte) (app *xApp, id string, err error) {
 		err = fmt.Errorf("bad rawToken cred length: %d", len(rawToken))
 		return
 	}
-	if app = getAppByKey(binary.BigEndian.Uint32(rawToken[4:8])); app == nil {
+	if app = dbApps.findByKey(
+		binary.BigEndian.Uint32(rawToken[4:8])); app == nil {
 		err = fmt.Errorf("bad app key")
 		return
 	}

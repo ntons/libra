@@ -43,7 +43,7 @@ type server struct {
 func create(b json.RawMessage) (_ comm.Service, err error) {
 	if err = json.Unmarshal(b, &cfg); err != nil {
 		return
-	} else if err = cfg.Parse(); err != nil {
+	} else if err = cfg.parse(); err != nil {
 		return
 	}
 

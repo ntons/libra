@@ -4,22 +4,27 @@ import (
 	"time"
 )
 
-var cfg = &config{}
+var cfg = &xConfig{}
 
-type config struct {
-	Auth struct { // 登录态验证
+type xConfig struct {
+	// 登录态验证
+	Auth struct {
 		Redis []string
 	}
-	Nonce struct { // nonce检查
+	// 随机数验证
+	Nonce struct {
 		Redis   []string
 		Timeout string
 		// parsed to
 		timeout time.Duration
 	}
-	Mongo string // 配置/注册DB
+	// 配置/注册DB
+	Mongo string
+	// 每个App都有的通用权限
+	CommonPermissions []*xPermission
 }
 
-func (cfg *config) Parse() (err error) {
+func (cfg *xConfig) parse() (err error) {
 	if s := cfg.Nonce.Timeout; s != "" {
 		if cfg.Nonce.timeout, err = time.ParseDuration(s); err != nil {
 			return
@@ -27,5 +32,18 @@ func (cfg *config) Parse() (err error) {
 	} else {
 		cfg.Nonce.timeout = time.Hour
 	}
+	for _, p := range cfg.CommonPermissions {
+		if err = p.parse(); err != nil {
+			return
+		}
+	}
 	return
+}
+func (cfg *xConfig) isPermitted(path string) bool {
+	for _, p := range cfg.CommonPermissions {
+		if p.match(path) {
+			return true
+		}
+	}
+	return false
 }
