@@ -127,16 +127,16 @@ func (srv authServer) checkToken(
 			},
 		})
 	}
-	if sess.RoleId != "" {
+	if sess.Data.RoleId != "" {
 		headers = append(headers, &corepb.HeaderValueOption{
 			Header: &corepb.HeaderValue{
 				Key:   xLibraTrustedRoleId,
-				Value: sess.RoleId,
+				Value: sess.Data.RoleId,
 			},
 		}, &corepb.HeaderValueOption{
 			Header: &corepb.HeaderValue{
 				Key:   xLibraTrustedRoleIndex,
-				Value: fmt.Sprintf("%d", sess.RoleIndex),
+				Value: fmt.Sprintf("%d", sess.Data.RoleIndex),
 			},
 		})
 	}

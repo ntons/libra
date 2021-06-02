@@ -49,11 +49,11 @@ var (
 	// app cache loaded from database
 	apps unsafe.Pointer
 
-	luaUpdateToken = redis.NewScript(`
+	luaUpdateSessData = redis.NewScript(`
 local b = redis.call("GET", KEYS[1])
 if not b then return Nil end
 local d = cmsgpack.unpack(b)
-for i=2,#ARGV,2 do d[ARGV[i-1]]=ARGV[i]
+d.data = cmsgpack.unpack(ARGV[1])
 return redis.call("SET", KEYS[1], cmsgpack.pack(d))`)
 )
 
@@ -85,15 +85,15 @@ const (
 
 // 用户会话缓存数据
 type xSessData struct {
-	Token     string `msgpack:"token"`
 	RoleId    string `msgpack:"roleId"`
 	RoleIndex uint32 `msgpack:"roleIndex"`
 }
 
 type xSess struct {
-	xSessData
-	AppId  string
-	UserId string
+	AppId  string    `msgpack:"-"`
+	UserId string    `msgpack:"-"`
+	Token  string    `msgpack:"token"`
+	Data   xSessData `msgpack:"data"`
 }
 
 type xUser struct {
@@ -315,11 +315,11 @@ func newSess(
 		return
 	}
 	s := &xSess{
-		xSessData: xSessData{Token: token},
-		AppId:     app.Id,
-		UserId:    userId,
+		Token:  token,
+		AppId:  app.Id,
+		UserId: userId,
 	}
-	b, _ := msgpack.Marshal(&s.xSessData)
+	b, _ := msgpack.Marshal(&s)
 	if err = rdbAuth.Set(
 		ctx, userId, util.BytesToString(b), 0).Err(); err != nil {
 	}
@@ -345,7 +345,7 @@ func checkToken(ctx context.Context, token string) (_ *xSess, err error) {
 		AppId:  app.Id,
 		UserId: userId,
 	}
-	if err = msgpack.Unmarshal(b, &s.xSessData); err != nil {
+	if err = msgpack.Unmarshal(b, &s); err != nil {
 		log.Warnf("failed to decode SessData: %v", err)
 		return nil, errMalformedSessData
 	}
@@ -353,22 +353,6 @@ func checkToken(ctx context.Context, token string) (_ *xSess, err error) {
 		return nil, errInvalidToken
 	}
 	return s, nil
-}
-
-// update session by field name
-func updateSess(
-	ctx context.Context, userId string, args ...interface{}) (err error) {
-	if err = luaUpdateToken.Run(
-		ctx, rdbAuth, []string{userId}, args...,
-	).Err(); err != nil {
-		if err == redis.Nil {
-			return errInvalidToken
-		} else {
-			log.Warnf("failed to update session: %v", err)
-			return errDatabaseUnavailable
-		}
-	}
-	return
 }
 
 func checkNonce(ctx context.Context, appId, nonce string) (ok bool, err error) {
@@ -543,10 +527,21 @@ func signInRole(
 		}
 		return
 	}
-	return updateSess(
-		ctx, userId,
-		xSessDataRoleId, roleId,
-		xSessDataRoleIndex, role.Index)
+	// update sess data
+	b, _ := msgpack.Marshal(&xSessData{
+		RoleId:    roleId,
+		RoleIndex: role.Index,
+	})
+	if err = luaUpdateSessData.Run(
+		ctx, rdbAuth, []string{userId}, b).Err(); err != nil {
+		if err == redis.Nil {
+			return errInvalidToken
+		} else {
+			log.Warnf("failed to update session: %v", err)
+			return errDatabaseUnavailable
+		}
+	}
+	return
 }
 
 func setRoleMetadata(
