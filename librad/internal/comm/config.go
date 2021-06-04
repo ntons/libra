@@ -4,9 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 
-	"go.uber.org/zap"
-
 	"github.com/ntons/libra/librad/internal/util"
+	logcfg "github.com/ntons/log-go/config"
 )
 
 // main configuration instance
@@ -18,7 +17,7 @@ var Config = &struct {
 	// modularized service configuration
 	Services map[string]json.RawMessage
 	// log configuration
-	Log *zap.Config
+	Log *logcfg.Config
 }{}
 
 func IsDevEnv() bool {

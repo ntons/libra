@@ -4,6 +4,13 @@
 bind: {{ ':80'|env:'LIBRAD_BIND' }}
 dev:  {{ 'off'|env:'LIBRAD_DEV' }}
 
+log:
+  zap:
+    level: "info"
+    encoding: "json"
+    outputPaths: "stdout"
+    errorOutputPaths: "stderr"
+
 services:
   registry:
     auth:

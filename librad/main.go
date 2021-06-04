@@ -13,7 +13,7 @@ import (
 	"time"
 
 	log "github.com/ntons/log-go"
-	logzap "github.com/ntons/log-go/loggers/zap"
+	logcfg "github.com/ntons/log-go/config"
 	"go.uber.org/zap"
 
 	"github.com/ntons/libra/librad/internal/comm"
@@ -26,6 +26,10 @@ var (
 	GitCommit string
 	GoVersion string
 	OSArch    string
+)
+
+var (
+	zapLevel = zap.NewAtomicLevelAt(zap.InfoLevel)
 )
 
 func _main() (err error) {
@@ -49,11 +53,9 @@ func _main() (err error) {
 	}
 
 	if comm.Config.Log != nil {
-		var zl *zap.Logger
-		if zl, err = comm.Config.Log.Build(zap.AddCaller()); err != nil {
-			return
+		if err = comm.Config.Log.Use(); err != nil {
+			return fmt.Errorf("failed to use log: %w", err)
 		}
-		log.SetLogger(logzap.New(zl, 2))
 	}
 
 	if len(clopts.IncludeServices) > 0 {
@@ -93,18 +95,7 @@ func _main() (err error) {
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	// initalize default logging style
-	zc := zap.Config{
-		Level:            zap.NewAtomicLevelAt(zap.InfoLevel),
-		Development:      false,
-		Sampling:         nil,
-		Encoding:         "json",
-		EncoderConfig:    zap.NewProductionEncoderConfig(),
-		OutputPaths:      []string{"stderr"},
-		ErrorOutputPaths: []string{"stderr"},
-	}
-	zl, _ := zc.Build(zap.WithCaller(true))
-	log.SetLogger(logzap.New(zl, 2))
+	logcfg.DefaultZapJsonConfig.Use()
 
 	if err := _main(); err != nil {
 		log.Error(err)
