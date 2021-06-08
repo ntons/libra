@@ -21,18 +21,13 @@ import (
 	"github.com/ntons/libra/librad/internal/util"
 )
 
-// |- librad_config |- apps
+// |- librad |- apps
 //
-// |- librad_app1   |- users
-//                  |- roles
+// |- app1   |- users
+//           |- roles
 //
-// |- librad_app2   |- users
+// |- app2   |- users
 //                  |- roles
-
-const (
-	// database name prefix
-	dbNamePrefix = "librad_"
-)
 
 var (
 	mdb *mongo.Client
@@ -269,8 +264,7 @@ func getAppCollection(ctx context.Context) (*mongo.Collection, error) {
 		return dbAppCollection, nil
 	}
 	const collectionName = "apps"
-	dbName := dbNamePrefix + "config"
-	collection := mdb.Database(dbName).Collection(collectionName)
+	collection := mdb.Database("librad").Collection(collectionName)
 	if _, err := collection.Indexes().CreateOne(
 		ctx,
 		mongo.IndexModel{
@@ -291,7 +285,7 @@ func getUserCollection(
 	if collection, ok := dbAppUserCollection[appId]; ok {
 		return collection, nil
 	}
-	collection := mdb.Database(dbNamePrefix + appId).Collection(collectionName)
+	collection := mdb.Database(appId).Collection(collectionName)
 	if _, err := collection.Indexes().CreateOne(
 		ctx,
 		mongo.IndexModel{
@@ -312,7 +306,7 @@ func getRoleCollection(
 	if collection, ok := dbAppRoleCollection[appId]; ok {
 		return collection, nil
 	}
-	collection := mdb.Database(dbNamePrefix + appId).Collection(collectionName)
+	collection := mdb.Database(appId).Collection(collectionName)
 	if _, err := collection.Indexes().CreateOne(
 		ctx,
 		mongo.IndexModel{
