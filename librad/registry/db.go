@@ -35,15 +35,13 @@ var (
 	rdbAuth  redis.Client
 	rdbNonce redis.Client
 
-	dbCtx context.Context
-
 	// cached collection
-	dbAppCollection     *mongo.Collection
-	dbAppUserCollection = make(map[string]*mongo.Collection)
-	dbAppRoleCollection = make(map[string]*mongo.Collection)
+	xAppCollection  *mongo.Collection
+	xUserCollection = make(map[string]*mongo.Collection)
+	xRoleCollection = make(map[string]*mongo.Collection)
 
 	// app cache loaded from database
-	dbApps = newAppIndex(nil)
+	xApps = newAppIndex(nil)
 
 	luaUpdateSessData = redis.NewScript(`
 local b = redis.call("GET", KEYS[1])
@@ -111,8 +109,10 @@ func (x *xApp) parse() (err error) {
 	return
 }
 func (x *xApp) isPermitted(path string) bool {
-	if cfg.isPermitted(path) {
-		return true
+	for _, p := range cfg.CommonPermissions {
+		if p.match(path) {
+			return true
+		}
 	}
 	for _, p := range x.Permissions {
 		if p.match(path) {
@@ -216,7 +216,6 @@ func dialDatabase(ctx context.Context) (err error) {
 	if mdb, err = dialMongo(ctx); err != nil {
 		return
 	}
-	dbCtx = ctx
 	return
 }
 
@@ -242,7 +241,7 @@ func dbServe(ctx context.Context) {
 				return
 			}
 		}
-		dbApps = newAppIndex(res)
+		xApps = newAppIndex(res)
 		return
 	}
 	for {
@@ -260,11 +259,11 @@ func dbServe(ctx context.Context) {
 
 // get app collection
 func getAppCollection(ctx context.Context) (*mongo.Collection, error) {
-	if dbAppCollection != nil {
-		return dbAppCollection, nil
+	if xAppCollection != nil {
+		return xAppCollection, nil
 	}
 	const collectionName = "apps"
-	collection := mdb.Database("librad").Collection(collectionName)
+	collection := mdb.Database(cfg.ConfigDBName).Collection(collectionName)
 	if _, err := collection.Indexes().CreateOne(
 		ctx,
 		mongo.IndexModel{
@@ -274,7 +273,7 @@ func getAppCollection(ctx context.Context) (*mongo.Collection, error) {
 	); err != nil {
 		return nil, fmt.Errorf("failed to create index: %w", err)
 	}
-	dbAppCollection = collection
+	xAppCollection = collection
 	return collection, nil
 }
 
@@ -282,10 +281,10 @@ func getAppCollection(ctx context.Context) (*mongo.Collection, error) {
 func getUserCollection(
 	ctx context.Context, appId string) (*mongo.Collection, error) {
 	const collectionName = "users"
-	if collection, ok := dbAppUserCollection[appId]; ok {
+	if collection, ok := xUserCollection[appId]; ok {
 		return collection, nil
 	}
-	collection := mdb.Database(appId).Collection(collectionName)
+	collection := mdb.Database(getAppDBName(appId)).Collection(collectionName)
 	if _, err := collection.Indexes().CreateOne(
 		ctx,
 		mongo.IndexModel{
@@ -295,7 +294,7 @@ func getUserCollection(
 	); err != nil {
 		return nil, fmt.Errorf("failed to create index: %w", err)
 	}
-	dbAppUserCollection[appId] = collection
+	xUserCollection[appId] = collection
 	return collection, nil
 }
 
@@ -303,10 +302,10 @@ func getUserCollection(
 func getRoleCollection(
 	ctx context.Context, appId string) (*mongo.Collection, error) {
 	const collectionName = "roles"
-	if collection, ok := dbAppRoleCollection[appId]; ok {
+	if collection, ok := xRoleCollection[appId]; ok {
 		return collection, nil
 	}
-	collection := mdb.Database(appId).Collection(collectionName)
+	collection := mdb.Database(getAppDBName(appId)).Collection(collectionName)
 	if _, err := collection.Indexes().CreateOne(
 		ctx,
 		mongo.IndexModel{
@@ -316,7 +315,7 @@ func getRoleCollection(
 	); err != nil {
 		return nil, fmt.Errorf("failed to create index: %w", err)
 	}
-	dbAppRoleCollection[appId] = collection
+	xRoleCollection[appId] = collection
 	return collection, nil
 }
 
@@ -522,7 +521,7 @@ func listRoles(
 func createRole(
 	ctx context.Context, appId, userId string, index uint32) (
 	_ *xRole, err error) {
-	app := dbApps.findById(appId)
+	app := xApps.findById(appId)
 	if app == nil {
 		return nil, errInvalidAppId
 	}

@@ -147,7 +147,7 @@ func (srv authServer) checkSecret(
 	if appId == "" || appSecret == "" {
 		return srv.errToResponse(errUnauthenticated)
 	}
-	if app := dbApps.findById(appId); app == nil || app.Secret != appSecret {
+	if app := xApps.findById(appId); app == nil || app.Secret != appSecret {
 		return srv.errToResponse(errInvalidAppSecret)
 	} else if !app.isPermitted(req.Attributes.Request.Http.Path) {
 		return srv.errToResponse(errPermissionDenied)

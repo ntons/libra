@@ -79,7 +79,7 @@ func checkState(
 func (srv *userServer) Login(
 	ctx context.Context, req *v1pb.UserLoginRequest) (
 	resp *v1pb.UserLoginResponse, err error) {
-	app := dbApps.findById(req.AppId)
+	app := xApps.findById(req.AppId)
 	if app == nil {
 		log.Warnf("invalid app id: %v", req.AppId)
 		return nil, errInvalidAppId
