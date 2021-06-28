@@ -171,8 +171,12 @@ type xUser struct {
 	AcctId []string `bson:"acct_id,omitempty"`
 	// 创建时间
 	CreateTime time.Time `bson:"create_time,omitempty"`
+	// 创建时IP
+	CreateIp string `bson:"create_ip,omitempty"`
 	// 上次登录时间
 	LoginTime time.Time `bson:"login_time,omitempty"`
+	// 上次登录时IP
+	LoginIp string `bson:"login_ip,omitempty"`
 	// 元数据
 	Metadata map[string]string `bson:"metadata,omitempty"`
 }
@@ -394,8 +398,9 @@ func checkNonce(ctx context.Context, appId, nonce string) (ok bool, err error) {
 }
 
 func loginUser(
-	ctx context.Context, app *xApp, acctId []string) (
+	ctx context.Context, app *xApp, userIp string, acctId []string) (
 	_ *xUser, _ *xSess, err error) {
+
 	if len(acctId) > 10 {
 		err = newInvalidArgumentError("too many acct id")
 		return
@@ -408,6 +413,7 @@ func loginUser(
 	user := &xUser{
 		Id:         newUserId(app.Key),
 		CreateTime: now,
+		CreateIp:   userIp,
 	}
 	// 这里正确执行隐含了一个前置条件，acct_id字段必须是索引。
 	// 当给进来的acctId列表可以映射到多个User的时候addToSet必然会失败，
@@ -416,7 +422,7 @@ func loginUser(
 		ctx,
 		bson.M{"acct_id": bson.M{"$elemMatch": bson.M{"$in": acctId}}},
 		bson.M{
-			"$set":         bson.M{"login_time": now},
+			"$set":         bson.M{"login_time": now, "login_ip": userIp},
 			"$addToSet":    bson.M{"acct_id": bson.M{"$each": acctId}},
 			"$setOnInsert": user,
 		},

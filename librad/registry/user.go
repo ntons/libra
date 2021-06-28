@@ -7,6 +7,7 @@ import (
 
 	v1pb "github.com/ntons/libra-go/api/v1"
 	log "github.com/ntons/log-go"
+	"github.com/ntons/tongo/httputil"
 	"github.com/ntons/tongo/sign"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -32,50 +33,6 @@ func newUserServer() *userServer {
 	return &userServer{}
 }
 
-func checkState(
-	ctx context.Context, app *xApp, any *anypb.Any) (
-	acctId []string, err error) {
-	state, err := anypb.UnmarshalNew(any, proto.UnmarshalOptions{})
-	if err != nil {
-		log.Warnf("failed to unmarshal state: %v", err)
-		return nil, errInvalidState
-	}
-	switch state := state.(type) {
-	case *v1pb.DevLoginState:
-		if !comm.IsDevEnv() {
-			return nil, errInvalidState
-		}
-		acctId = []string{"dev$" + state.Username}
-	case *v1pb.UniformLoginState:
-		if ok, err := checkNonce(ctx, app.Id, state.Nonce); err != nil {
-			return nil, errDatabaseUnavailable
-		} else if !ok {
-			return nil, errInvalidNonce
-		}
-
-		// ts-10 签名有效期只有10秒钟
-		// ts+3  是为了容忍一定的系统时间误差
-		ts := time.Now().Unix()
-		if state.Timestamp < ts-10 || state.Timestamp > ts+3 {
-			return nil, errInvalidTimestamp
-		}
-
-		signature := state.Signature
-		state.Signature = ""
-		expected := sign.ProtoHMACWithSHA1(state, app.Secret)
-		if !strings.EqualFold(signature, expected) {
-			log.Warnf("signature mismatch: %s, %s, %s, %s",
-				signature, expected, app.Secret, state)
-			return nil, errInvalidSignature
-		}
-		acctId = state.AcctId
-	default:
-		log.Warnf("unhandled state type: %T", state)
-		return nil, errInvalidState
-	}
-	return
-}
-
 func (srv *userServer) Login(
 	ctx context.Context, req *v1pb.UserLoginRequest) (
 	resp *v1pb.UserLoginResponse, err error) {
@@ -84,16 +41,63 @@ func (srv *userServer) Login(
 		log.Warnf("invalid app id: %v", req.AppId)
 		return nil, errInvalidAppId
 	}
-	acctId, err := checkState(ctx, app, req.State)
-	if err != nil {
+	userIp := httputil.GetRemoteIpFromContext(ctx)
+
+	var acctId []string
+	if err = func() (err error) {
+		state, err := anypb.UnmarshalNew(req.State, proto.UnmarshalOptions{})
+		if err != nil {
+			log.Warnf("failed to unmarshal state: %v", err)
+			return errInvalidState
+		}
+		switch state := state.(type) {
+		case *v1pb.DevLoginState:
+			if !comm.IsDevEnv() {
+				return errInvalidState
+			}
+			acctId = []string{"dev$" + state.Username}
+		case *v1pb.UniformLoginState:
+			if ok, err := checkNonce(ctx, app.Id, state.Nonce); err != nil {
+				return errDatabaseUnavailable
+			} else if !ok {
+				return errInvalidNonce
+			}
+
+			// ts-10 签名有效期只有10秒钟
+			// ts+3  是为了容忍一定的系统时间误差
+			ts := time.Now().Unix()
+			if state.Timestamp < ts-10 || state.Timestamp > ts+3 {
+				return errInvalidTimestamp
+			}
+
+			signature := state.Signature
+			state.Signature = ""
+			expected := sign.ProtoHMACWithSHA1(state, app.Secret)
+			if !strings.EqualFold(signature, expected) {
+				log.Warnf("signature mismatch: %s, %s, %s, %s",
+					signature, expected, app.Secret, state)
+				return errInvalidSignature
+			}
+			if state.UserIp != "" {
+				userIp = state.UserIp
+			}
+			acctId = state.AcctId
+		default:
+			log.Warnf("unhandled state type: %T", state)
+			return errInvalidState
+		}
+		return
+	}(); err != nil {
 		log.Warnf("failed to check state: %v", err)
 		return
 	}
-	user, sess, err := loginUser(ctx, app, acctId)
+
+	user, sess, err := loginUser(ctx, app, userIp, acctId)
 	if err != nil {
 		log.Warnf("failed to login user: %v", err)
 		return
 	}
+
 	grpc.SetHeader(ctx, metadata.Pairs(xLibraToken, sess.Token))
 	return &v1pb.UserLoginResponse{User: fromUser(user)}, nil
 }

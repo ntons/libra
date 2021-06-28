@@ -120,8 +120,8 @@ github.com/ntons/distlock v0.1.1-0.20210304003815-737c837072cf h1:SOEvdTWN0SzuNj
 github.com/ntons/distlock v0.1.1-0.20210304003815-737c837072cf/go.mod h1:W0FYN2i5yM9/6Dj4YTErQuEZAEiw4M0BF+N/SMPV8fs=
 github.com/ntons/grpc-compressor/lz4 v0.0.0-20210305100006-06d7d07e537e h1:IP6wQiowvniAYoiO1fMoLv/lRtcuKVIbgGwx3m4EFdY=
 github.com/ntons/grpc-compressor/lz4 v0.0.0-20210305100006-06d7d07e537e/go.mod h1:mafbG0h2psTmYG7r/UYubMBrjQkxdiHKpF123QGj7aM=
-github.com/ntons/libra-go v0.0.0-20210526095945-a5daedbcd110 h1:fiHEbNwx6Xgm9VwUsQQkW574VxOqlYVNTC9vXf3ZeK8=
-github.com/ntons/libra-go v0.0.0-20210526095945-a5daedbcd110/go.mod h1:LRxERwwfDAap53WTrw7ef6Y+er7C2Rhl+1Vui1zqUfs=
+github.com/ntons/libra-go v0.0.0-20210625105044-250597e4f041 h1:1DuTkVPDCeWCKamS3Ihu3kk34ezP3I9uGY1LyRjO8gM=
+github.com/ntons/libra-go v0.0.0-20210625105044-250597e4f041/go.mod h1:LRxERwwfDAap53WTrw7ef6Y+er7C2Rhl+1Vui1zqUfs=
 github.com/ntons/log-go v0.0.0-20200924092648-d9caee8882d8/go.mod h1:R+uLqm/b64q8B6ktCcR+SeCIJRz3WXjVCnhxmWeFDzc=
 github.com/ntons/log-go v0.0.0-20210604071534-bea849a67512 h1:xFDAL4QTvCjiLsEp7KTMTgNguN1zG/pFnOdJwnrwoQc=
 github.com/ntons/log-go v0.0.0-20210604071534-bea849a67512/go.mod h1:YFK536HWWIMdNhjgvJnumUlvmq+rRn3IGDIBexpUO8A=
@@ -133,6 +133,8 @@ github.com/ntons/ranking v0.1.7-0.20210308073015-fcb506a578cb h1:yXP9ERUoDSzB89E
 github.com/ntons/ranking v0.1.7-0.20210308073015-fcb506a578cb/go.mod h1:FjpMoe7c/m/JVZqmp5+2ZA9/u7/KS4GFx77JByRVdkA=
 github.com/ntons/remon v0.1.4 h1:lzwj5pLhn+llKAw3cKGy6agDB7j/EBHMBqqoiUgckTU=
 github.com/ntons/remon v0.1.4/go.mod h1:E3MsH+lfsHj7URYF1JdxmqMgHVtC484sfADhUOPK5aE=
+github.com/ntons/tongo/httputil v0.0.0-20210628011104-907b2999b312 h1:rTGRBnuLmmlfvMKiEBqy/B1KlOYEm+ptzkOnOACgH1k=
+github.com/ntons/tongo/httputil v0.0.0-20210628011104-907b2999b312/go.mod h1:BNNLfFexfO3+78NNVoA2XQA0QtAFBwRrquxm31vRcrA=
 github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5 h1:GzuYjk5Pdcu8lqbusID5Eonvaq2nCmqZe5tcTk8IptE=
 github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5/go.mod h1:bm1yZHOCwbn7yU5DYUFY9NnKv7hgUtV6mZjjithfA3k=
 github.com/nxadm/tail v1.4.4 h1:DQuhQpB1tVlglWS2hLQ5OV6B5r8aGxSrPc5Qo6uTN78=
