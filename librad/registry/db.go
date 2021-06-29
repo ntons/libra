@@ -7,8 +7,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"math/rand"
-	"regexp"
-	"strings"
 	"time"
 
 	"github.com/ntons/log-go"
@@ -21,13 +19,17 @@ import (
 	"github.com/ntons/libra/librad/internal/util"
 )
 
-// |- librad |- apps
+// |- config |- apps
 //
 // |- app1   |- users
 //           |- roles
 //
 // |- app2   |- users
-//                  |- roles
+//           |- roles
+
+const (
+	dbMaxAcctPerUser = 10
+)
 
 var (
 	mdb *mongo.Client
@@ -36,9 +38,9 @@ var (
 	rdbNonce redis.Client
 
 	// cached collection
-	xAppCollection  *mongo.Collection
-	xUserCollection = make(map[string]*mongo.Collection)
-	xRoleCollection = make(map[string]*mongo.Collection)
+	dbAppCollection  *mongo.Collection
+	dbUserCollection = make(map[string]*mongo.Collection)
+	dbRoleCollection = make(map[string]*mongo.Collection)
 
 	// app cache loaded from database
 	xApps = newAppIndex(nil)
@@ -50,36 +52,6 @@ local d = cmsgpack.unpack(b)
 d.data = cmsgpack.unpack(ARGV[1])
 return redis.call("SET", KEYS[1], cmsgpack.pack(d))`)
 )
-
-type xPermission struct {
-	Path   string `json:"path,omitempty" bson:"path,omitempty"`
-	Prefix string `json:"prefix,omitempty" bson:"prefix,omitempty"`
-	Regexp string `json:"regexp,omitempty" bson:"regexp,omitempty"`
-	// pre-compiled regexp
-	re *regexp.Regexp
-}
-
-func (x *xPermission) parse() (err error) {
-	if x.Regexp != "" {
-		if x.re, err = regexp.Compile(x.Regexp); err != nil {
-			return
-		}
-	}
-	return
-}
-
-func (x *xPermission) match(path string) bool {
-	if x.Path != "" && path != x.Path {
-		return false
-	}
-	if x.Prefix != "" && !strings.HasPrefix(path, x.Prefix) {
-		return false
-	}
-	if x.re != nil && !x.re.MatchString(path) {
-		return false
-	}
-	return true
-}
 
 type xApp struct {
 	// 应用ID
@@ -110,12 +82,12 @@ func (x *xApp) parse() (err error) {
 }
 func (x *xApp) isPermitted(path string) bool {
 	for _, p := range cfg.CommonPermissions {
-		if p.match(path) {
+		if p.isPermitted(path) {
 			return true
 		}
 	}
 	for _, p := range x.Permissions {
-		if p.match(path) {
+		if p.isPermitted(path) {
 			return true
 		}
 	}
@@ -162,13 +134,13 @@ type xSess struct {
 	app *xApp `msgpack:"-"`
 }
 
-type xUser struct {
+type dbUser struct {
 	Id string `bson:"_id"`
 	// 用户账号列表，其中任意一个匹配都可以认定为该用户
 	// 常见的用例为：
 	// 1. 游客账号/正式账号
 	// 2. 平台账号/第三方账号
-	AcctId []string `bson:"acct_id,omitempty"`
+	AcctIds []string `bson:"acct_ids,omitempty"`
 	// 创建时间
 	CreateTime time.Time `bson:"create_time,omitempty"`
 	// 创建时IP
@@ -181,7 +153,7 @@ type xUser struct {
 	Metadata map[string]string `bson:"metadata,omitempty"`
 }
 
-type xRole struct {
+type dbRole struct {
 	Id string `bson:"_id"`
 	// 角色序号，主要有一下几个用途
 	// 1. 创建用户发生重试时保证只有唯一一个角色被成功创建
@@ -263,8 +235,8 @@ func dbServe(ctx context.Context) {
 
 // get app collection
 func getAppCollection(ctx context.Context) (*mongo.Collection, error) {
-	if xAppCollection != nil {
-		return xAppCollection, nil
+	if dbAppCollection != nil {
+		return dbAppCollection, nil
 	}
 	const collectionName = "apps"
 	collection := mdb.Database(cfg.ConfigDBName).Collection(collectionName)
@@ -277,7 +249,7 @@ func getAppCollection(ctx context.Context) (*mongo.Collection, error) {
 	); err != nil {
 		return nil, fmt.Errorf("failed to create index: %w", err)
 	}
-	xAppCollection = collection
+	dbAppCollection = collection
 	return collection, nil
 }
 
@@ -285,20 +257,20 @@ func getAppCollection(ctx context.Context) (*mongo.Collection, error) {
 func getUserCollection(
 	ctx context.Context, appId string) (*mongo.Collection, error) {
 	const collectionName = "users"
-	if collection, ok := xUserCollection[appId]; ok {
+	if collection, ok := dbUserCollection[appId]; ok {
 		return collection, nil
 	}
 	collection := mdb.Database(getAppDBName(appId)).Collection(collectionName)
 	if _, err := collection.Indexes().CreateOne(
 		ctx,
 		mongo.IndexModel{
-			Keys:    bson.M{"acct_id": 1},
+			Keys:    bson.M{"acct_ids": 1},
 			Options: options.Index().SetUnique(true),
 		},
 	); err != nil {
 		return nil, fmt.Errorf("failed to create index: %w", err)
 	}
-	xUserCollection[appId] = collection
+	dbUserCollection[appId] = collection
 	return collection, nil
 }
 
@@ -306,7 +278,7 @@ func getUserCollection(
 func getRoleCollection(
 	ctx context.Context, appId string) (*mongo.Collection, error) {
 	const collectionName = "roles"
-	if collection, ok := xRoleCollection[appId]; ok {
+	if collection, ok := dbRoleCollection[appId]; ok {
 		return collection, nil
 	}
 	collection := mdb.Database(getAppDBName(appId)).Collection(collectionName)
@@ -319,17 +291,17 @@ func getRoleCollection(
 	); err != nil {
 		return nil, fmt.Errorf("failed to create index: %w", err)
 	}
-	xRoleCollection[appId] = collection
+	dbRoleCollection[appId] = collection
 	return collection, nil
 }
 
 func getRoleById(
-	ctx context.Context, appId, roleId string) (_ *xRole, err error) {
+	ctx context.Context, appId, roleId string) (_ *dbRole, err error) {
 	collection, err := getRoleCollection(ctx, appId)
 	if err != nil {
 		return
 	}
-	role := &xRole{}
+	role := &dbRole{}
 	if err = collection.FindOne(
 		ctx,
 		bson.M{"_id": roleId},
@@ -398,11 +370,10 @@ func checkNonce(ctx context.Context, appId, nonce string) (ok bool, err error) {
 }
 
 func loginUser(
-	ctx context.Context, app *xApp, userIp string, acctId []string) (
-	_ *xUser, _ *xSess, err error) {
-
-	if len(acctId) > 10 {
-		err = newInvalidArgumentError("too many acct id")
+	ctx context.Context, app *xApp, userIp string, acctIds []string) (
+	_ *dbUser, _ *xSess, err error) {
+	if len(acctIds) > dbMaxAcctPerUser {
+		err = newInvalidArgumentError("too many acct ids")
 		return
 	}
 	collection, err := getUserCollection(ctx, app.Id)
@@ -410,20 +381,20 @@ func loginUser(
 		return
 	}
 	now := time.Now()
-	user := &xUser{
+	user := &dbUser{
 		Id:         newUserId(app.Key),
 		CreateTime: now,
 		CreateIp:   userIp,
 	}
-	// 这里正确执行隐含了一个前置条件，acct_id字段必须是索引。
-	// 当给进来的acctId列表可以映射到多个User的时候addToSet必然会失败，
-	// 从而可以保证参数 acctId *--1 User 的映射关系成立。
+	// 这里正确执行隐含了一个前置条件，acct_ids字段必须是索引。
+	// 当给进来的acct_ids列表可以映射到多个User的时候addToSet必然会失败，
+	// 从而可以保证参数 acct *---1 User 的映射关系成立。
 	if err = collection.FindOneAndUpdate(
 		ctx,
-		bson.M{"acct_id": bson.M{"$elemMatch": bson.M{"$in": acctId}}},
+		bson.M{"acct_ids": bson.M{"$elemMatch": bson.M{"$in": acctIds}}},
 		bson.M{
 			"$set":         bson.M{"login_time": now, "login_ip": userIp},
-			"$addToSet":    bson.M{"acct_id": bson.M{"$each": acctId}},
+			"$addToSet":    bson.M{"acct_ids": bson.M{"$each": acctIds}},
 			"$setOnInsert": user,
 		},
 		options.FindOneAndUpdate().SetUpsert(true),
@@ -433,23 +404,8 @@ func loginUser(
 		err = errDatabaseUnavailable
 		return
 	}
-	if len(user.AcctId) > 0 {
-		if _, err := collection.UpdateOne(
-			ctx,
-			bson.M{"_id": user.Id},
-			bson.M{
-				"$push": bson.M{
-					"acct_id": bson.M{
-						"$each":  []string{},
-						"$slice": -10, // keep the last 10
-					},
-				},
-			},
-		); err != nil {
-			log.Warnf("failed to slice acct id: %v, %v, %v",
-				user.Id, len(user.AcctId), err)
-		}
-	}
+
+	limitUserAcctCount(ctx, collection, user)
 
 	// 生成会话
 	sess, err := newSess(ctx, app, user.Id)
@@ -460,17 +416,24 @@ func loginUser(
 	return user, sess, nil
 }
 
-func bindAcctIdToUser(
-	ctx context.Context, appId, userId, acctId string) (err error) {
+func bindAcctToUser(
+	ctx context.Context, appId, userId string, acctIds []string) (err error) {
+	if len(acctIds) > dbMaxAcctPerUser {
+		err = newInvalidArgumentError("too many acct ids")
+		return
+	}
 	collection, err := getUserCollection(ctx, appId)
 	if err != nil {
 		return
 	}
-	if _, err = collection.UpdateOne(
+	user := &dbUser{}
+	if err = collection.FindOneAndUpdate(
 		ctx,
 		bson.M{"_id": userId},
-		bson.M{"$addToSet": bson.M{"acct_id": acctId}},
-	); err != nil {
+		bson.M{"$addToSet": bson.M{"acct_ids": bson.M{"$each": acctIds}}},
+		options.FindOneAndUpdate().SetUpsert(false),
+		options.FindOneAndUpdate().SetReturnDocument(options.After),
+	).Decode(user); err != nil {
 		if err == mongo.ErrNoDocuments {
 			return errUserNotFound
 		} else {
@@ -478,7 +441,32 @@ func bindAcctIdToUser(
 			return errDatabaseUnavailable
 		}
 	}
+
+	limitUserAcctCount(ctx, collection, user)
+
 	return
+}
+
+// 成不成功无所谓，尽可能保证即可
+func limitUserAcctCount(
+	ctx context.Context, collection *mongo.Collection, user *dbUser) {
+	if len(user.AcctIds) > dbMaxAcctPerUser {
+		if _, err := collection.UpdateOne(
+			ctx,
+			bson.M{"_id": user.Id},
+			bson.M{
+				"$push": bson.M{
+					"acct_ids": bson.M{
+						"$each":  []string{},
+						"$slice": -dbMaxAcctPerUser,
+					},
+				},
+			},
+		); err != nil {
+			log.Warnf("failed to slice acct ids: %v, %v, %v",
+				user.Id, len(user.AcctIds), err)
+		}
+	}
 }
 
 func setUserMetadata(
@@ -508,7 +496,7 @@ func setUserMetadata(
 }
 
 func listRoles(
-	ctx context.Context, appId, userId string) (_ []*xRole, err error) {
+	ctx context.Context, appId, userId string) (_ []*dbRole, err error) {
 	collection, err := getRoleCollection(ctx, appId)
 	if err != nil {
 		return
@@ -517,7 +505,7 @@ func listRoles(
 	if err != nil {
 		return
 	}
-	var roles []*xRole
+	var roles []*dbRole
 	if err = cur.All(ctx, &roles); err != nil {
 		return
 	}
@@ -526,7 +514,7 @@ func listRoles(
 
 func createRole(
 	ctx context.Context, appId, userId string, index uint32) (
-	_ *xRole, err error) {
+	_ *dbRole, err error) {
 	app := xApps.findById(appId)
 	if app == nil {
 		return nil, errInvalidAppId
@@ -535,7 +523,7 @@ func createRole(
 	if err != nil {
 		return
 	}
-	role := &xRole{
+	role := &dbRole{
 		Id:         newRoleId(app.Key),
 		UserId:     userId,
 		Index:      index,
@@ -553,7 +541,7 @@ func signInRole(
 	if err != nil {
 		return
 	}
-	var role xRole
+	var role dbRole
 	if err = collection.FindOneAndUpdate(
 		ctx,
 		bson.M{"_id": roleId, "user_id": userId},

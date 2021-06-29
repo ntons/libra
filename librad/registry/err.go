@@ -34,6 +34,8 @@ var (
 	errInvalidToken     = newUnauthenticatedError("invalid token")
 	errInvalidAppSecret = newUnauthenticatedError("invalid app secret")
 
+	errMismatchedAppSecretAndToken = newUnauthenticatedError("mismatched app secret and token")
+
 	// NotFound
 	errAppIdNotFound = newNotFoundError("app id not found")
 	errUserNotFound  = newNotFoundError("user not found")

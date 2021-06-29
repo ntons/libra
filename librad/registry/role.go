@@ -7,17 +7,17 @@ import (
 	log "github.com/ntons/log-go"
 )
 
-func fromRole(x *xRole) *v1pb.RoleData {
+func fromDbRole(x *dbRole) *v1pb.RoleData {
 	return &v1pb.RoleData{
 		Id:       x.Id,
 		Index:    x.Index,
 		Metadata: x.Metadata,
 	}
 }
-func fromRoleList(a []*xRole) []*v1pb.RoleData {
+func fromDbRoleList(a []*dbRole) []*v1pb.RoleData {
 	r := make([]*v1pb.RoleData, 0, len(a))
 	for _, x := range a {
-		r = append(r, fromRole(x))
+		r = append(r, fromDbRole(x))
 	}
 	return r
 }
@@ -42,7 +42,7 @@ func (srv *roleServer) List(
 		log.Warnf("failed to list roles: %v", err)
 		return
 	}
-	return &v1pb.RoleListResponse{Roles: fromRoleList(roles)}, nil
+	return &v1pb.RoleListResponse{Roles: fromDbRoleList(roles)}, nil
 }
 func (srv *roleServer) Create(
 	ctx context.Context, req *v1pb.RoleCreateRequest) (
@@ -55,7 +55,7 @@ func (srv *roleServer) Create(
 	if err != nil {
 		return
 	}
-	return &v1pb.RoleCreateResponse{Role: fromRole(role)}, nil
+	return &v1pb.RoleCreateResponse{Role: fromDbRole(role)}, nil
 }
 func (srv *roleServer) SignIn(
 	ctx context.Context, req *v1pb.RoleSignInRequest) (
