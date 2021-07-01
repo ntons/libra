@@ -131,8 +131,8 @@ github.com/ntons/lumberjack/v3 v3.0.0 h1:pMPyyfDpLj6LZHvUb+Z+zcByD1/+4Ex08b4Wezk
 github.com/ntons/lumberjack/v3 v3.0.0/go.mod h1:pxvqI07Ip10Z5tX5sNjs2oRZOSfiQieeP6S/zjpTISI=
 github.com/ntons/ranking v0.1.7-0.20210308073015-fcb506a578cb h1:yXP9ERUoDSzB89E3aK1Pv7sR3L6oX7ShEr1BwZqKxYQ=
 github.com/ntons/ranking v0.1.7-0.20210308073015-fcb506a578cb/go.mod h1:FjpMoe7c/m/JVZqmp5+2ZA9/u7/KS4GFx77JByRVdkA=
-github.com/ntons/remon v0.1.4 h1:lzwj5pLhn+llKAw3cKGy6agDB7j/EBHMBqqoiUgckTU=
-github.com/ntons/remon v0.1.4/go.mod h1:E3MsH+lfsHj7URYF1JdxmqMgHVtC484sfADhUOPK5aE=
+github.com/ntons/remon v0.1.5 h1:4xM7s6bExnhWPT5rtBBrzD/C4yY2TG8+NL4xXJq+4O0=
+github.com/ntons/remon v0.1.5/go.mod h1:E3MsH+lfsHj7URYF1JdxmqMgHVtC484sfADhUOPK5aE=
 github.com/ntons/tongo/httputil v0.0.0-20210628011104-907b2999b312 h1:rTGRBnuLmmlfvMKiEBqy/B1KlOYEm+ptzkOnOACgH1k=
 github.com/ntons/tongo/httputil v0.0.0-20210628011104-907b2999b312/go.mod h1:BNNLfFexfO3+78NNVoA2XQA0QtAFBwRrquxm31vRcrA=
 github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5 h1:GzuYjk5Pdcu8lqbusID5Eonvaq2nCmqZe5tcTk8IptE=
