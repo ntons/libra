@@ -62,8 +62,8 @@ func (srv *userServer) CheckUniformLoginState(
 
 func (srv *userServer) Login(
 	ctx context.Context, req *v1pb.UserLoginRequest) (
-	resp *v1pb.UserLoginResponse, err error) {
-	app := xApps.findById(req.AppId)
+	_ *v1pb.UserLoginResponse, err error) {
+	app := findAppById(req.AppId)
 	if app == nil {
 		log.Warnf("invalid app id: %v", req.AppId)
 		return nil, errInvalidAppId
@@ -101,9 +101,15 @@ func (srv *userServer) Login(
 		return
 	}
 
-	user, sess, err := loginUser(ctx, app, userIp, acctIds)
+	user, err := loginUser(ctx, app, userIp, acctIds, req.Options)
 	if err != nil {
 		log.Warnf("failed to login user: %v", err)
+		return
+	}
+
+	sess, err := newSess(ctx, app, user.Id)
+	if err != nil {
+		log.Warnf("failed to new session: %v", err)
 		return
 	}
 
@@ -116,13 +122,13 @@ func (srv *userServer) Login(
 
 func (srv *userServer) Bind(
 	ctx context.Context, req *v1pb.UserBindRequest) (
-	resp *v1pb.UserBindResponse, err error) {
+	_ *v1pb.UserBindResponse, err error) {
 	appId, userId, ok := getTrustedFromContext(ctx)
 	if !ok {
 		return nil, errLoginRequired
 	}
 
-	app := xApps.findById(appId)
+	app := findAppById(appId)
 	if app == nil {
 		log.Warnf("invalid app id: %v", appId)
 		return nil, errInvalidAppId
@@ -145,19 +151,41 @@ func (srv *userServer) Bind(
 		return nil, errInvalidState
 	}
 
-	if err = bindAcctToUser(ctx, appId, userId, acctIds); err != nil {
+	resp := &v1pb.UserBindResponse{}
+	if resp.AcctIds, err = bindAcctIdToUser(
+		ctx, appId, userId, acctIds, req.Options); err != nil {
 		log.Warnf("failed to bind acct to user: %v", err)
 		return
 	}
 	for _, acctId := range acctIds {
 		log.Infof("user bind acct", "user_id", userId, "acct_id", acctId)
 	}
-	return &v1pb.UserBindResponse{}, nil
+	return resp, nil
+}
+
+func (srv *userServer) Unbind(
+	ctx context.Context, req *v1pb.UserUnbindRequest) (
+	_ *v1pb.UserUnbindResponse, err error) {
+	appId, userId, ok := getTrustedFromContext(ctx)
+	if !ok {
+		return nil, errLoginRequired
+	}
+
+	resp := &v1pb.UserUnbindResponse{}
+	if resp.AcctIds, err = unbindAcctIdFromUser(
+		ctx, appId, userId, req.AcctIds); err != nil {
+		log.Warnf("failed to unbind acct from user: %v", err)
+		return
+	}
+	for _, acctId := range req.AcctIds {
+		log.Infof("user unbind acct", "user_id", userId, "acct_id", acctId)
+	}
+	return resp, nil
 }
 
 func (srv *userServer) SetMetadata(
 	ctx context.Context, req *v1pb.UserSetMetadataRequest) (
-	resp *v1pb.UserSetMetadataResponse, err error) {
+	_ *v1pb.UserSetMetadataResponse, err error) {
 	appId, userId, ok := getTrustedFromContext(ctx)
 	if !ok {
 		return nil, errLoginRequired

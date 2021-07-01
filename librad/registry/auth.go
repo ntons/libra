@@ -94,7 +94,7 @@ func (srv authServer) checkToken(
 		return srv.errToResponse(errUnauthenticated)
 	}
 
-	var sess *xSess
+	var sess *dbSess
 	if sess, err = checkToken(ctx, token); err != nil {
 		return srv.errToResponse(err)
 	} else if !sess.app.isPermitted(req.Attributes.Request.Http.Path) {
@@ -154,7 +154,7 @@ func (srv authServer) checkSecret(
 	if appId == "" || appSecret == "" {
 		return srv.errToResponse(errUnauthenticated)
 	}
-	if app := xApps.findById(appId); app == nil || app.Secret != appSecret {
+	if app := findAppById(appId); app == nil || app.Secret != appSecret {
 		return srv.errToResponse(errInvalidAppSecret)
 	} else if !app.isPermitted(req.Attributes.Request.Http.Path) {
 		return srv.errToResponse(errPermissionDenied)

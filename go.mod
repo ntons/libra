@@ -9,7 +9,7 @@ require (
 	github.com/go-redis/redis/v8 v8.3.3
 	github.com/ntons/distlock v0.1.1-0.20210304003815-737c837072cf
 	github.com/ntons/grpc-compressor/lz4 v0.0.0-20210305100006-06d7d07e537e
-	github.com/ntons/libra-go v0.0.0-20210628225514-400eb1be795e
+	github.com/ntons/libra-go v0.0.0-20210701040252-6882b6315408
 	github.com/ntons/log-go v0.0.0-20210604071534-bea849a67512
 	github.com/ntons/log-go/appenders/timedrollingfile v0.0.0-20210317052209-fcced1485be2
 	github.com/ntons/ranking v0.1.7-0.20210308073015-fcb506a578cb
@@ -20,7 +20,7 @@ require (
 	github.com/sigurn/crc16 v0.0.0-20160107003519-da416fad5162
 	github.com/sigurn/utils v0.0.0-20190728110027-e1fefb11a144 // indirect
 	github.com/vmihailenco/msgpack/v4 v4.3.12
-	go.mongodb.org/mongo-driver v1.4.3
+	go.mongodb.org/mongo-driver v1.5.3
 	go.uber.org/zap v1.16.0
 	google.golang.org/genproto v0.0.0-20201104152603-2e45c02ce95c
 	google.golang.org/grpc v1.35.0

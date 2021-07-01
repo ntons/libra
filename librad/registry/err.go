@@ -43,6 +43,7 @@ var (
 
 	// AlreadyExists
 	errRoleAlreadyExists = newAlreadyExistsError("role already exists")
+	errAcctAlreadyExists = newAlreadyExistsError("acct already exists")
 
 	// InvalidArgument
 	errInvalidNonce     = newInvalidArgumentError("invalid nonce")

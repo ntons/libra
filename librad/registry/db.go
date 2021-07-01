@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"time"
 
+	v1pb "github.com/ntons/libra-go/api/v1"
 	"github.com/ntons/log-go"
 	"github.com/vmihailenco/msgpack/v4"
 	"go.mongodb.org/mongo-driver/bson"
@@ -111,25 +112,26 @@ func newAppIndex(apps []*xApp) *xAppIndex {
 	}
 	return &xAppIndex{idIndex: idIndex, keyIndex: keyIndex}
 }
-func (x xAppIndex) findById(id string) *xApp {
-	a, _ := x.idIndex[id]
+
+func findAppById(id string) *xApp {
+	a, _ := xApps.idIndex[id]
 	return a
 }
-func (x xAppIndex) findByKey(key uint32) *xApp {
-	a, _ := x.keyIndex[key]
+func findAppByKey(key uint32) *xApp {
+	a, _ := xApps.keyIndex[key]
 	return a
 }
 
 // 会话缓存数据
-type xSessData struct {
+type dbSessData struct {
 	RoleId    string `msgpack:"roleId"`
 	RoleIndex uint32 `msgpack:"roleIndex"`
 }
-type xSess struct {
-	AppId  string    `msgpack:"-"`
-	UserId string    `msgpack:"-"`
-	Token  string    `msgpack:"token"`
-	Data   xSessData `msgpack:"data"`
+type dbSess struct {
+	AppId  string     `msgpack:"-"`
+	UserId string     `msgpack:"-"`
+	Token  string     `msgpack:"token"`
+	Data   dbSessData `msgpack:"data"`
 	//// 中转数据
 	app *xApp `msgpack:"-"`
 }
@@ -317,12 +319,12 @@ func getRoleById(
 }
 
 func newSess(
-	ctx context.Context, app *xApp, userId string) (_ *xSess, err error) {
+	ctx context.Context, app *xApp, userId string) (_ *dbSess, err error) {
 	token, err := newToken(app, userId)
 	if err != nil {
 		return
 	}
-	s := &xSess{
+	s := &dbSess{
 		Token:  token,
 		AppId:  app.Id,
 		UserId: userId,
@@ -334,7 +336,7 @@ func newSess(
 	return s, nil
 }
 
-func checkToken(ctx context.Context, token string) (_ *xSess, err error) {
+func checkToken(ctx context.Context, token string) (_ *dbSess, err error) {
 	app, userId, err := decToken(token)
 	if err != nil {
 		log.Warnf("failed to decode token: %v", err)
@@ -349,7 +351,7 @@ func checkToken(ctx context.Context, token string) (_ *xSess, err error) {
 			return nil, errDatabaseUnavailable
 		}
 	}
-	s := &xSess{
+	s := &dbSess{
 		AppId:  app.Id,
 		UserId: userId,
 		app:    app,
@@ -370,8 +372,9 @@ func checkNonce(ctx context.Context, appId, nonce string) (ok bool, err error) {
 }
 
 func loginUser(
-	ctx context.Context, app *xApp, userIp string, acctIds []string) (
-	_ *dbUser, _ *xSess, err error) {
+	ctx context.Context, app *xApp, userIp string,
+	acctIds []string, opts *v1pb.UserLoginOptions) (
+	_ *dbUser, err error) {
 	if len(acctIds) > dbMaxAcctPerUser {
 		err = newInvalidArgumentError("too many acct ids")
 		return
@@ -391,33 +394,46 @@ func loginUser(
 	// 从而可以保证参数 acct *---1 User 的映射关系成立。
 	if err = collection.FindOneAndUpdate(
 		ctx,
-		bson.M{"acct_ids": bson.M{"$elemMatch": bson.M{"$in": acctIds}}},
 		bson.M{
-			"$set":         bson.M{"login_time": now, "login_ip": userIp},
-			"$addToSet":    bson.M{"acct_ids": bson.M{"$each": acctIds}},
+			"acct_ids": bson.M{
+				"$elemMatch": bson.M{
+					"$in": acctIds,
+				},
+			},
+		},
+		bson.M{
+			"$set": bson.M{
+				"login_time": now,
+				"login_ip":   userIp,
+			},
+			"$addToSet": bson.M{
+				"acct_ids": bson.M{
+					"$each": acctIds,
+				},
+			},
 			"$setOnInsert": user,
 		},
-		options.FindOneAndUpdate().SetUpsert(true),
+		options.FindOneAndUpdate().SetUpsert(opts.GetAutoCreate()),
 		options.FindOneAndUpdate().SetReturnDocument(options.After),
 	).Decode(user); err != nil {
-		log.Warnf("failed to access mongo: %v", err)
-		err = errDatabaseUnavailable
+		if err == mongo.ErrNoDocuments {
+			err = errUserNotFound
+		} else {
+			log.Warnf("failed to access mongo: %v", err)
+			err = errDatabaseUnavailable
+		}
 		return
 	}
 
 	limitUserAcctCount(ctx, collection, user)
 
-	// 生成会话
-	sess, err := newSess(ctx, app, user.Id)
-	if err != nil {
-		return
-	}
-
-	return user, sess, nil
+	return user, nil
 }
 
-func bindAcctToUser(
-	ctx context.Context, appId, userId string, acctIds []string) (err error) {
+func bindAcctIdToUser(
+	ctx context.Context, appId, userId string,
+	acctIds []string, opts *v1pb.UserBindOptions) (
+	_ []string, err error) {
 	if len(acctIds) > dbMaxAcctPerUser {
 		err = newInvalidArgumentError("too many acct ids")
 		return
@@ -426,34 +442,134 @@ func bindAcctToUser(
 	if err != nil {
 		return
 	}
+
 	user := &dbUser{}
-	if err = collection.FindOneAndUpdate(
-		ctx,
-		bson.M{"_id": userId},
-		bson.M{"$addToSet": bson.M{"acct_ids": bson.M{"$each": acctIds}}},
-		options.FindOneAndUpdate().SetUpsert(false),
-		options.FindOneAndUpdate().SetReturnDocument(options.After),
-	).Decode(user); err != nil {
-		if err == mongo.ErrNoDocuments {
-			return errUserNotFound
-		} else {
-			log.Warnf("failed to access mongo: %v", err)
-			return errDatabaseUnavailable
+
+	findAndBind := func(ctx context.Context) (err error) {
+		if err = collection.FindOneAndUpdate(
+			ctx,
+			bson.M{
+				"_id": userId,
+			},
+			bson.M{
+				"$addToSet": bson.M{
+					"acct_ids": bson.M{
+						"$each": acctIds,
+					},
+				},
+			},
+			options.FindOneAndUpdate().SetReturnDocument(options.After),
+		).Decode(user); err != nil {
+			if err == mongo.ErrNoDocuments {
+				return errUserNotFound
+			} else if mongo.IsDuplicateKeyError(err) {
+				return errAcctAlreadyExists
+			} else {
+				log.Warnf("failed to access mongo: %v", err)
+				return errDatabaseUnavailable
+			}
+		}
+		return
+	}
+
+	if opts.GetAutoTransfer() {
+		// 账号转移要在会话中执行，保证解绑和绑定操作的原子性
+		if err = func() (err error) {
+			var sess mongo.Session
+			if sess, err = mdb.StartSession(); err != nil {
+				log.Warnf("failed to start db session: %v", err)
+				return errDatabaseUnavailable
+			}
+			defer sess.EndSession(ctx)
+			// Transaction不能在Standalone中执行
+			// 4.0 只能使用 replica set
+			// 4.2 replica set + cluster
+			if _, err = sess.WithTransaction(
+				ctx,
+				func(ctx mongo.SessionContext) (_ interface{}, err error) {
+					// 解除已被绑定的账号
+					if _, err = collection.UpdateMany(
+						ctx,
+						bson.M{
+							"acct_ids": bson.M{
+								"$elemMatch": bson.M{
+									"$in": acctIds,
+								},
+							},
+						},
+						bson.M{
+							"$pullAll": bson.M{
+								"acct_ids": acctIds,
+							},
+						},
+					); err != nil {
+						log.Warnf("failed to access mongo: %v", err)
+						return nil, errDatabaseUnavailable
+					}
+					// 绑定到当前用户
+					if err = findAndBind(ctx); err != nil {
+						return
+					}
+					return
+				},
+			); err != nil {
+				return
+			}
+			return
+		}(); err != nil {
+			return
+		}
+	} else {
+		// 直接绑定到当前用户
+		if err = findAndBind(ctx); err != nil {
+			return
 		}
 	}
 
 	limitUserAcctCount(ctx, collection, user)
 
-	return
+	return user.AcctIds, nil
+}
+
+func unbindAcctIdFromUser(
+	ctx context.Context, appId, userId string, acctIds []string) (
+	_ []string, err error) {
+	collection, err := getUserCollection(ctx, appId)
+	if err != nil {
+		return
+	}
+	user := &dbUser{}
+	if err = collection.FindOneAndUpdate(
+		ctx,
+		bson.M{
+			"_id": userId,
+		},
+		bson.M{
+			"$pullAll": bson.M{
+				"acct_ids": acctIds,
+			},
+		},
+		options.FindOneAndUpdate().SetReturnDocument(options.After),
+	).Decode(user); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errUserNotFound
+		} else {
+			log.Warnf("failed to access mongo: %v", err)
+			return nil, errDatabaseUnavailable
+		}
+	}
+	return user.AcctIds, nil
 }
 
 // 成不成功无所谓，尽可能保证即可
 func limitUserAcctCount(
 	ctx context.Context, collection *mongo.Collection, user *dbUser) {
 	if len(user.AcctIds) > dbMaxAcctPerUser {
-		if _, err := collection.UpdateOne(
+		if err := collection.FindOneAndUpdate(
 			ctx,
-			bson.M{"_id": user.Id},
+			bson.M{
+				"_id": user.Id,
+			},
 			bson.M{
 				"$push": bson.M{
 					"acct_ids": bson.M{
@@ -462,7 +578,8 @@ func limitUserAcctCount(
 					},
 				},
 			},
-		); err != nil {
+			options.FindOneAndUpdate().SetReturnDocument(options.After),
+		).Decode(user); err != nil {
 			log.Warnf("failed to slice acct ids: %v, %v, %v",
 				user.Id, len(user.AcctIds), err)
 		}
@@ -515,7 +632,7 @@ func listRoles(
 func createRole(
 	ctx context.Context, appId, userId string, index uint32) (
 	_ *dbRole, err error) {
-	app := xApps.findById(appId)
+	app := findAppById(appId)
 	if app == nil {
 		return nil, errInvalidAppId
 	}
@@ -546,6 +663,7 @@ func signInRole(
 		ctx,
 		bson.M{"_id": roleId, "user_id": userId},
 		bson.M{"$set": bson.M{"sign_in_time": time.Now()}},
+		options.FindOneAndUpdate().SetReturnDocument(options.After),
 	).Decode(&role); err != nil {
 		if err == mongo.ErrNoDocuments {
 			err = errRoleNotFound
@@ -555,7 +673,7 @@ func signInRole(
 		return
 	}
 	// update sess data
-	b, _ := msgpack.Marshal(&xSessData{
+	b, _ := msgpack.Marshal(&dbSessData{
 		RoleId:    roleId,
 		RoleIndex: role.Index,
 	})
