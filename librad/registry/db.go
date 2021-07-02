@@ -669,13 +669,15 @@ func setUserMetadata(
 		if len(unset) > 0 {
 			update["$unset"] = unset
 		}
-		if _, err = collection.UpdateOne(
+		if r, err := collection.UpdateOne(
 			ctx,
 			bson.M{"_id": userId},
 			update,
 		); err != nil {
 			log.Warnf("failed to access user: %v", err)
 			return errDatabaseUnavailable
+		} else if r.MatchedCount == 0 {
+			return errUserNotFound
 		}
 	}
 	return
@@ -781,12 +783,15 @@ func setRoleMetadata(
 		if len(unset) > 0 {
 			update["$unset"] = unset
 		}
-		if _, err = collection.UpdateOne(
+		if r, err := collection.UpdateOne(
 			ctx,
 			bson.M{"_id": roleId, "user_id": userId},
 			update,
 		); err != nil {
-			return
+			log.Warnf("failed to access user: %v", err)
+			return errDatabaseUnavailable
+		} else if r.MatchedCount == 0 {
+			return errUserNotFound
 		}
 	}
 	return
