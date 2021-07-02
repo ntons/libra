@@ -9,7 +9,7 @@ require (
 	github.com/go-redis/redis/v8 v8.3.3
 	github.com/ntons/distlock v0.1.1-0.20210304003815-737c837072cf
 	github.com/ntons/grpc-compressor/lz4 v0.0.0-20210305100006-06d7d07e537e
-	github.com/ntons/libra-go v0.0.0-20210702023759-d19ae3d89ecd
+	github.com/ntons/libra-go v0.0.0-20210702100327-dcf3623151ae
 	github.com/ntons/log-go v0.0.0-20210604071534-bea849a67512
 	github.com/ntons/log-go/appenders/timedrollingfile v0.0.0-20210317052209-fcced1485be2
 	github.com/ntons/ranking v0.1.7-0.20210308073015-fcb506a578cb

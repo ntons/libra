@@ -132,7 +132,7 @@ func (srv *userServer) Login(
 func (srv *userServer) Bind(
 	ctx context.Context, req *v1pb.UserBindRequest) (
 	_ *v1pb.UserBindResponse, err error) {
-	appId, userId, ok := getTrustedFromContext(ctx)
+	appId, userId, ok := getTrustedAppIdAndUserId(ctx)
 	if !ok {
 		return nil, errLoginRequired
 	}
@@ -175,7 +175,7 @@ func (srv *userServer) Bind(
 func (srv *userServer) Unbind(
 	ctx context.Context, req *v1pb.UserUnbindRequest) (
 	_ *v1pb.UserUnbindResponse, err error) {
-	appId, userId, ok := getTrustedFromContext(ctx)
+	appId, userId, ok := getTrustedAppIdAndUserId(ctx)
 	if !ok {
 		return nil, errLoginRequired
 	}
@@ -195,7 +195,7 @@ func (srv *userServer) Unbind(
 func (srv *userServer) SetMetadata(
 	ctx context.Context, req *v1pb.UserSetMetadataRequest) (
 	_ *v1pb.UserSetMetadataResponse, err error) {
-	appId, userId, ok := getTrustedFromContext(ctx)
+	appId, userId, ok := getTrustedAppIdAndUserId(ctx)
 	if !ok {
 		return nil, errLoginRequired
 	}
@@ -209,7 +209,7 @@ func (srv *userServer) SetMetadata(
 func (srv *userServer) GetMetadata(
 	ctx context.Context, req *v1pb.UserGetMetadataRequest) (
 	resp *v1pb.UserGetMetadataResponse, err error) {
-	appId, userId, ok := getTrustedFromContext(ctx)
+	appId, userId, ok := getTrustedAppIdAndUserId(ctx)
 	if !ok {
 		return nil, errLoginRequired
 	}

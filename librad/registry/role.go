@@ -33,7 +33,7 @@ func newRoleServer() *roleServer {
 func (srv *roleServer) List(
 	ctx context.Context, req *v1pb.RoleListRequest) (
 	resp *v1pb.RoleListResponse, err error) {
-	appId, userId, ok := getTrustedFromContext(ctx)
+	appId, userId, ok := getTrustedAppIdAndUserId(ctx)
 	if !ok {
 		return nil, errLoginRequired
 	}
@@ -47,7 +47,7 @@ func (srv *roleServer) List(
 func (srv *roleServer) Create(
 	ctx context.Context, req *v1pb.RoleCreateRequest) (
 	resp *v1pb.RoleCreateResponse, err error) {
-	appId, userId, ok := getTrustedFromContext(ctx)
+	appId, userId, ok := getTrustedAppIdAndUserId(ctx)
 	if !ok {
 		return nil, errLoginRequired
 	}
@@ -60,7 +60,7 @@ func (srv *roleServer) Create(
 func (srv *roleServer) SignIn(
 	ctx context.Context, req *v1pb.RoleSignInRequest) (
 	resp *v1pb.RoleSignInResponse, err error) {
-	appId, userId, ok := getTrustedFromContext(ctx)
+	appId, userId, ok := getTrustedAppIdAndUserId(ctx)
 	if !ok {
 		return nil, errLoginRequired
 	}
@@ -72,7 +72,7 @@ func (srv *roleServer) SignIn(
 func (srv *roleServer) SetMetadata(
 	ctx context.Context, req *v1pb.RoleSetMetadataRequest) (
 	resp *v1pb.RoleSetMetadataResponse, err error) {
-	appId, userId, ok := getTrustedFromContext(ctx)
+	appId, userId, ok := getTrustedAppIdAndUserId(ctx)
 	if !ok {
 		return nil, errLoginRequired
 	}
@@ -86,7 +86,7 @@ func (srv *roleServer) SetMetadata(
 func (srv *roleServer) GetMetadata(
 	ctx context.Context, req *v1pb.RoleGetMetadataRequest) (
 	resp *v1pb.RoleGetMetadataResponse, err error) {
-	appId, userId, ok := getTrustedFromContext(ctx)
+	appId, userId, ok := getTrustedAppIdAndUserId(ctx)
 	if !ok {
 		return nil, errLoginRequired
 	}

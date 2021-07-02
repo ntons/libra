@@ -235,20 +235,37 @@ func (authServer) errToResponse(err error) (*authpb.CheckResponse, error) {
 }
 
 // 获取可信数据
-func getTrustedFromContext(ctx context.Context) (appId, userId string, ok bool) {
+func getTrustedAppId(ctx context.Context) (_ string, ok bool) {
+	var appId string
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return
 	}
 	if v := md.Get(xLibraTrustedAppId); len(v) != 1 || v[0] == "" {
-		return "", "", false
+		ok = false
+		return
+	} else {
+		appId = v[0]
+	}
+	return appId, true
+}
+func getTrustedAppIdAndUserId(ctx context.Context) (_, _ string, ok bool) {
+	var appId, userId string
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return
+	}
+	if v := md.Get(xLibraTrustedAppId); len(v) != 1 || v[0] == "" {
+		ok = false
+		return
 	} else {
 		appId = v[0]
 	}
 	if v := md.Get(xLibraTrustedUserId); len(v) != 1 || v[0] == "" {
-		return "", "", false
+		ok = false
+		return
 	} else {
 		userId = v[0]
 	}
-	return
+	return appId, userId, true
 }
