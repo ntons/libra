@@ -67,6 +67,7 @@ var (
 	errInvalidSignature = newInvalidArgumentError("invalid signature")
 	errInvalidAppId     = newInvalidArgumentError("invalid app id")
 	errInvalidMetadata  = newInvalidArgumentError("invalid metadata")
+	errInvalidAcctId    = newInvalidArgumentError("invalid acct id")
 
 	// Internal
 	errMalformedUserId   = newInternalError("malformed user id")

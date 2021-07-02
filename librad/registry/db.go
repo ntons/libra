@@ -589,6 +589,11 @@ func bindAcctIdToUser(
 func unbindAcctIdFromUser(
 	ctx context.Context, appId, userId string, acctIds []string) (
 	_ []string, err error) {
+	if containAcctIdPlaceholder(acctIds) {
+		// 不允许解绑x$
+		return nil, errInvalidAcctId
+	}
+
 	collection, err := getUserCollection(ctx, appId)
 	if err != nil {
 		return
