@@ -249,7 +249,7 @@ func getAppCollection(ctx context.Context) (*mongo.Collection, error) {
 	if _, err := collection.Indexes().CreateOne(
 		ctx,
 		mongo.IndexModel{
-			Keys:    bson.M{"key": 1},
+			Keys:    bson.D{{Key: "key", Value: 1}},
 			Options: options.Index().SetUnique(true),
 		},
 	); err != nil {
@@ -270,7 +270,7 @@ func getUserCollection(
 	if _, err := collection.Indexes().CreateOne(
 		ctx,
 		mongo.IndexModel{
-			Keys:    bson.M{"acct_ids": 1},
+			Keys:    bson.D{{Key: "acct_ids", Value: 1}},
 			Options: options.Index().SetUnique(true),
 		},
 	); err != nil {
@@ -291,7 +291,10 @@ func getRoleCollection(
 	if _, err := collection.Indexes().CreateOne(
 		ctx,
 		mongo.IndexModel{
-			Keys:    bson.M{"user_id": 1, "index": 1},
+			Keys: bson.D{
+				{Key: "user_id", Value: 1},
+				{Key: "index", Value: 1},
+			},
 			Options: options.Index().SetUnique(true),
 		},
 	); err != nil {
