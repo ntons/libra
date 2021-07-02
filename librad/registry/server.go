@@ -34,10 +34,11 @@ const (
 type server struct {
 	ctx  context.Context
 	stop context.CancelFunc
-	// implements
-	user *userServer
-	role *roleServer
-	auth *authServer
+
+	user      *userServer
+	role      *roleServer
+	auth      *authServer
+	useradmin *userAdminServer
 }
 
 func create(b json.RawMessage) (_ comm.Service, err error) {
@@ -56,6 +57,7 @@ func create(b json.RawMessage) (_ comm.Service, err error) {
 	srv.user = newUserServer()
 	srv.role = newRoleServer()
 	srv.auth = newAuthServer()
+	srv.useradmin = newUserAdminServer()
 	return srv, nil
 }
 
@@ -67,5 +69,6 @@ func (srv *server) RegisterGrpc(s *grpc.Server) (err error) {
 	v1pb.RegisterUserServer(s, srv.user)
 	v1pb.RegisterRoleServer(s, srv.role)
 	authpb.RegisterAuthorizationServer(s, srv.auth)
+	v1pb.RegisterUserAdminServer(s, srv.useradmin)
 	return
 }

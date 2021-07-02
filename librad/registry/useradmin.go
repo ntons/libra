@@ -11,6 +11,10 @@ type userAdminServer struct {
 	v1pb.UnimplementedUserAdminServer
 }
 
+func newUserAdminServer() *userAdminServer {
+	return &userAdminServer{}
+}
+
 func (srv *userAdminServer) SetMetadata(
 	ctx context.Context, req *v1pb.UserAdminSetMetadataRequest) (
 	_ *v1pb.UserAdminSetMetadataResponse, err error) {
