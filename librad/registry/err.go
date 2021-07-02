@@ -1,30 +1,45 @@
 package registry
 
 import (
+	"encoding/json"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-func newUnauthenticatedError(msg string) error {
-	return status.Errorf(codes.Unauthenticated, msg)
+func newError(code codes.Code, msg interface{}) error {
+	switch msg := msg.(type) {
+	case string:
+		return status.Errorf(code, msg)
+	default:
+		if b, err := json.Marshal(msg); err != nil {
+			return status.Errorf(code, "%v", msg)
+		} else {
+			return status.Errorf(code, string(b))
+		}
+	}
 }
-func newNotFoundError(msg string) error {
-	return status.Errorf(codes.NotFound, msg)
+
+func newUnauthenticatedError(msg interface{}) error {
+	return newError(codes.Unauthenticated, msg)
 }
-func newAlreadyExistsError(msg string) error {
-	return status.Errorf(codes.AlreadyExists, msg)
+func newNotFoundError(msg interface{}) error {
+	return newError(codes.NotFound, msg)
 }
-func newInvalidArgumentError(msg string) error {
-	return status.Errorf(codes.InvalidArgument, msg)
+func newAlreadyExistsError(msg interface{}) error {
+	return newError(codes.AlreadyExists, msg)
 }
-func newInternalError(msg string) error {
-	return status.Errorf(codes.Internal, msg)
+func newInvalidArgumentError(msg interface{}) error {
+	return newError(codes.InvalidArgument, msg)
 }
-func newUnavailableError(msg string) error {
-	return status.Errorf(codes.Unavailable, msg)
+func newInternalError(msg interface{}) error {
+	return newError(codes.Internal, msg)
 }
-func newPermissionDeniedError(msg string) error {
-	return status.Errorf(codes.PermissionDenied, msg)
+func newUnavailableError(msg interface{}) error {
+	return newError(codes.Unavailable, msg)
+}
+func newPermissionDeniedError(msg interface{}) error {
+	return newError(codes.PermissionDenied, msg)
 }
 
 var (

@@ -106,6 +106,15 @@ func (srv *userServer) Login(
 		log.Warnf("failed to login user: %v", err)
 		return
 	}
+	if user.BanTime.After(time.Now()) {
+		return nil, newPermissionDeniedError(&struct {
+			BanTime   int64  `json:"ban_time"`
+			BanReason string `json:"ban_reason"`
+		}{
+			BanTime:   user.BanTime.Unix(),
+			BanReason: user.BanReason,
+		})
+	}
 
 	sess, err := newSess(ctx, app, user.Id)
 	if err != nil {
@@ -158,7 +167,7 @@ func (srv *userServer) Bind(
 		return
 	}
 	for _, acctId := range acctIds {
-		log.Infof("user bind acct", "user_id", userId, "acct_id", acctId)
+		log.Infow("user bind acct", "user_id", userId, "acct_id", acctId)
 	}
 	return resp, nil
 }
@@ -178,7 +187,7 @@ func (srv *userServer) Unbind(
 		return
 	}
 	for _, acctId := range req.AcctIds {
-		log.Infof("user unbind acct", "user_id", userId, "acct_id", acctId)
+		log.Infow("user unbind acct", "user_id", userId, "acct_id", acctId)
 	}
 	return resp, nil
 }

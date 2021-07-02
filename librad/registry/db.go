@@ -151,6 +151,10 @@ type dbUser struct {
 	LoginTime time.Time `bson:"login_time,omitempty"`
 	// 上次登录时IP
 	LoginIp string `bson:"login_ip,omitempty"`
+	// 封号时间
+	BanTime time.Time `bson:"ban_time,omitempty"`
+	// 封号原因
+	BanReason string `bson:"ban_reason,omitempty"`
 	// 元数据
 	Metadata map[string]string `bson:"metadata,omitempty"`
 }
