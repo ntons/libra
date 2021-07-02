@@ -400,14 +400,13 @@ func checkNonce(ctx context.Context, appId, nonce string) (ok bool, err error) {
 	return rdbNonce.SetNX(ctx, key, "", cfg.Nonce.timeout).Result()
 }
 
-func randAcctIdPlaceholder() string {
-	const S = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-	sb := strings.Builder{}
-	sb.WriteString("x$")
-	for i := 0; i < 14; i++ {
-		sb.WriteByte(S[rand.Intn(len(S))])
+func containAcctIdPlaceholder(acctIds []string) bool {
+	for _, acctId := range acctIds {
+		if strings.HasPrefix(acctId, "x$") {
+			return true
+		}
 	}
-	return sb.String()
+	return false
 }
 
 func loginUser(
@@ -427,8 +426,6 @@ func loginUser(
 		Id:         newUserId(app.Key),
 		CreateTime: now,
 		CreateIp:   userIp,
-		// AcctIds上的唯一索引不允许有多个空数组，必须保证这里有一个值
-		AcctIds: []string{randAcctIdPlaceholder()},
 	}
 	// 这里正确执行隐含了一个前置条件，acct_ids字段必须是索引。
 	// 当给进来的acct_ids列表可以映射到多个User的时候addToSet必然会失败，
@@ -464,6 +461,23 @@ func loginUser(
 			err = errDatabaseUnavailable
 		}
 		return
+	}
+	if !containAcctIdPlaceholder(user.AcctIds) {
+		if _, err = collection.UpdateOne(
+			ctx,
+			bson.M{
+				"_id": user.Id,
+			},
+			bson.M{
+				"$addToSet": bson.M{
+					"acct_ids": "x$" + user.Id,
+				},
+			},
+		); err != nil {
+			log.Warnf("failed to access mongo: %v", err)
+			err = errDatabaseUnavailable
+			return
+		}
 	}
 
 	limitUserAcctCount(ctx, collection, user)
