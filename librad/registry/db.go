@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
 	v1pb "github.com/ntons/libra-go/api/v1"
@@ -399,6 +400,16 @@ func checkNonce(ctx context.Context, appId, nonce string) (ok bool, err error) {
 	return rdbNonce.SetNX(ctx, key, "", cfg.Nonce.timeout).Result()
 }
 
+func randAcctIdPlaceholder() string {
+	const S = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	sb := strings.Builder{}
+	sb.WriteString("x$")
+	for i := 0; i < 14; i++ {
+		sb.WriteByte(S[rand.Intn(len(S))])
+	}
+	return sb.String()
+}
+
 func loginUser(
 	ctx context.Context, app *xApp, userIp string,
 	acctIds []string, opts *v1pb.UserLoginOptions) (
@@ -416,6 +427,8 @@ func loginUser(
 		Id:         newUserId(app.Key),
 		CreateTime: now,
 		CreateIp:   userIp,
+		// AcctIds上的唯一索引不允许有多个空数组，必须保证这里有一个值
+		AcctIds: []string{randAcctIdPlaceholder()},
 	}
 	// 这里正确执行隐含了一个前置条件，acct_ids字段必须是索引。
 	// 当给进来的acct_ids列表可以映射到多个User的时候addToSet必然会失败，
@@ -629,13 +642,22 @@ func setUserMetadata(
 			unset["metadata."+key] = 1
 		}
 	}
-	if _, err = collection.UpdateOne(
-		ctx,
-		bson.M{"_id": userId},
-		bson.M{"$set": set, "$unset": unset},
-	); err != nil {
-		log.Warnf("failed to access user: %v", err)
-		return errDatabaseUnavailable
+	if len(set) > 0 || len(unset) > 0 {
+		update := bson.M{}
+		if len(set) > 0 {
+			update["$set"] = set
+		}
+		if len(unset) > 0 {
+			update["$unset"] = unset
+		}
+		if _, err = collection.UpdateOne(
+			ctx,
+			bson.M{"_id": userId},
+			update,
+		); err != nil {
+			log.Warnf("failed to access user: %v", err)
+			return errDatabaseUnavailable
+		}
 	}
 	return
 }
@@ -732,12 +754,21 @@ func setRoleMetadata(
 			unset["metadata."+key] = 1
 		}
 	}
-	if _, err = collection.UpdateOne(
-		ctx,
-		bson.M{"_id": roleId, "user_id": userId},
-		bson.M{"$set": set, "$unset": unset},
-	); err != nil {
-		return
+	if len(set) > 0 || len(unset) > 0 {
+		update := bson.M{}
+		if len(set) > 0 {
+			update["$set"] = set
+		}
+		if len(unset) > 0 {
+			update["$unset"] = unset
+		}
+		if _, err = collection.UpdateOne(
+			ctx,
+			bson.M{"_id": roleId, "user_id": userId},
+			update,
+		); err != nil {
+			return
+		}
 	}
 	return
 }
