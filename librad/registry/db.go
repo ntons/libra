@@ -29,7 +29,7 @@ import (
 //           |- roles
 
 const (
-	dbMaxAcctPerUser = 10
+	dbMaxAcctPerUser = 100
 )
 
 var (
