@@ -196,3 +196,33 @@ func (srv *userServer) SetMetadata(
 	}
 	return &v1pb.UserSetMetadataResponse{}, nil
 }
+
+func (srv *userServer) GetMetadata(
+	ctx context.Context, req *v1pb.UserGetMetadataRequest) (
+	resp *v1pb.UserGetMetadataResponse, err error) {
+	appId, userId, ok := getTrustedFromContext(ctx)
+	if !ok {
+		return nil, errLoginRequired
+	}
+
+	user, err := getUser(ctx, appId, userId)
+	if err != nil {
+		return
+	}
+
+	if len(req.Keys) == 0 {
+		resp = &v1pb.UserGetMetadataResponse{
+			Metadata: user.Metadata,
+		}
+	} else {
+		resp = &v1pb.UserGetMetadataResponse{
+			Metadata: make(map[string]string),
+		}
+		for _, key := range req.Keys {
+			if value, ok := user.Metadata[key]; ok {
+				resp.Metadata[key] = value
+			}
+		}
+	}
+	return
+}

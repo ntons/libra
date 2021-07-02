@@ -297,8 +297,28 @@ func getRoleCollection(
 	return collection, nil
 }
 
-func getRoleById(
-	ctx context.Context, appId, roleId string) (_ *dbRole, err error) {
+func getUser(
+	ctx context.Context, appId, userId string) (_ *dbUser, err error) {
+	collection, err := getUserCollection(ctx, appId)
+	if err != nil {
+		return
+	}
+	user := &dbUser{}
+	if err = collection.FindOne(
+		ctx,
+		bson.M{"_id": userId},
+	).Decode(user); err != nil {
+		if err == mongo.ErrNoDocuments {
+			err = errRoleNotFound
+		} else {
+			err = errDatabaseUnavailable
+		}
+		return
+	}
+	return user, nil
+}
+func getRole(
+	ctx context.Context, appId, userId, roleId string) (_ *dbRole, err error) {
 	collection, err := getRoleCollection(ctx, appId)
 	if err != nil {
 		return
@@ -306,7 +326,8 @@ func getRoleById(
 	role := &dbRole{}
 	if err = collection.FindOne(
 		ctx,
-		bson.M{"_id": roleId},
+		// role必须属于user才算找到
+		bson.M{"_id": roleId, "user_id": userId},
 	).Decode(role); err != nil {
 		if err == mongo.ErrNoDocuments {
 			err = errRoleNotFound

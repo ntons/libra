@@ -82,3 +82,33 @@ func (srv *roleServer) SetMetadata(
 	}
 	return &v1pb.RoleSetMetadataResponse{}, nil
 }
+
+func (srv *roleServer) GetMetadata(
+	ctx context.Context, req *v1pb.RoleGetMetadataRequest) (
+	resp *v1pb.RoleGetMetadataResponse, err error) {
+	appId, userId, ok := getTrustedFromContext(ctx)
+	if !ok {
+		return nil, errLoginRequired
+	}
+
+	role, err := getRole(ctx, appId, userId, req.RoleId)
+	if err != nil {
+		return
+	}
+
+	if len(req.Keys) == 0 {
+		resp = &v1pb.RoleGetMetadataResponse{
+			Metadata: role.Metadata,
+		}
+	} else {
+		resp = &v1pb.RoleGetMetadataResponse{
+			Metadata: make(map[string]string),
+		}
+		for _, key := range req.Keys {
+			if value, ok := role.Metadata[key]; ok {
+				resp.Metadata[key] = value
+			}
+		}
+	}
+	return
+}
