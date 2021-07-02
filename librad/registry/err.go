@@ -68,6 +68,7 @@ var (
 	errInvalidAppId     = newInvalidArgumentError("invalid app id")
 	errInvalidMetadata  = newInvalidArgumentError("invalid metadata")
 	errInvalidAcctId    = newInvalidArgumentError("invalid acct id")
+	errMetadataTooLarge = newInvalidArgumentError("metadata too large")
 
 	// Internal
 	errMalformedUserId   = newInternalError("malformed user id")

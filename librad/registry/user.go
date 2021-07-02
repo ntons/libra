@@ -199,6 +199,11 @@ func (srv *userServer) SetMetadata(
 	if !ok {
 		return nil, errLoginRequired
 	}
+	for k, v := range req.Metadata {
+		if len(k)+len(v) > 1024 {
+			return nil, errMetadataTooLarge
+		}
+	}
 	if err = setUserMetadata(ctx, appId, userId, req.Metadata); err != nil {
 		log.Warnf("failed to set user metadata: %v", err)
 		return

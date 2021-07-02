@@ -76,6 +76,11 @@ func (srv *roleServer) SetMetadata(
 	if !ok {
 		return nil, errLoginRequired
 	}
+	for k, v := range req.Metadata {
+		if len(k)+len(v) > 1024 {
+			return nil, errMetadataTooLarge
+		}
+	}
 	if err = setRoleMetadata(
 		ctx, appId, userId, req.RoleId, req.Metadata); err != nil {
 		return
