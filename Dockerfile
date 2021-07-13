@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-X 'main.Version=`cat VERSION`' 
 # Stage 2: Build images
 ################################################################################
 #FROM debian:buster
-FROM alpine:3.14
+FROM alpine:3.14 AS final
 
 COPY --from=builder /go/src/github.com/ntons/libra/librad/librad      /bin/
 COPY --from=builder /go/src/github.com/ntons/libra/librad/librad.yaml /etc/
