@@ -289,22 +289,31 @@ func (srv *server) Set(
 	if req.LockToken != nil {
 		// this operation must be done within ttl
 		if err = srv.refresh(ctx, key, req.LockToken); err != nil {
+			log.Warnf("set: failed to refresh lock: %s", err)
 			return
 		}
 		if req.UnlockOptions != nil {
 			defer func() {
 				if err == nil {
-					err = srv.unlock(ctx, key, req.LockToken)
+					if err = srv.unlock(ctx, key, req.LockToken); err != nil {
+						log.Warnf("set: failed to unlock: %s", err)
+					}
 				} else if req.UnlockOptions.EvenOnFailure {
-					srv.unlock(ctx, key, req.LockToken)
+					if err := srv.unlock(ctx, key, req.LockToken); err != nil {
+						log.Warnf("set: failed to unlock: %s", err)
+					}
 				}
 			}()
 		}
 	}
-	resp := &v1pb.DatabaseSetResponse{}
-	if buf, err := encodeMessage(req.Data); err != nil {
+	buf, err := encodeMessage(req.Data)
+	if err != nil {
+		log.Warnf("set: failed to encode message: %s", err)
 		return nil, fromProtoError(err)
-	} else if resp.Revision, err = srv.db.Set(ctx, key, buf); err != nil {
+	}
+	resp := &v1pb.DatabaseSetResponse{}
+	if resp.Revision, err = srv.db.Set(ctx, key, buf); err != nil {
+		log.Warnf("set: failed set to db: %s", err)
 		return nil, fromRemonError(err)
 	}
 	return resp, nil

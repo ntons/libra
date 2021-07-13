@@ -6,7 +6,8 @@ import (
 	"github.com/pierrec/lz4/v4"
 )
 
-const lz4MaxLen = 102400 // 100k
+// 允许的最大存档
+const lz4MaxLen = 160 * 1024
 
 type lz4Filter struct{}
 
