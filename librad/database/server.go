@@ -8,22 +8,18 @@ import (
 	"time"
 
 	"github.com/ntons/distlock"
+	L "github.com/ntons/libra-go"
 	"github.com/ntons/log-go"
 	"github.com/ntons/remon"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/anypb"
 
 	v1pb "github.com/ntons/libra-go/api/v1"
 	"github.com/ntons/libra/librad/internal/comm"
 	"github.com/ntons/libra/librad/internal/redis"
 	"github.com/ntons/libra/librad/internal/util"
-)
-
-const (
-	xLibraTrustedAppId = "x-libra-trusted-app-id"
 )
 
 func init() {
@@ -121,14 +117,10 @@ func uniKey(ctx context.Context, req keyedRequest) (_ string, err error) {
 		}
 		return true
 	}
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
+	trusted := L.RequireAuthBySecret(ctx)
+	if trusted == nil {
 		return "", errUnauthenticated
-	}
-	var appId string
-	if v := md.Get(xLibraTrustedAppId); len(v) != 1 {
-		return "", errUnauthenticated
-	} else if appId = v[0]; !isValidStr(appId, 1, 32) {
+	} else if !isValidStr(trusted.AppId, 1, 32) {
 		return "", errInvalidArgument
 	}
 	k := req.GetKey()
@@ -137,7 +129,7 @@ func uniKey(ctx context.Context, req keyedRequest) (_ string, err error) {
 	}
 	// default remon key mapping strategy split key by ':'
 	// into (database, collection, _id)
-	return fmt.Sprintf("%s:%s:%s", appId, k.Kind, k.Id), nil
+	return fmt.Sprintf("%s:%s:%s", trusted.AppId, k.Kind, k.Id), nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

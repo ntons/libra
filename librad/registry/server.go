@@ -14,23 +14,6 @@ import (
 
 func init() { comm.RegisterService("registry", create) }
 
-const (
-	// session headers
-	xLibraPrefix = "x-libra-"
-	xLibraToken  = xLibraPrefix + "token"
-	// untrusted headers
-	xLibraAppId     = xLibraPrefix + "app-id"
-	xLibraAppSecret = xLibraPrefix + "app-secret"
-	// headers added by proxy
-	xLibraAuthBy = xLibraPrefix + "auth-by"
-	// trusted headers
-	xLibraTrustedPrefix    = xLibraPrefix + "trusted-"
-	xLibraTrustedAppId     = xLibraTrustedPrefix + "app-id"
-	xLibraTrustedUserId    = xLibraTrustedPrefix + "user-id"
-	xLibraTrustedRoleId    = xLibraTrustedPrefix + "role-id"
-	xLibraTrustedRoleIndex = xLibraTrustedPrefix + "role-index"
-)
-
 type server struct {
 	ctx  context.Context
 	stop context.CancelFunc

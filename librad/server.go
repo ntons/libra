@@ -25,10 +25,6 @@ import (
 )
 
 const (
-	xLibra = "x-libra-"
-)
-
-const (
 	// alian serving status for short
 	xStatusUnknown    = grpc_health_v1.HealthCheckResponse_UNKNOWN
 	xStatusServing    = grpc_health_v1.HealthCheckResponse_SERVING

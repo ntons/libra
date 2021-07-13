@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 
+	L "github.com/ntons/libra-go"
 	v1pb "github.com/ntons/libra-go/api/v1"
 	log "github.com/ntons/log-go"
 )
@@ -18,11 +19,12 @@ func newUserAdminServer() *userAdminServer {
 func (srv *userAdminServer) SetMetadata(
 	ctx context.Context, req *v1pb.UserAdminSetMetadataRequest) (
 	_ *v1pb.UserAdminSetMetadataResponse, err error) {
-	appId, ok := getTrustedAppId(ctx)
-	if !ok {
+	trusted := L.RequireAuthBySecret(ctx)
+	if trusted == nil {
 		return nil, errUnauthenticated
 	}
-	if err = setUserMetadata(ctx, appId, req.UserId, req.Metadata); err != nil {
+	if err = setUserMetadata(
+		ctx, trusted.AppId, req.UserId, req.Metadata); err != nil {
 		log.Warnf("failed to set user metadata: %v", err)
 		return
 	}

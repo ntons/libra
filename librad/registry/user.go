@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	L "github.com/ntons/libra-go"
 	v1pb "github.com/ntons/libra-go/api/v1"
 	log "github.com/ntons/log-go"
 	"github.com/ntons/tongo/httputil"
@@ -124,7 +125,7 @@ func (srv *userServer) Login(
 
 	log.Infow("user login", "user_id", user.Id, "acct_ids", acctIds)
 
-	grpc.SetHeader(ctx, metadata.Pairs(xLibraToken, sess.Token))
+	grpc.SetHeader(ctx, metadata.Pairs(L.XLibraToken, sess.Token))
 
 	return &v1pb.UserLoginResponse{User: fromDbUser(user)}, nil
 }
@@ -132,14 +133,14 @@ func (srv *userServer) Login(
 func (srv *userServer) Bind(
 	ctx context.Context, req *v1pb.UserBindRequest) (
 	_ *v1pb.UserBindResponse, err error) {
-	appId, userId, ok := getTrustedAppIdAndUserId(ctx)
-	if !ok {
+	trusted := L.RequireAuthByToken(ctx)
+	if trusted == nil {
 		return nil, errLoginRequired
 	}
 
-	app := findAppById(appId)
+	app := findAppById(trusted.AppId)
 	if app == nil {
-		log.Warnf("invalid app id: %v", appId)
+		log.Warnf("invalid app id: %v", trusted.AppId)
 		return nil, errInvalidAppId
 	}
 
@@ -162,12 +163,12 @@ func (srv *userServer) Bind(
 
 	resp := &v1pb.UserBindResponse{}
 	if resp.AcctIds, err = bindAcctIdToUser(
-		ctx, appId, userId, acctIds, req.Options); err != nil {
+		ctx, trusted.AppId, trusted.UserId, acctIds, req.Options); err != nil {
 		log.Warnf("failed to bind acct to user: %v", err)
 		return
 	}
 	for _, acctId := range acctIds {
-		log.Infow("user bind acct", "user_id", userId, "acct_id", acctId)
+		log.Infow("user bind acct", "user_id", trusted.UserId, "acct_id", acctId)
 	}
 	return resp, nil
 }
@@ -175,19 +176,19 @@ func (srv *userServer) Bind(
 func (srv *userServer) Unbind(
 	ctx context.Context, req *v1pb.UserUnbindRequest) (
 	_ *v1pb.UserUnbindResponse, err error) {
-	appId, userId, ok := getTrustedAppIdAndUserId(ctx)
-	if !ok {
+	trusted := L.RequireAuthByToken(ctx)
+	if trusted == nil {
 		return nil, errLoginRequired
 	}
 
 	resp := &v1pb.UserUnbindResponse{}
 	if resp.AcctIds, err = unbindAcctIdFromUser(
-		ctx, appId, userId, req.AcctIds); err != nil {
+		ctx, trusted.AppId, trusted.UserId, req.AcctIds); err != nil {
 		log.Warnf("failed to unbind acct from user: %v", err)
 		return
 	}
 	for _, acctId := range req.AcctIds {
-		log.Infow("user unbind acct", "user_id", userId, "acct_id", acctId)
+		log.Infow("user unbind acct", "user_id", trusted.UserId, "acct_id", acctId)
 	}
 	return resp, nil
 }
@@ -195,16 +196,18 @@ func (srv *userServer) Unbind(
 func (srv *userServer) SetMetadata(
 	ctx context.Context, req *v1pb.UserSetMetadataRequest) (
 	_ *v1pb.UserSetMetadataResponse, err error) {
-	appId, userId, ok := getTrustedAppIdAndUserId(ctx)
-	if !ok {
+	trusted := L.RequireAuthByToken(ctx)
+	if trusted == nil {
 		return nil, errLoginRequired
 	}
+
 	for k, v := range req.Metadata {
 		if len(k)+len(v) > 1024 {
 			return nil, errMetadataTooLarge
 		}
 	}
-	if err = setUserMetadata(ctx, appId, userId, req.Metadata); err != nil {
+	if err = setUserMetadata(
+		ctx, trusted.AppId, trusted.UserId, req.Metadata); err != nil {
 		log.Warnf("failed to set user metadata: %v", err)
 		return
 	}
@@ -214,12 +217,12 @@ func (srv *userServer) SetMetadata(
 func (srv *userServer) GetMetadata(
 	ctx context.Context, req *v1pb.UserGetMetadataRequest) (
 	resp *v1pb.UserGetMetadataResponse, err error) {
-	appId, userId, ok := getTrustedAppIdAndUserId(ctx)
-	if !ok {
+	trusted := L.RequireAuthByToken(ctx)
+	if trusted == nil {
 		return nil, errLoginRequired
 	}
 
-	user, err := getUser(ctx, appId, userId)
+	user, err := getUser(ctx, trusted.AppId, trusted.UserId)
 	if err != nil {
 		return
 	}
