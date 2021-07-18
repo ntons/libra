@@ -395,9 +395,19 @@ func checkToken(ctx context.Context, token string) (_ *dbSess, err error) {
 	return s, nil
 }
 
-func checkNonce(ctx context.Context, appId, nonce string) (ok bool, err error) {
+func checkNonce(ctx context.Context, appId, nonce string) (err error) {
+	if len(nonce) > 32 {
+		return errInvalidNonce
+	}
 	key := fmt.Sprintf("%s$%s", appId, nonce)
-	return rdbNonce.SetNX(ctx, key, "", cfg.Nonce.timeout).Result()
+	ok, err := rdbNonce.SetNX(ctx, key, "", cfg.Nonce.timeout).Result()
+	if err != nil {
+		return errDatabaseUnavailable
+	}
+	if !ok {
+		return errInvalidNonce
+	}
+	return
 }
 
 func containAcctIdPlaceholder(acctIds []string) bool {

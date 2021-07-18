@@ -95,7 +95,16 @@ func _main() (err error) {
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	logcfg.DefaultZapJsonConfig.Use()
+	defaultLogConfig := logcfg.Config{
+		Zap: &zap.Config{
+			Level:            zap.NewAtomicLevel(),
+			Encoding:         "json",
+			EncoderConfig:    zap.NewProductionEncoderConfig(),
+			OutputPaths:      []string{"stdout"},
+			ErrorOutputPaths: []string{"stderr"},
+		},
+	}
+	defaultLogConfig.Use()
 
 	if err := _main(); err != nil {
 		log.Error(err)

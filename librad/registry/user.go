@@ -36,10 +36,8 @@ func newUserServer() *userServer {
 
 func (srv *userServer) CheckUniformLoginState(
 	ctx context.Context, app *xApp, state *v1pb.UniformLoginState) (err error) {
-	if ok, err := checkNonce(ctx, app.Id, state.Nonce); err != nil {
-		return errDatabaseUnavailable
-	} else if !ok {
-		return errInvalidNonce
+	if err = checkNonce(ctx, app.Id, state.Nonce); err != nil {
+		return
 	}
 
 	// ts-30 签名有效期只有30秒钟
