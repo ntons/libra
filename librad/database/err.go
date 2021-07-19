@@ -9,6 +9,7 @@ import (
 
 var (
 	errInvalidArgument = status.Errorf(codes.InvalidArgument, "invalid argument")
+	errTimeoutTooLong  = status.Errorf(codes.InvalidArgument, "timeout too long")
 	errUnauthenticated = status.Errorf(codes.Unauthenticated, "unauthenticated")
 	errTooLarge        = status.Errorf(codes.Unauthenticated, "too large")
 )

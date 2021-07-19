@@ -22,6 +22,8 @@ import (
 	"github.com/ntons/libra/librad/internal/util"
 )
 
+const distlockTypeUrl = "https://github.com/ntons/distlock"
+
 func init() {
 	comm.RegisterService("database", create)
 }
@@ -135,8 +137,18 @@ func uniKey(ctx context.Context, req keyedRequest) (_ string, err error) {
 ////////////////////////////////////////////////////////////////////////////////
 // Distlock Service
 ////////////////////////////////////////////////////////////////////////////////
-func (srv *server) lock(ctx context.Context, key string) (*anypb.Any, error) {
-	lock, err := srv.dl.Obtain(ctx, key, cfg.Distlock.ttl,
+func (srv *server) lock(
+	ctx context.Context, key string, opts *v1pb.DistlockLockOptions) (
+	*anypb.Any, error) {
+	ttl := cfg.Distlock.ttl
+	if opts.TimeoutMilliseconds > 0 {
+		ttl = time.Duration(opts.TimeoutMilliseconds) * time.Millisecond
+	}
+	if ttl > 10*time.Minute {
+		// 保险起见自动超时不能超过10分钟，以防异常情况下无法解锁
+		return nil, errTimeoutTooLong
+	}
+	lock, err := srv.dl.Obtain(ctx, key, ttl,
 		distlock.WithRetryStrategy(distlock.LimitRetry(
 			// 32 + 32 + 32 + 32 + 32 + 64 + 128 + 256 + 512 + 512 = 1632
 			distlock.ExponentialBackoff(
@@ -146,14 +158,14 @@ func (srv *server) lock(ctx context.Context, key string) (*anypb.Any, error) {
 		return nil, fromDistlockError(err)
 	}
 	return &anypb.Any{
-		TypeUrl: "https://github.com/ntons/distlock",
+		TypeUrl: distlockTypeUrl,
 		Value:   util.StringToBytes(lock.GetToken()),
 	}, nil
 }
 
 func (srv *server) unlock(
 	ctx context.Context, key string, token *anypb.Any) error {
-	if token == nil || token.TypeUrl != "https://github.com/ntons/distlock" {
+	if token == nil || token.TypeUrl != distlockTypeUrl {
 		return errInvalidArgument
 	}
 	lock := distlock.NewLock(key, util.BytesToString(token.Value))
@@ -163,13 +175,17 @@ func (srv *server) unlock(
 	return nil
 }
 
-func (srv *server) refresh(
+func (srv *server) ensureLock(
 	ctx context.Context, key string, token *anypb.Any) error {
-	if token == nil || token.TypeUrl != "https://github.com/ntons/distlock" {
+	if token == nil || token.TypeUrl != distlockTypeUrl {
 		return errInvalidArgument
 	}
 	lock := distlock.NewLock(key, util.BytesToString(token.Value))
-	if err := srv.dl.Refresh(ctx, lock, cfg.Distlock.ttl); err != nil {
+	ttl := cfg.Distlock.ttl
+	if t, ok := ctx.Deadline(); ok {
+		ttl = t.Sub(time.Now())
+	}
+	if err := srv.dl.Ensure(ctx, lock, ttl); err != nil {
 		return fromDistlockError(err)
 	}
 	return nil
@@ -182,7 +198,7 @@ func (srv *server) Lock(
 	if err != nil {
 		return
 	}
-	token, err := srv.lock(ctx, key)
+	token, err := srv.lock(ctx, key, req.LockOptions)
 	if err != nil {
 		return
 	}
@@ -237,7 +253,8 @@ func (srv *server) Get(
 	// get lock
 	if req.LockOptions != nil {
 		// this operation must be done within ttl
-		if resp.LockToken, err = srv.lock(ctx, key); err != nil {
+		if resp.LockToken, err = srv.lock(
+			ctx, key, req.LockOptions); err != nil {
 			return
 		}
 		defer func() {
@@ -280,8 +297,8 @@ func (srv *server) Set(
 	// check lock and unlock options
 	if req.LockToken != nil {
 		// this operation must be done within ttl
-		if err = srv.refresh(ctx, key, req.LockToken); err != nil {
-			log.Warnf("set: failed to refresh lock: %s", err)
+		if err = srv.ensureLock(ctx, key, req.LockToken); err != nil {
+			log.Warnf("set: failed to ensure lock: %s", err)
 			return
 		}
 		if req.UnlockOptions != nil {
