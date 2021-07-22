@@ -31,6 +31,8 @@ import (
 
 const (
 	dbMaxAcctPerUser = 100
+	// 会话最长生命周期，即使一直在线，也会强制清除
+	dbSessTTL = 24 * time.Hour
 )
 
 var (
@@ -47,6 +49,7 @@ var (
 	// app cache loaded from database
 	xApps = newAppIndex(nil)
 
+	// 只更新会话数据
 	luaUpdateSessData = redis.NewScript(`
 local b = redis.call("GET", KEYS[1])
 if not b then return Nil end
@@ -360,7 +363,7 @@ func newSess(
 	}
 	b, _ := msgpack.Marshal(&s)
 	if err = rdbAuth.Set(
-		ctx, userId, util.BytesToString(b), 0).Err(); err != nil {
+		ctx, userId, util.BytesToString(b), dbSessTTL).Err(); err != nil {
 	}
 	return s, nil
 }
@@ -548,7 +551,7 @@ func bindAcctIdToUser(
 			defer sess.EndSession(ctx)
 			// Transaction不能在Standalone中执行
 			// 4.0 只能使用 replica set
-			// 4.2 replica set + cluster
+			// 4.2 replica set 或 cluster
 			if _, err = sess.WithTransaction(
 				ctx,
 				func(ctx mongo.SessionContext) (_ interface{}, err error) {
