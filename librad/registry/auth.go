@@ -57,20 +57,20 @@ func (srv authServer) Check(
 
 	// 集中处理可信元数据的增减
 	if okResp := resp.GetOkResponse(); okResp != nil {
-		km := make(map[string]struct{})
-		for _, x := range okResp.Headers {
-			_, found := km[x.Header.Key]
-			x.Append = wrapperspb.Bool(found)
-			km[x.Header.Key] = struct{}{}
+		m := make(map[string]struct{})
+		for _, header := range okResp.Headers {
+			_, found := m[header.Header.Key]
+			header.Append = wrapperspb.Bool(found)
+			m[header.Header.Key] = struct{}{}
 		}
-		for k := range req.Attributes.Request.Http.Headers {
-			if !strings.HasPrefix(k, L.XLibraTrustedPrefix) {
+		for key := range req.Attributes.Request.Http.Headers {
+			if !strings.HasPrefix(key, L.XLibraTrustedPrefix) {
 				continue
 			}
-			if _, found := km[k]; found {
+			if _, found := m[key]; found {
 				continue
 			}
-			okResp.HeadersToRemove = append(okResp.HeadersToRemove, k)
+			okResp.HeadersToRemove = append(okResp.HeadersToRemove, key)
 		}
 	}
 
@@ -207,9 +207,15 @@ func (srv authServer) checkSecretAndOptionalToken(
 			break
 		}
 	}
-	for _, header := range okResp2.Headers {
+	for i, header := range okResp2.Headers {
 		if header.GetHeader().GetKey() == L.XLibraTrustedAppId {
 			appId2 = header.GetHeader().GetValue()
+			// 只保留1个AppId
+			n := len(okResp2.Headers)
+			if i < n-1 {
+				okResp2.Headers[i] = okResp2.Headers[n-1]
+			}
+			okResp2.Headers = okResp2.Headers[:n-1]
 			break
 		}
 	}
