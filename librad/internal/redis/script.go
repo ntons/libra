@@ -25,7 +25,7 @@ type Script struct {
 
 func NewScript(src string, args ...interface{}) *Script {
 	if len(args) > 0 {
-		src = fmt.Sprintf(src, args)
+		src = fmt.Sprintf(src, args...)
 	}
 	h := sha1.New()
 	_, _ = io.WriteString(h, src)
@@ -34,6 +34,10 @@ func NewScript(src string, args ...interface{}) *Script {
 
 func isNoScript(err error) bool {
 	return err != nil && strings.HasPrefix(err.Error(), "NOSCRIPT ")
+}
+
+func (script *Script) Src() string {
+	return script.src
 }
 
 func (script *Script) Run(ctx context.Context, cli ScriptClient, keys []string, args ...interface{}) (r *redis.Cmd) {
