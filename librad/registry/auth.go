@@ -26,7 +26,7 @@ func newAuthServer() *authServer { return &authServer{} }
 
 func (srv authServer) Check(
 	ctx context.Context, req *authpb.CheckRequest) (
-	res *authpb.CheckResponse, err error) {
+	resp *authpb.CheckResponse, err error) {
 	log.Debugf("Auth.Check|%v", req)
 
 	md, ok := metadata.FromIncomingContext(ctx)
@@ -41,53 +41,45 @@ func (srv authServer) Check(
 		return srv.errToResponse(errInvalidMetadata)
 	}
 
-	toRemoveHeaders := make(map[string]struct{})
-	for key := range req.Attributes.Request.Http.Headers {
-		// 去掉请求中自带的可信元数据
-		if strings.HasPrefix(key, L.XLibraTrustedPrefix) {
-			toRemoveHeaders[key] = struct{}{}
-		}
-	}
-
 	switch authBy {
 	case L.XLibraAuthByToken:
-		res, err = srv.checkToken(ctx, req)
+		resp, err = srv.checkToken(ctx, req)
 	case L.XLibraAuthBySecret:
-		res, err = srv.checkSecret(ctx, req)
-	//case C.XAuthBySecretAndOptionalToken:
-	//	res, err = srv.checkSecretAndOptionalToken(ctx, req)
+		resp, err = srv.checkSecret(ctx, req)
+	case L.XLibraAuthBySecretAndOptionalToken:
+		resp, err = srv.checkSecretAndOptionalToken(ctx, req)
 	default:
-		// 没有任何可用凭证
 		return srv.errToResponse(errUnauthenticated)
 	}
 	if err != nil {
 		return
 	}
-	if okResp := res.GetOkResponse(); okResp != nil {
-		okResp.Headers = append(okResp.Headers, &corepb.HeaderValueOption{
-			Header: &corepb.HeaderValue{
-				Key:   L.XLibraTrustedAuthBy,
-				Value: authBy,
-			},
-			Append: wrapperspb.Bool(false),
-		})
+
+	// 集中处理可信元数据的增减
+	if okResp := resp.GetOkResponse(); okResp != nil {
+		km := make(map[string]struct{})
+		for _, x := range okResp.Headers {
+			_, found := km[x.Header.Key]
+			x.Append = wrapperspb.Bool(found)
+			km[x.Header.Key] = struct{}{}
+		}
+		for k := range req.Attributes.Request.Http.Headers {
+			if !strings.HasPrefix(k, L.XLibraTrustedPrefix) {
+				continue
+			}
+			if _, found := km[k]; found {
+				continue
+			}
+			okResp.HeadersToRemove = append(okResp.HeadersToRemove, k)
+		}
 	}
 
-	if x := res.GetOkResponse(); x != nil {
-		for _, e := range x.Headers {
-			delete(toRemoveHeaders, e.GetHeader().GetKey())
-		}
-		for key := range toRemoveHeaders {
-			x.HeadersToRemove = append(x.HeadersToRemove, key)
-		}
-	}
 	return
 }
 
 func (srv authServer) checkToken(
 	ctx context.Context, req *authpb.CheckRequest) (
 	_ *authpb.CheckResponse, err error) {
-	//log.Debugf("Auth.CheckToken|%v", req)
 	token := req.Attributes.Request.Http.Headers[L.XLibraToken]
 	if token == "" {
 		return srv.errToResponse(errUnauthenticated)
@@ -100,24 +92,25 @@ func (srv authServer) checkToken(
 		return srv.errToResponse(errPermissionDenied)
 	}
 
-	headers := []*corepb.HeaderValueOption{}
-	if sess.AppId != "" {
-		headers = append(headers, &corepb.HeaderValueOption{
+	headers := []*corepb.HeaderValueOption{
+		{
+			Header: &corepb.HeaderValue{
+				Key:   L.XLibraTrustedAuthBy,
+				Value: L.XLibraAuthByToken,
+			},
+		},
+		{
 			Header: &corepb.HeaderValue{
 				Key:   L.XLibraTrustedAppId,
 				Value: sess.AppId,
 			},
-			Append: wrapperspb.Bool(false),
-		})
-	}
-	if sess.UserId != "" {
-		headers = append(headers, &corepb.HeaderValueOption{
+		},
+		{
 			Header: &corepb.HeaderValue{
 				Key:   L.XLibraTrustedUserId,
 				Value: sess.UserId,
 			},
-			Append: wrapperspb.Bool(false),
-		})
+		},
 	}
 	if sess.Data.RoleId != "" {
 		headers = append(headers, &corepb.HeaderValueOption{
@@ -125,21 +118,21 @@ func (srv authServer) checkToken(
 				Key:   L.XLibraTrustedRoleId,
 				Value: sess.Data.RoleId,
 			},
-			Append: wrapperspb.Bool(false),
 		}, &corepb.HeaderValueOption{
 			Header: &corepb.HeaderValue{
 				Key:   L.XLibraTrustedRoleIndex,
 				Value: fmt.Sprintf("%d", sess.Data.RoleIndex),
 			},
-			Append: wrapperspb.Bool(false),
 		})
 	}
 	return &authpb.CheckResponse{
 		Status: &status.Status{Code: int32(code.Code_OK)},
 		HttpResponse: &authpb.CheckResponse_OkResponse{
 			OkResponse: &authpb.OkHttpResponse{
-				Headers:         headers,
-				HeadersToRemove: []string{L.XLibraToken},
+				Headers: headers,
+				HeadersToRemove: []string{
+					L.XLibraToken,
+				},
 			},
 		},
 	}, nil
@@ -148,70 +141,98 @@ func (srv authServer) checkToken(
 func (srv authServer) checkSecret(
 	ctx context.Context, req *authpb.CheckRequest) (
 	_ *authpb.CheckResponse, err error) {
-	//log.Debugf("Auth.CheckSecret|%v", req)
 	appId := req.Attributes.Request.Http.Headers[L.XLibraAppId]
 	appSecret := req.Attributes.Request.Http.Headers[L.XLibraAppSecret]
 	if appId == "" || appSecret == "" {
 		return srv.errToResponse(errUnauthenticated)
 	}
+
 	if app := findAppById(appId); app == nil || app.Secret != appSecret {
 		return srv.errToResponse(errInvalidAppSecret)
 	} else if !app.isPermitted(req.Attributes.Request.Http.Path) {
 		return srv.errToResponse(errPermissionDenied)
 	}
+
+	headers := []*corepb.HeaderValueOption{
+		{
+			Header: &corepb.HeaderValue{
+				Key:   L.XLibraTrustedAuthBy,
+				Value: L.XLibraAuthBySecret,
+			},
+		},
+		{
+			Header: &corepb.HeaderValue{
+				Key:   L.XLibraTrustedAppId,
+				Value: appId,
+			},
+		},
+	}
 	return &authpb.CheckResponse{
 		Status: &status.Status{Code: int32(code.Code_OK)},
 		HttpResponse: &authpb.CheckResponse_OkResponse{
 			OkResponse: &authpb.OkHttpResponse{
-				Headers: []*corepb.HeaderValueOption{
-					{
-						Header: &corepb.HeaderValue{
-							Key:   L.XLibraTrustedAppId,
-							Value: appId,
-						},
-						Append: wrapperspb.Bool(false),
-					},
+				Headers: headers,
+				HeadersToRemove: []string{
+					L.XLibraAppId,
+					L.XLibraAppSecret,
 				},
-				HeadersToRemove: []string{L.XLibraAppId, L.XLibraAppSecret},
 			},
 		},
 	}, nil
 }
 
-//func (srv authServer) checkSecretAndOptionalToken(
-//	ctx context.Context, req *authpb.CheckRequest) (
-//	_ *authpb.CheckResponse, err error) {
-//	if _, ok := req.Attributes.Request.Http.Headers[C.XLibraToken]; !ok {
-//		// check secret only
-//		return srv.checkSecret(ctx, req)
-//	}
-//	// check secret and token
-//	resp1, err := srv.checkSecret(ctx, req)
-//	if err != nil || resp1.GetOkResponse() == nil {
-//		return resp1, err
-//	}
-//	resp2, err := srv.checkToken(ctx, req)
-//	if err != nil || resp2.GetOkResponse() == nil {
-//		return resp2, err
-//	}
-//	var appId1, appId2 string
-//	for _, header := range resp1.GetOkResponse().Headers {
-//		if header.GetHeader().GetKey() == C.XLibraTrustedAppId {
-//			appId1 = header.GetHeader().GetValue()
-//			break
-//		}
-//	}
-//	for _, header := range resp2.GetOkResponse().Headers {
-//		if header.GetHeader().GetKey() == C.XLibraTrustedAppId {
-//			appId2 = header.GetHeader().GetValue()
-//			break
-//		}
-//	}
-//	if appId1 != appId2 {
-//		return srv.errToResponse(errMismatchedAppSecretAndToken)
-//	}
-//	return resp2, nil
-//}
+func (srv authServer) checkSecretAndOptionalToken(
+	ctx context.Context, req *authpb.CheckRequest) (
+	_ *authpb.CheckResponse, err error) {
+	if _, ok := req.Attributes.Request.Http.Headers[L.XLibraToken]; !ok {
+		return srv.checkSecret(ctx, req)
+	}
+
+	resp1, err := srv.checkSecret(ctx, req)
+	if err != nil || resp1.GetOkResponse() == nil {
+		return resp1, err
+	}
+	resp2, err := srv.checkToken(ctx, req)
+	if err != nil || resp2.GetOkResponse() == nil {
+		return resp2, err
+	}
+
+	okResp1 := resp1.GetOkResponse()
+	okResp2 := resp2.GetOkResponse()
+
+	var appId1, appId2 string
+	for _, header := range okResp1.Headers {
+		if header.GetHeader().GetKey() == L.XLibraTrustedAppId {
+			appId1 = header.GetHeader().GetValue()
+			break
+		}
+	}
+	for _, header := range okResp2.Headers {
+		if header.GetHeader().GetKey() == L.XLibraTrustedAppId {
+			appId2 = header.GetHeader().GetValue()
+			break
+		}
+	}
+	if appId1 != appId2 {
+		return srv.errToResponse(errMismatchedAppSecretAndToken)
+	}
+
+	return &authpb.CheckResponse{
+		Status: &status.Status{Code: int32(code.Code_OK)},
+		HttpResponse: &authpb.CheckResponse_OkResponse{
+			OkResponse: &authpb.OkHttpResponse{
+				Headers: append(
+					okResp1.Headers,
+					okResp2.Headers...,
+				),
+				HeadersToRemove: append(
+					okResp1.HeadersToRemove,
+					okResp2.HeadersToRemove...,
+				),
+			},
+		},
+	}, nil
+}
 
 func (authServer) errToResponse(err error) (*authpb.CheckResponse, error) {
 	s, ok := grpcstatus.FromError(err)
