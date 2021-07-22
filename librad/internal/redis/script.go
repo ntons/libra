@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"strings"
 	"sync"
@@ -22,7 +23,10 @@ type Script struct {
 	mu sync.Mutex
 }
 
-func NewScript(src string) *Script {
+func NewScript(src string, args ...interface{}) *Script {
+	if len(args) > 0 {
+		src = fmt.Sprintf(src, args)
+	}
 	h := sha1.New()
 	_, _ = io.WriteString(h, src)
 	return &Script{src: src, hash: hex.EncodeToString(h.Sum(nil))}

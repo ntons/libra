@@ -55,7 +55,9 @@ local b = redis.call("GET", KEYS[1])
 if not b then return Nil end
 local d = cmsgpack.unpack(b)
 d.data = cmsgpack.unpack(ARGV[1])
-return redis.call("SET", KEYS[1], cmsgpack.pack(d))`)
+return redis.call("SETEX", KEYS[1], %d, cmsgpack.pack(d))`,
+		dbSessTTL/time.Second,
+	)
 )
 
 type xApp struct {
