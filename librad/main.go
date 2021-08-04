@@ -15,6 +15,7 @@ import (
 	log "github.com/ntons/log-go"
 	logcfg "github.com/ntons/log-go/config"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/ntons/libra/librad/internal/comm"
 )
@@ -92,19 +93,25 @@ func _main() (err error) {
 	log.Infof("server is stopping")
 	return
 }
+
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	defaultLogConfig := logcfg.Config{
+	logcfg.Config{
 		Zap: &zap.Config{
-			Level:            zap.NewAtomicLevel(),
-			Encoding:         "json",
-			EncoderConfig:    zap.NewProductionEncoderConfig(),
+			Level:    zap.NewAtomicLevel(),
+			Encoding: "json",
+			EncoderConfig: func() zapcore.EncoderConfig {
+				encoder := zap.NewProductionEncoderConfig()
+				encoder.TimeKey = "time"
+				encoder.EncodeTime = zapcore.TimeEncoderOfLayout(
+					"2006-01-02T15:04:05.000Z07:00")
+				return encoder
+			}(),
 			OutputPaths:      []string{"stdout"},
 			ErrorOutputPaths: []string{"stderr"},
 		},
-	}
-	defaultLogConfig.Use()
+	}.Use()
 
 	if err := _main(); err != nil {
 		log.Error(err)

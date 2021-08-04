@@ -123,8 +123,8 @@ github.com/ntons/grpc-compressor/lz4 v0.0.0-20210305100006-06d7d07e537e/go.mod h
 github.com/ntons/libra-go v0.0.0-20210722070209-5b82f85afceb h1:u8G6zhYhpMX5z/EmSVEMmyTw0YiX880uRvlwrWVqt5I=
 github.com/ntons/libra-go v0.0.0-20210722070209-5b82f85afceb/go.mod h1:LRxERwwfDAap53WTrw7ef6Y+er7C2Rhl+1Vui1zqUfs=
 github.com/ntons/log-go v0.0.0-20200924092648-d9caee8882d8/go.mod h1:R+uLqm/b64q8B6ktCcR+SeCIJRz3WXjVCnhxmWeFDzc=
-github.com/ntons/log-go v0.0.0-20210604071534-bea849a67512 h1:xFDAL4QTvCjiLsEp7KTMTgNguN1zG/pFnOdJwnrwoQc=
-github.com/ntons/log-go v0.0.0-20210604071534-bea849a67512/go.mod h1:YFK536HWWIMdNhjgvJnumUlvmq+rRn3IGDIBexpUO8A=
+github.com/ntons/log-go v0.0.0-20210804015646-3ca0ced163e5 h1:P1CriWty6jug2vU09D2c7mzImZYUryI/pV2n1pNnupA=
+github.com/ntons/log-go v0.0.0-20210804015646-3ca0ced163e5/go.mod h1:YFK536HWWIMdNhjgvJnumUlvmq+rRn3IGDIBexpUO8A=
 github.com/ntons/log-go/appenders/timedrollingfile v0.0.0-20210317052209-fcced1485be2 h1:cbB5Tmnq0IskWf2/HOprUCsvpnTHXtmd0GjlUnVhHy0=
 github.com/ntons/log-go/appenders/timedrollingfile v0.0.0-20210317052209-fcced1485be2/go.mod h1:hsSIjYHHDcCtlfo3hrpPVpoPQc4l0UtnRiZ6NrKQWfA=
 github.com/ntons/lumberjack/v3 v3.0.0 h1:pMPyyfDpLj6LZHvUb+Z+zcByD1/+4Ex08b4Wezko8Xc=
