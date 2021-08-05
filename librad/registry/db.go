@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	v1pb "github.com/ntons/libra-go/api/v1"
 	"github.com/ntons/log-go"
 	"github.com/vmihailenco/msgpack/v4"
 	"go.mongodb.org/mongo-driver/bson"
@@ -426,7 +425,7 @@ func containAcctIdPlaceholder(acctIds []string) bool {
 
 func loginUser(
 	ctx context.Context, app *xApp, userIp string,
-	acctIds []string, opts *v1pb.UserLoginOptions) (
+	acctIds []string, createIfNotFound bool) (
 	_ *dbUser, err error) {
 	if len(acctIds) > dbMaxAcctPerUser {
 		err = newInvalidArgumentError("too many acct ids")
@@ -466,7 +465,7 @@ func loginUser(
 			},
 			"$setOnInsert": user,
 		},
-		options.FindOneAndUpdate().SetUpsert(opts.GetAutoCreate()),
+		options.FindOneAndUpdate().SetUpsert(createIfNotFound),
 		options.FindOneAndUpdate().SetReturnDocument(options.After),
 	).Decode(user); err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -502,7 +501,7 @@ func loginUser(
 
 func bindAcctIdToUser(
 	ctx context.Context, appId, userId string,
-	acctIds []string, opts *v1pb.UserBindOptions) (
+	acctIds []string, takeOverIfDuplicated bool) (
 	_ []string, err error) {
 	if len(acctIds) > dbMaxAcctPerUser {
 		err = newInvalidArgumentError("too many acct ids")
@@ -542,7 +541,7 @@ func bindAcctIdToUser(
 		return
 	}
 
-	if opts.GetAutoTransfer() {
+	if takeOverIfDuplicated {
 		// 账号转移要在会话中执行，保证解绑和绑定操作的原子性
 		if err = func() (err error) {
 			var sess mongo.Session

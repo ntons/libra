@@ -14,8 +14,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
-
-	"github.com/ntons/libra/librad/internal/comm"
 )
 
 func fromDbUser(x *dbUser) *v1pb.UserData {
@@ -34,73 +32,77 @@ func newUserServer() *userServer {
 	return &userServer{}
 }
 
+type xGenericLoginState struct {
+	AcctIds  []string
+	Features *v1pb.LoginStateFeatures
+}
+
+func (srv *userServer) CheckLoginState(
+	ctx context.Context, appId string, anyState *anypb.Any) (
+	app *xApp, state *xGenericLoginState, err error) {
+	if app = findAppById(appId); app == nil {
+		log.Warnf("invalid app id: %v", appId)
+		return nil, nil, errInvalidAppId
+	}
+
+	x, err := anypb.UnmarshalNew(anyState, proto.UnmarshalOptions{})
+	if err != nil {
+		return nil, nil, errInvalidState
+	}
+
+	switch x := x.(type) {
+	case *v1pb.UniformLoginState:
+		if state, err = srv.CheckUniformLoginState(ctx, app, x); err != nil {
+			return
+		}
+	default:
+		return nil, nil, errInvalidState
+	}
+	return
+}
+
 func (srv *userServer) CheckUniformLoginState(
-	ctx context.Context, app *xApp, state *v1pb.UniformLoginState) (err error) {
+	ctx context.Context, app *xApp, state *v1pb.UniformLoginState) (
+	_ *xGenericLoginState, err error) {
+	if state == nil {
+		return nil, errInvalidState
+	}
 	if err = checkNonce(ctx, app.Id, state.Nonce); err != nil {
 		return
 	}
-
 	// ts-30 签名有效期只有30秒钟
 	// ts+5  是为了容忍一定的系统时间误差
 	ts := time.Now().Unix()
 	if state.Timestamp < ts-30 || state.Timestamp > ts+5 {
-		return errInvalidTimestamp
+		return nil, errInvalidTimestamp
 	}
-
 	signature := state.Signature
 	state.Signature = ""
 	expected := sign.ProtoHMACWithSHA1(state, app.Secret)
 	if !strings.EqualFold(signature, expected) {
 		log.Warnf("signature mismatch: %s, %s, %s, %s",
 			signature, expected, app.Secret, state)
-		return errInvalidSignature
+		return nil, errInvalidSignature
 	}
-
-	return
+	return &xGenericLoginState{
+		AcctIds:  state.AcctIds,
+		Features: state.Features,
+	}, nil
 }
 
 func (srv *userServer) Login(
 	ctx context.Context, req *v1pb.UserLoginRequest) (
 	_ *v1pb.UserLoginResponse, err error) {
-	app := findAppById(req.AppId)
-	if app == nil {
-		log.Warnf("invalid app id: %v", req.AppId)
-		return nil, errInvalidAppId
-	}
-	userIp := httputil.GetRemoteIpFromContext(ctx)
-
-	var acctIds []string
-	if err = func() (err error) {
-		state, err := anypb.UnmarshalNew(req.State, proto.UnmarshalOptions{})
-		if err != nil {
-			log.Warnf("failed to unmarshal state: %v", err)
-			return errInvalidState
-		}
-		switch state := state.(type) {
-		case *v1pb.DevLoginState:
-			if !comm.IsDevEnv() {
-				return errInvalidState
-			}
-			acctIds = append(acctIds, "dev$"+state.Username)
-		case *v1pb.UniformLoginState:
-			if err = srv.CheckUniformLoginState(ctx, app, state); err != nil {
-				return
-			}
-			if state.UserIp != "" {
-				userIp = state.UserIp
-			}
-			acctIds = state.AcctIds
-		default:
-			log.Warnf("unhandled state type: %T", state)
-			return errInvalidState
-		}
-		return
-	}(); err != nil {
-		log.Warnf("failed to check state: %v", err)
+	app, state, err := srv.CheckLoginState(ctx, req.AppId, req.State)
+	if err != nil {
 		return
 	}
 
-	user, err := loginUser(ctx, app, userIp, acctIds, req.Options)
+	user, err := loginUser(
+		ctx, app,
+		httputil.GetRemoteIpFromContext(ctx),
+		state.AcctIds,
+		state.Features.GetCreateUserIfNotFound())
 	if err != nil {
 		log.Warnf("failed to login user: %v", err)
 		return
@@ -121,9 +123,10 @@ func (srv *userServer) Login(
 		return
 	}
 
-	log.Infow("user login", "user_id", user.Id, "acct_ids", acctIds)
+	log.Infow("user login", "user_id", user.Id, "acct_ids", state.AcctIds)
 
-	grpc.SetHeader(ctx, metadata.Pairs(L.XLibraToken, sess.Token))
+	//grpc.SetHeader(ctx, metadata.Pairs(L.XLibraToken, sess.Token))
+	grpc.SetTrailer(ctx, metadata.Pairs(L.XLibraToken, sess.Token))
 
 	return &v1pb.UserLoginResponse{User: fromDbUser(user)}, nil
 }
@@ -135,37 +138,20 @@ func (srv *userServer) Bind(
 	if trusted == nil {
 		return nil, errLoginRequired
 	}
-
-	app := findAppById(trusted.AppId)
-	if app == nil {
-		log.Warnf("invalid app id: %v", trusted.AppId)
-		return nil, errInvalidAppId
-	}
-
-	state, err := anypb.UnmarshalNew(req.State, proto.UnmarshalOptions{})
+	_, state, err := srv.CheckLoginState(ctx, trusted.AppId, req.State)
 	if err != nil {
-		return nil, errInvalidState
-	}
-
-	var acctIds []string
-	switch state := state.(type) {
-	case *v1pb.UniformLoginState:
-		if err = srv.CheckUniformLoginState(ctx, app, state); err != nil {
-			return
-		}
-		acctIds = state.AcctIds
-	default:
-		log.Warnf("unhandled state type: %T", state)
-		return nil, errInvalidState
+		return
 	}
 
 	resp := &v1pb.UserBindResponse{}
 	if resp.AcctIds, err = bindAcctIdToUser(
-		ctx, trusted.AppId, trusted.UserId, acctIds, req.Options); err != nil {
+		ctx, trusted.AppId, trusted.UserId,
+		state.AcctIds,
+		state.Features.GetTakeOverAcctIdIfDuplicated()); err != nil {
 		log.Warnf("failed to bind acct to user: %v", err)
 		return
 	}
-	for _, acctId := range acctIds {
+	for _, acctId := range state.AcctIds {
 		log.Infow("user bind acct", "user_id", trusted.UserId, "acct_id", acctId)
 	}
 	return resp, nil
