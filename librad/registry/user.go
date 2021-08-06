@@ -33,8 +33,9 @@ func newUserServer() *userServer {
 }
 
 type xGenericLoginState struct {
-	AcctIds  []string
-	Features *v1pb.LoginStateFeatures
+	AcctIds    []string
+	Properties *v1pb.LoginStateProperties
+	Features   []*v1pb.SessionFeature
 }
 
 func (srv *userServer) CheckLoginState(
@@ -85,8 +86,9 @@ func (srv *userServer) CheckUniformLoginState(
 		return nil, errInvalidSignature
 	}
 	return &xGenericLoginState{
-		AcctIds:  state.AcctIds,
-		Features: state.Features,
+		AcctIds:    state.AcctIds,
+		Properties: state.Properties,
+		Features:   state.Features,
 	}, nil
 }
 
@@ -102,7 +104,7 @@ func (srv *userServer) Login(
 		ctx, app,
 		httputil.GetRemoteIpFromContext(ctx),
 		state.AcctIds,
-		state.Features.GetCreateUserIfNotFound())
+		req.CreateIfNotFound)
 	if err != nil {
 		log.Warnf("failed to login user: %v", err)
 		return
@@ -147,7 +149,7 @@ func (srv *userServer) Bind(
 	if resp.AcctIds, err = bindAcctIdToUser(
 		ctx, trusted.AppId, trusted.UserId,
 		state.AcctIds,
-		state.Features.GetTakeOverAcctIdIfDuplicated()); err != nil {
+		state.Properties.GetTakeOverAcctIdIfDuplicated()); err != nil {
 		log.Warnf("failed to bind acct to user: %v", err)
 		return
 	}
