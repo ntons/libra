@@ -48,6 +48,8 @@ func (srv authServer) Check(
 		resp, err = srv.checkSecret(ctx, req)
 	case L.XLibraAuthBySecretAndOptionalToken:
 		resp, err = srv.checkSecretAndOptionalToken(ctx, req)
+	case L.XLibraAuthBySecretOrToken, L.XLibraAuthByTokenOrSecret:
+		resp, err = srv.checkSecretOrToken(ctx, req)
 	default:
 		return srv.errToResponse(errUnauthenticated)
 	}
@@ -188,15 +190,44 @@ func (srv authServer) checkSecretAndOptionalToken(
 		return srv.checkSecret(ctx, req)
 	}
 
-	resp1, err := srv.checkSecret(ctx, req)
-	if err != nil || resp1.GetOkResponse() == nil {
+	var resp1, resp2 *authpb.CheckResponse
+	if resp1, err = srv.checkSecret(ctx, req); err != nil {
 		return resp1, err
 	}
-	resp2, err := srv.checkToken(ctx, req)
-	if err != nil || resp2.GetOkResponse() == nil {
+	if resp2, err = srv.checkToken(ctx, req); err != nil {
 		return resp2, err
 	}
+	return srv.mergeResponse(resp1, resp2)
+}
 
+func (srv authServer) checkSecretOrToken(
+	ctx context.Context, req *authpb.CheckRequest) (
+	_ *authpb.CheckResponse, err error) {
+	var resp1, resp2 *authpb.CheckResponse
+	if _, ok := req.Attributes.Request.Http.Headers[L.XLibraAppSecret]; ok {
+		if resp1, err = srv.checkSecret(ctx, req); err != nil {
+			return resp1, err
+		}
+	}
+	if _, ok := req.Attributes.Request.Http.Headers[L.XLibraToken]; ok {
+		if resp2, err = srv.checkToken(ctx, req); err != nil {
+			return resp2, err
+		}
+	}
+	if resp1 == nil && resp2 == nil {
+		return srv.errToResponse(errUnauthenticated)
+	}
+	if resp1 == nil && resp2 != nil {
+		return resp2, nil
+	}
+	if resp1 != nil && resp2 == nil {
+		return resp1, nil
+	}
+	return srv.mergeResponse(resp1, resp2)
+}
+
+func (srv authServer) mergeResponse(
+	resp1, resp2 *authpb.CheckResponse) (_ *authpb.CheckResponse, err error) {
 	okResp1 := resp1.GetOkResponse()
 	okResp2 := resp2.GetOkResponse()
 
