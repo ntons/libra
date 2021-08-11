@@ -10,10 +10,10 @@ import (
 	typepb "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	L "github.com/ntons/libra-go"
 	log "github.com/ntons/log-go"
-	"google.golang.org/genproto/googleapis/rpc/code"
-	"google.golang.org/genproto/googleapis/rpc/status"
+	statuspb "google.golang.org/genproto/googleapis/rpc/status"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
-	grpcstatus "google.golang.org/grpc/status"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -128,7 +128,7 @@ func (srv authServer) checkToken(
 		})
 	}
 	return &authpb.CheckResponse{
-		Status: &status.Status{Code: int32(code.Code_OK)},
+		Status: &statuspb.Status{},
 		HttpResponse: &authpb.CheckResponse_OkResponse{
 			OkResponse: &authpb.OkHttpResponse{
 				Headers: headers,
@@ -170,7 +170,7 @@ func (srv authServer) checkSecret(
 		},
 	}
 	return &authpb.CheckResponse{
-		Status: &status.Status{Code: int32(code.Code_OK)},
+		Status: &statuspb.Status{},
 		HttpResponse: &authpb.CheckResponse_OkResponse{
 			OkResponse: &authpb.OkHttpResponse{
 				Headers: headers,
@@ -205,25 +205,30 @@ func (srv authServer) checkSecretOrToken(
 	_ *authpb.CheckResponse, err error) {
 	var resp1, resp2 *authpb.CheckResponse
 	if _, ok := req.Attributes.Request.Http.Headers[L.XLibraAppSecret]; ok {
-		if resp1, err = srv.checkSecret(ctx, req); err != nil {
+		resp1, err = srv.checkSecret(ctx, req)
+		if err != nil || resp1.GetOkResponse() == nil {
 			return resp1, err
 		}
 	}
 	if _, ok := req.Attributes.Request.Http.Headers[L.XLibraToken]; ok {
-		if resp2, err = srv.checkToken(ctx, req); err != nil {
+		resp2, err = srv.checkToken(ctx, req)
+		if err != nil || resp2.GetOkResponse() == nil {
 			return resp2, err
 		}
 	}
-	if resp1 == nil && resp2 == nil {
-		return srv.errToResponse(errUnauthenticated)
+	if resp1 == nil {
+		if resp2 == nil {
+			return srv.errToResponse(errUnauthenticated)
+		} else {
+			return resp2, nil
+		}
+	} else {
+		if resp2 == nil {
+			return resp1, nil
+		} else {
+			return srv.mergeResponse(resp1, resp2)
+		}
 	}
-	if resp1 == nil && resp2 != nil {
-		return resp2, nil
-	}
-	if resp1 != nil && resp2 == nil {
-		return resp1, nil
-	}
-	return srv.mergeResponse(resp1, resp2)
 }
 
 func (srv authServer) mergeResponse(
@@ -255,7 +260,7 @@ func (srv authServer) mergeResponse(
 	}
 
 	return &authpb.CheckResponse{
-		Status: &status.Status{Code: int32(code.Code_OK)},
+		Status: &statuspb.Status{},
 		HttpResponse: &authpb.CheckResponse_OkResponse{
 			OkResponse: &authpb.OkHttpResponse{
 				Headers: append(
@@ -271,23 +276,64 @@ func (srv authServer) mergeResponse(
 	}, nil
 }
 
-func (authServer) errToResponse(err error) (*authpb.CheckResponse, error) {
-	s, ok := grpcstatus.FromError(err)
+func (srv authServer) errToResponse(err error) (*authpb.CheckResponse, error) {
+	s, ok := status.FromError(err)
 	if !ok {
 		return nil, err
 	}
 	return &authpb.CheckResponse{
-		Status: &status.Status{
+		Status: &statuspb.Status{
 			Code:    int32(s.Code()),
 			Message: s.Message(),
 		},
 		HttpResponse: &authpb.CheckResponse_DeniedResponse{
 			DeniedResponse: &authpb.DeniedHttpResponse{
 				Status: &typepb.HttpStatus{
-					Code: typepb.StatusCode_Unauthorized,
+					Code: srv.HTTPStatusFromCode(s.Code()),
 				},
-				//Body: fmt.Sprintf("%d, %s", s.Code(), s.Message()),
 			},
 		},
 	}, nil
+}
+
+func (authServer) HTTPStatusFromCode(code codes.Code) typepb.StatusCode {
+	switch code {
+	case codes.OK:
+		return typepb.StatusCode_OK
+	case codes.Canceled:
+		return typepb.StatusCode_RequestTimeout
+	case codes.Unknown:
+		return typepb.StatusCode_InternalServerError
+	case codes.InvalidArgument:
+		return typepb.StatusCode_BadRequest
+	case codes.DeadlineExceeded:
+		return typepb.StatusCode_GatewayTimeout
+	case codes.NotFound:
+		return typepb.StatusCode_NotFound
+	case codes.AlreadyExists:
+		return typepb.StatusCode_Conflict
+	case codes.PermissionDenied:
+		return typepb.StatusCode_Forbidden
+	case codes.Unauthenticated:
+		return typepb.StatusCode_Unauthorized
+	case codes.ResourceExhausted:
+		return typepb.StatusCode_TooManyRequests
+	case codes.FailedPrecondition:
+		// Note, this deliberately doesn't translate to the similarly named '412 Precondition Failed' HTTP response status.
+		return typepb.StatusCode_BadRequest
+	case codes.Aborted:
+		return typepb.StatusCode_Conflict
+	case codes.OutOfRange:
+		return typepb.StatusCode_BadRequest
+	case codes.Unimplemented:
+		return typepb.StatusCode_NotImplemented
+	case codes.Internal:
+		return typepb.StatusCode_InternalServerError
+	case codes.Unavailable:
+		return typepb.StatusCode_ServiceUnavailable
+	case codes.DataLoss:
+		return typepb.StatusCode_InternalServerError
+	default:
+		return typepb.StatusCode_InternalServerError
+	}
 }
