@@ -49,7 +49,13 @@ func interceptUnary(
 	if inter, ok := info.Server.(comm.GrpcUnaryInterceptor); ok {
 		return inter.InterceptUnary(ctx, req, info, handler)
 	}
-	return handler(ctx, req)
+	if resp, err = handler(ctx, req); err != nil {
+		log.Warnw("unary call error",
+			"method", info.FullMethod,
+			"error", err,
+		)
+	}
+	return
 }
 
 // intercept stream calls
@@ -65,7 +71,13 @@ func interceptStream(
 	if inter, ok := srv.(comm.GrpcStreamInterceptor); ok {
 		return inter.InterceptStream(srv, ss, info, handler)
 	}
-	return handler(srv, ss)
+	if err = handler(srv, ss); err != nil {
+		log.Warnw("stream call error",
+			"method", info.FullMethod,
+			"error", err,
+		)
+	}
+	return
 }
 
 // start serving
