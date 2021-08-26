@@ -149,17 +149,17 @@ type dbUser struct {
 	// 2. 平台账号/第三方账号
 	AcctIds []string `bson:"acct_ids,omitempty"`
 	// 创建时间
-	CreateTime time.Time `bson:"create_time,omitempty"`
+	CreateAt time.Time `bson:"create_at,omitempty"`
 	// 创建时IP
 	CreateIp string `bson:"create_ip,omitempty"`
 	// 上次登录时间
-	LoginTime time.Time `bson:"login_time,omitempty"`
+	LoginAt time.Time `bson:"login_at,omitempty"`
 	// 上次登录时IP
 	LoginIp string `bson:"login_ip,omitempty"`
 	// 封号时间
-	BanTime time.Time `bson:"ban_time,omitempty"`
+	BanAt time.Time `bson:"ban_at,omitempty"`
 	// 封号原因
-	BanReason string `bson:"ban_reason,omitempty"`
+	BanFor string `bson:"ban_for,omitempty"`
 	// 元数据
 	Metadata map[string]string `bson:"metadata,omitempty"`
 }
@@ -173,9 +173,9 @@ type dbRole struct {
 	// 所属用户ID
 	UserId string `bson:"user_id,omitempty"`
 	// 创建时间
-	CreateTime time.Time `bson:"create_time,omitempty"`
+	CreateAt time.Time `bson:"create_at,omitempty"`
 	// 上次登录时间
-	SignInTime time.Time `bson:"sign_in_time,omitempty"`
+	SignInAt time.Time `bson:"sign_in_at,omitempty"`
 	// 元数据
 	Metadata map[string]string `bson:"metadata,omitempty"`
 }
@@ -437,9 +437,9 @@ func loginUser(
 	}
 	now := time.Now()
 	user := &dbUser{
-		Id:         newUserId(app.Key),
-		CreateTime: now,
-		CreateIp:   userIp,
+		Id:       newUserId(app.Key),
+		CreateAt: now,
+		CreateIp: userIp,
 	}
 	// 这里正确执行隐含了一个前置条件，acct_ids字段必须是索引。
 	// 当给进来的acct_ids列表可以映射到多个User的时候addToSet必然会失败，
@@ -455,8 +455,8 @@ func loginUser(
 		},
 		bson.M{
 			"$set": bson.M{
-				"login_time": now,
-				"login_ip":   userIp,
+				"login_at": now,
+				"login_ip": userIp,
 			},
 			"$addToSet": bson.M{
 				"acct_ids": bson.M{
@@ -726,10 +726,10 @@ func createRole(
 		return
 	}
 	role := &dbRole{
-		Id:         newRoleId(app.Key),
-		UserId:     userId,
-		Index:      index,
-		CreateTime: time.Now(),
+		Id:       newRoleId(app.Key),
+		UserId:   userId,
+		Index:    index,
+		CreateAt: time.Now(),
 	}
 	if _, err = collection.InsertOne(ctx, role); err != nil {
 		return
@@ -747,7 +747,7 @@ func signInRole(
 	if err = collection.FindOneAndUpdate(
 		ctx,
 		bson.M{"_id": roleId, "user_id": userId},
-		bson.M{"$set": bson.M{"sign_in_time": time.Now()}},
+		bson.M{"$set": bson.M{"sign_in_at": time.Now()}},
 		options.FindOneAndUpdate().SetReturnDocument(options.After),
 	).Decode(&role); err != nil {
 		if err == mongo.ErrNoDocuments {
