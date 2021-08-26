@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	authpb "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
-	v1pb "github.com/ntons/libra-go/api/v1"
+	v1pb "github.com/ntons/libra-go/api/libra/v1"
 	"google.golang.org/grpc"
 
 	"github.com/ntons/libra/librad/internal/comm"

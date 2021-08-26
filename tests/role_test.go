@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	v1pb "github.com/ntons/libra-go/api/v1"
+	v1pb "github.com/ntons/libra-go/api/libra/v1"
 )
 
 func TestRole(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/ntons/libra-go/api/v1"
+	"github.com/ntons/libra-go/api/libra/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"

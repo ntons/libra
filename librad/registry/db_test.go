@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	v1pb "github.com/ntons/libra-go/api/v1"
+	v1pb "github.com/ntons/libra-go/api/libra/v1"
 	logcfg "github.com/ntons/log-go/config"
 	//"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"

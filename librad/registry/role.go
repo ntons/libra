@@ -4,7 +4,7 @@ import (
 	"context"
 
 	L "github.com/ntons/libra-go"
-	v1pb "github.com/ntons/libra-go/api/v1"
+	v1pb "github.com/ntons/libra-go/api/libra/v1"
 	log "github.com/ntons/log-go"
 )
 

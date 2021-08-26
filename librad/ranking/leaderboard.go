@@ -3,7 +3,7 @@ package ranking
 import (
 	"context"
 
-	"github.com/ntons/libra-go/api/v1"
+	"github.com/ntons/libra-go/api/libra/v1"
 	"github.com/ntons/ranking"
 
 	"github.com/ntons/libra/librad/internal/redis"

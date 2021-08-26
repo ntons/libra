@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/ntons/libra-go/api/v1"
+	"github.com/ntons/libra-go/api/libra/v1"
 	log "github.com/ntons/log-go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

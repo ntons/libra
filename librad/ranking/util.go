@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ntons/libra-go/api/v1"
+	"github.com/ntons/libra-go/api/libra/v1"
 	"github.com/ntons/ranking"
 )
 

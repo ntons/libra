@@ -16,7 +16,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	v1pb "github.com/ntons/libra-go/api/v1"
+	v1pb "github.com/ntons/libra-go/api/libra/v1"
 	"github.com/ntons/libra/librad/internal/comm"
 	"github.com/ntons/libra/librad/internal/redis"
 	"github.com/ntons/libra/librad/internal/util"

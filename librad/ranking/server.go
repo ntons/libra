@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/ntons/libra-go/api/v1"
+	"github.com/ntons/libra-go/api/libra/v1"
 	"google.golang.org/grpc"
 
 	"github.com/ntons/libra/librad/internal/comm"

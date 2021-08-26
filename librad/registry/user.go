@@ -6,7 +6,7 @@ import (
 	"time"
 
 	L "github.com/ntons/libra-go"
-	v1pb "github.com/ntons/libra-go/api/v1"
+	v1pb "github.com/ntons/libra-go/api/libra/v1"
 	log "github.com/ntons/log-go"
 	"github.com/ntons/tongo/httputil"
 	"github.com/ntons/tongo/sign"
