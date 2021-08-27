@@ -157,7 +157,7 @@ type dbUser struct {
 	// 上次登录时IP
 	LoginIp string `bson:"login_ip,omitempty"`
 	// 封号时间
-	BanAt time.Time `bson:"ban_at,omitempty"`
+	BanTo time.Time `bson:"ban_to,omitempty"`
 	// 封号原因
 	BanFor string `bson:"ban_for,omitempty"`
 	// 元数据

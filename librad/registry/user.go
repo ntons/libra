@@ -109,12 +109,12 @@ func (srv *userServer) Login(
 		log.Warnf("failed to login user: %v", err)
 		return
 	}
-	if user.BanAt.After(time.Now()) {
+	if user.BanTo.After(time.Now()) {
 		return nil, newPermissionDeniedError(&struct {
-			BanAt  int64  `json:"ban_at"`
+			BanTo  int64  `json:"ban_to"`
 			BanFor string `json:"ban_for"`
 		}{
-			BanAt:  user.BanAt.Unix(),
+			BanTo:  user.BanTo.Unix(),
 			BanFor: user.BanFor,
 		})
 	}
