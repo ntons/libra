@@ -10,11 +10,13 @@ import (
 	_ "github.com/ntons/grpc-compressor/lz4" // register lz4 compressor
 	"github.com/ntons/log-go"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	_ "google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 
 	_ "github.com/ntons/libra/librad/database"
 	_ "github.com/ntons/libra/librad/gateway"
@@ -49,7 +51,8 @@ func interceptUnary(
 	if inter, ok := info.Server.(comm.GrpcUnaryInterceptor); ok {
 		return inter.InterceptUnary(ctx, req, info, handler)
 	}
-	if resp, err = handler(ctx, req); err != nil {
+	resp, err = handler(ctx, req)
+	if x := status.Code(err); x != codes.OK && x != codes.NotFound {
 		log.Warnw("unary call error",
 			"method", info.FullMethod,
 			"error", err,
@@ -71,7 +74,8 @@ func interceptStream(
 	if inter, ok := srv.(comm.GrpcStreamInterceptor); ok {
 		return inter.InterceptStream(srv, ss, info, handler)
 	}
-	if err = handler(srv, ss); err != nil {
+	err = handler(srv, ss)
+	if x := status.Code(err); x != codes.OK && x != codes.NotFound {
 		log.Warnw("stream call error",
 			"method", info.FullMethod,
 			"error", err,
