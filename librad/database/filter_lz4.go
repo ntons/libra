@@ -7,7 +7,7 @@ import (
 )
 
 // 允许的最大存档
-const lz4MaxLen = 160 * 1024
+const lz4MaxLen = 256 * 1024
 
 type lz4Filter struct{}
 

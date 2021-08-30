@@ -30,3 +30,20 @@ func (srv *userAdminServer) SetMetadata(
 	}
 	return &v1pb.UserAdminSetMetadataResponse{}, nil
 }
+
+func (srv *userAdminServer) GetMetadata(
+	ctx context.Context, req *v1pb.UserAdminGetMetadataRequest) (
+	_ *v1pb.UserAdminGetMetadataResponse, err error) {
+	trusted := L.RequireAuthBySecret(ctx)
+	if trusted == nil {
+		return nil, errUnauthenticated
+	}
+	user, err := getUser(ctx, trusted.AppId, req.UserId)
+	if err != nil {
+		log.Warnf("failed to get user: %v", err)
+		return
+	}
+	return &v1pb.UserAdminGetMetadataResponse{
+		Metadata: user.Metadata,
+	}, nil
+}
