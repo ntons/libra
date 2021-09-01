@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	_ "google.golang.org/grpc/encoding/gzip"
+	"google.golang.org/grpc/examples/helloworld/helloworld"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
@@ -119,6 +120,8 @@ func serve() (err error) {
 	for name := range grpcsrv.GetServiceInfo() {
 		log.Infow("grpc service registered", "name", name)
 	}
+
+	helloworld.RegisterGreeterServer(grpcsrv, &greeterServer{})
 
 	grpc_health_v1.RegisterHealthServer(grpcsrv, healthsrv)
 	healthsrv.SetServingStatus("", xStatusServing)
