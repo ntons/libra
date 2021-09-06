@@ -75,6 +75,7 @@ func decode(in []byte) ([]byte, error) {
 	}
 	return out, nil
 }
+func Decode(in []byte) ([]byte, error) { return decode(in) }
 
 func encodeMessage(m pb.Message) (string, error) {
 	if b, err := pb.Marshal(m); err != nil {

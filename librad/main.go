@@ -14,8 +14,6 @@ import (
 
 	log "github.com/ntons/log-go"
 	logcfg "github.com/ntons/log-go/config"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	"github.com/ntons/libra/librad/internal/comm"
 )
@@ -27,10 +25,6 @@ var (
 	GitCommit string
 	GoVersion string
 	OSArch    string
-)
-
-var (
-	zapLevel = zap.NewAtomicLevelAt(zap.InfoLevel)
 )
 
 func _main() (err error) {
@@ -97,21 +91,22 @@ func _main() (err error) {
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	logcfg.Config{
-		Zap: &zap.Config{
-			Level:    zap.NewAtomicLevel(),
-			Encoding: "json",
-			EncoderConfig: func() zapcore.EncoderConfig {
-				encoder := zap.NewProductionEncoderConfig()
-				encoder.TimeKey = "time"
-				encoder.EncodeTime = zapcore.TimeEncoderOfLayout(
-					"2006-01-02T15:04:05.000Z07:00")
-				return encoder
-			}(),
-			OutputPaths:      []string{"stdout"},
-			ErrorOutputPaths: []string{"stderr"},
-		},
-	}.Use()
+	//logcfg.Config{
+	//	Zap: &zap.Config{
+	//		Level:    zap.NewAtomicLevel(),
+	//		Encoding: "json",
+	//		EncoderConfig: func() zapcore.EncoderConfig {
+	//			encoder := zap.NewProductionEncoderConfig()
+	//			encoder.TimeKey = "time"
+	//			encoder.EncodeTime = zapcore.TimeEncoderOfLayout(
+	//				"2006-01-02T15:04:05.000Z07:00")
+	//			return encoder
+	//		}(),
+	//		OutputPaths:      []string{"stdout"},
+	//		ErrorOutputPaths: []string{"stderr"},
+	//	},
+	//}.Use()
+	logcfg.DefaultZapJsonConfig.Use()
 
 	if err := _main(); err != nil {
 		log.Error(err)
