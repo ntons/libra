@@ -22,7 +22,6 @@ require (
 	github.com/vmihailenco/msgpack/v4 v4.3.12
 	go.mongodb.org/mongo-driver v1.5.3
 	go.uber.org/multierr v1.6.0 // indirect
-	go.uber.org/zap v1.16.0
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
 	golang.org/x/tools v0.0.0-20200923182640-463111b69878 // indirect
 	google.golang.org/genproto v0.0.0-20201104152603-2e45c02ce95c
