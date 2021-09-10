@@ -23,6 +23,13 @@ func fromDbUser(x *dbUser) *v1pb.UserData {
 		Metadata: x.Metadata,
 	}
 }
+func fromDbUsers(x []*dbUser) []*v1pb.UserData {
+	r := make([]*v1pb.UserData, 0, len(x))
+	for _, e := range x {
+		r = append(r, fromDbUser(e))
+	}
+	return r
+}
 
 type userServer struct {
 	v1pb.UnimplementedUserServer

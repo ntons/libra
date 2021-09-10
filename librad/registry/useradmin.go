@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"time"
 
 	L "github.com/ntons/libra-go"
 	v1pb "github.com/ntons/libra-go/api/libra/v1"
@@ -46,4 +47,87 @@ func (srv *userAdminServer) GetMetadata(
 	return &v1pb.UserAdminGetMetadataResponse{
 		Metadata: user.Metadata,
 	}, nil
+}
+
+func (srv *userAdminServer) Get(
+	ctx context.Context, req *v1pb.UserAdminGetRequest) (
+	_ *v1pb.UserAdminGetResponse, err error) {
+	trusted := L.RequireAuthBySecret(ctx)
+	if trusted == nil {
+		return nil, errUnauthenticated
+	}
+	users, err := getUsers(ctx, trusted.AppId, req.UserIds)
+	if err != nil {
+		log.Warnf("failed to get users: %v", err)
+		return nil, errDatabaseUnavailable
+	}
+	return &v1pb.UserAdminGetResponse{
+		Users: fromDbUsers(users),
+	}, nil
+}
+
+func (srv *userAdminServer) Ban(
+	ctx context.Context, req *v1pb.UserAdminBanRequest) (
+	_ *v1pb.UserAdminBanResponse, err error) {
+	trusted := L.RequireAuthBySecret(ctx)
+	if trusted == nil {
+		return nil, errUnauthenticated
+	}
+	if req.BanSeconds > 0 {
+		// ban
+		if err = banUsers(
+			ctx,
+			trusted.AppId,
+			req.UserIds,
+			time.Now().Add(time.Duration(req.BanSeconds)*time.Second),
+			req.BanFor,
+		); err != nil {
+			log.Warnf("failed to ban users: %v", err)
+			return nil, errDatabaseUnavailable
+		}
+	} else if req.BanSeconds < 0 {
+		// unban
+		if err = unbanUsers(
+			ctx,
+			trusted.AppId,
+			req.UserIds,
+		); err != nil {
+			log.Warnf("failed to unban users: %v", err)
+			return nil, errDatabaseUnavailable
+		}
+	}
+	users, err := getUsersWithFields(
+		ctx, trusted.AppId, req.UserIds, "ban_to", "ban_for")
+	if err != nil {
+		log.Warnf("failed to get users: %v", err)
+		return nil, errDatabaseUnavailable
+	}
+	now := time.Now()
+	res := &v1pb.UserAdminBanResponse{}
+	for _, user := range users {
+		state := &v1pb.UserBanState{Id: user.Id}
+		if user.BanTo.After(now) {
+			state.BanTo = user.BanTo.Unix()
+			state.BanFor = user.BanFor
+		}
+		res.States = append(res.States, state)
+	}
+	return
+}
+
+func (srv *userAdminServer) BindAcctId(
+	ctx context.Context, req *v1pb.UserAdminBindAcctIdRequest) (
+	_ *v1pb.UserAdminBindAcctIdResponse, err error) {
+	trusted := L.RequireAuthBySecret(ctx)
+	if trusted == nil {
+		return nil, errUnauthenticated
+	}
+	if _, err = bindAcctIdToUser(
+		ctx, trusted.AppId, req.UserId, req.AcctIds,
+		req.TakeOverAcctIdIfDuplicated,
+	); err != nil {
+		log.Warnf("failed to transfer acct id: %v", err)
+		return nil, errDatabaseUnavailable
+	}
+	return &v1pb.UserAdminBindAcctIdResponse{}, nil
 }

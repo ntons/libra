@@ -1,5 +1,6 @@
 package main
 
 func main() {
-	LoadFromExportedFile("players.json")
+	LoadFromBase64File("archive.txt")
+	//LoadFromExportedFile("players.json")
 }

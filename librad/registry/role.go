@@ -15,7 +15,7 @@ func fromDbRole(x *dbRole) *v1pb.RoleData {
 		Metadata: x.Metadata,
 	}
 }
-func fromDbRoleList(a []*dbRole) []*v1pb.RoleData {
+func fromDbRoles(a []*dbRole) []*v1pb.RoleData {
 	r := make([]*v1pb.RoleData, 0, len(a))
 	for _, x := range a {
 		r = append(r, fromDbRole(x))
@@ -43,7 +43,7 @@ func (srv *roleServer) List(
 		log.Warnf("failed to list roles: %v", err)
 		return
 	}
-	return &v1pb.RoleListResponse{Roles: fromDbRoleList(roles)}, nil
+	return &v1pb.RoleListResponse{Roles: fromDbRoles(roles)}, nil
 }
 func (srv *roleServer) Create(
 	ctx context.Context, req *v1pb.RoleCreateRequest) (

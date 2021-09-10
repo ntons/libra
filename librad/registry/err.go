@@ -52,9 +52,10 @@ var (
 	errMismatchedAppSecretAndToken = newUnauthenticatedError("mismatched app secret and token")
 
 	// NotFound
-	errAppIdNotFound = newNotFoundError("app id not found")
-	errUserNotFound  = newNotFoundError("user not found")
-	errRoleNotFound  = newNotFoundError("role not found")
+	errAppIdNotFound  = newNotFoundError("app id not found")
+	errUserNotFound   = newNotFoundError("user not found")
+	errRoleNotFound   = newNotFoundError("role not found")
+	errAcctIdNotFound = newNotFoundError("acct id not found")
 
 	// AlreadyExists
 	errRoleAlreadyExists = newAlreadyExistsError("role already exists")

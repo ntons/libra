@@ -22,6 +22,7 @@ type server struct {
 	role      *roleServer
 	auth      *authServer
 	useradmin *userAdminServer
+	roleadmin *roleAdminServer
 }
 
 func create(b json.RawMessage) (_ comm.Service, err error) {
@@ -41,6 +42,7 @@ func create(b json.RawMessage) (_ comm.Service, err error) {
 	srv.role = newRoleServer()
 	srv.auth = newAuthServer()
 	srv.useradmin = newUserAdminServer()
+	srv.roleadmin = newRoleAdminServer()
 	return srv, nil
 }
 
@@ -53,5 +55,6 @@ func (srv *server) RegisterGrpc(s *grpc.Server) (err error) {
 	v1pb.RegisterRoleServer(s, srv.role)
 	authpb.RegisterAuthorizationServer(s, srv.auth)
 	v1pb.RegisterUserAdminServer(s, srv.useradmin)
+	v1pb.RegisterRoleAdminServer(s, srv.roleadmin)
 	return
 }

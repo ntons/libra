@@ -15,7 +15,7 @@ import (
 )
 
 func LoadFromBase64File(fp string) {
-	b, err := ioutil.ReadFile("archive.txt")
+	b, err := ioutil.ReadFile(fp)
 	if err != nil {
 		log.Fatal(err)
 		return
