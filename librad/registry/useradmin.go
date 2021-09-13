@@ -116,7 +116,7 @@ func (srv *userAdminServer) Ban(
 		}
 		res.States = append(res.States, state)
 	}
-	return
+	return res, nil
 }
 
 func (srv *userAdminServer) BindAcctId(

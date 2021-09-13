@@ -112,12 +112,12 @@ func getUsers(
 func getUsersWithFields(
 	ctx context.Context, appId string, userIds []string, fields ...string) (
 	_ []*dbUser, err error) {
-	projs := bson.M{"_id": 1}
+	proj := bson.M{"_id": 1}
 	for _, field := range fields {
-		projs[field] = 1
+		proj[field] = 1
 	}
 	return getUsersWithOption(
-		ctx, appId, userIds, options.Find().SetProjection(projs))
+		ctx, appId, userIds, options.Find().SetProjection(proj))
 }
 
 func getUsersWithOption(
