@@ -3,12 +3,17 @@ package registry
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ntons/log-go"
+	"github.com/vmihailenco/msgpack/v4"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"github.com/ntons/libra/librad/internal/redis"
+	"github.com/ntons/libra/librad/internal/util"
 )
 
 type dbUser struct {
@@ -147,7 +152,7 @@ func getUsersWithOption(
 func loginUser(
 	ctx context.Context, app *xApp, userIp string,
 	acctIds []string, createIfNotFound bool) (
-	_ *dbUser, err error) {
+	_ *dbUser, _ *dbSess, err error) {
 	if len(acctIds) > dbMaxAcctPerUser {
 		err = newInvalidArgumentError("too many acct ids")
 		return
@@ -217,7 +222,35 @@ func loginUser(
 
 	limitUserAcctCount(ctx, collection, user)
 
-	return user, nil
+	// 检查封禁状态
+	if user.BanTo.After(time.Now()) {
+		err = newPermissionDeniedError(&struct {
+			BanTo  int64  `json:"ban_to"`
+			BanFor string `json:"ban_for"`
+		}{
+			BanTo:  user.BanTo.Unix(),
+			BanFor: user.BanFor,
+		})
+		return
+	}
+
+	// 创建会话
+	sess, err := newSess(ctx, app, user.Id)
+	if err != nil {
+		return
+	}
+
+	return user, sess, nil
+}
+
+func logoutUser(ctx context.Context, app *xApp, userIds ...string) (err error) {
+	if len(userIds) > 0 {
+		if err = rdbAuth.Del(ctx, userIds...).Err(); err != nil {
+			log.Warnf("failed to revoke token from redis: %v", err)
+			return errDatabaseUnavailable
+		}
+	}
+	return
 }
 
 func bindAcctIdToUser(
@@ -447,6 +480,78 @@ func unbanUsers(
 		bson.M{"$unset": bson.M{"ban_to": 1, "ban_for": 1}},
 	); err != nil {
 		return
+	}
+	return
+}
+
+func containAcctIdPlaceholder(acctIds []string) bool {
+	for _, acctId := range acctIds {
+		if strings.HasPrefix(acctId, "x$") {
+			return true
+		}
+	}
+	return false
+}
+
+func newSess(
+	ctx context.Context, app *xApp, userId string) (_ *dbSess, err error) {
+	token, err := newToken(app, userId)
+	if err != nil {
+		return
+	}
+	s := &dbSess{
+		Token:  token,
+		AppId:  app.Id,
+		UserId: userId,
+	}
+	b, _ := msgpack.Marshal(&s)
+	if err = rdbAuth.Set(
+		ctx, userId, util.BytesToString(b), dbSessTTL).Err(); err != nil {
+	}
+	return s, nil
+}
+
+func checkToken(ctx context.Context, token string) (_ *dbSess, err error) {
+	app, userId, err := decToken(token)
+	if err != nil {
+		log.Warnf("failed to decode token: %v", err)
+		return nil, errInvalidToken
+	}
+	b, err := rdbAuth.Get(ctx, userId).Bytes()
+	if err != nil {
+		if err == redis.Nil {
+			return nil, errInvalidToken
+		} else {
+			log.Warnf("failed to get token from redis: %v", err)
+			return nil, errDatabaseUnavailable
+		}
+	}
+	s := &dbSess{
+		AppId:  app.Id,
+		UserId: userId,
+		app:    app,
+	}
+	if err = msgpack.Unmarshal(b, &s); err != nil {
+		log.Warnf("failed to decode SessData: %v", err)
+		return nil, errMalformedSessData
+	}
+	if s.Token != token {
+		return nil, errInvalidToken
+	}
+	return s, nil
+}
+
+func checkNonce(ctx context.Context, appId, nonce string) (err error) {
+	if len(nonce) > 32 {
+		return errInvalidNonce
+	}
+	key := fmt.Sprintf("%s$%s", appId, nonce)
+	ok, err := rdbNonce.SetNX(ctx, key, "", cfg.Nonce.timeout).Result()
+	if err != nil {
+		return errDatabaseUnavailable
+	}
+	if !ok {
+		return errInvalidNonce
 	}
 	return
 }

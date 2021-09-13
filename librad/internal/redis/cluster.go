@@ -95,6 +95,23 @@ func (cluster *Cluster) Set(ctx context.Context, key string, value interface{}, 
 func (cluster *Cluster) SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd {
 	return cluster.hashTo(key).SetNX(ctx, key, value, expiration)
 }
+func (cluster *Cluster) Del(ctx context.Context, keys ...string) (cmd *redis.IntCmd) {
+	if len(keys) == 0 {
+		panic("no key to hash")
+	} else if len(keys) == 1 {
+		return cluster.hashTo(keys[0]).Del(ctx, keys...)
+	} else {
+		for n, keys := range cluster.hashKeys(keys) {
+			if len(keys) == 0 {
+				continue
+			}
+			if c := cluster.p[n].Del(ctx, keys...); c.Err() != nil && c == nil {
+				cmd = c
+			}
+		}
+	}
+	return
+}
 
 func (cluster *Cluster) EvalSha(ctx context.Context, sha1 string, keys []string, args ...interface{}) (cmd *redis.Cmd) {
 	if len(keys) == 0 {
@@ -106,8 +123,7 @@ func (cluster *Cluster) EvalSha(ctx context.Context, sha1 string, keys []string,
 			if len(keys) == 0 {
 				continue
 			}
-			if cmd = cluster.p[n].EvalSha(
-				ctx, sha1, keys, args...); cmd.Err() != nil {
+			if cmd = cluster.p[n].EvalSha(ctx, sha1, keys, args...); cmd.Err() != nil {
 				return
 			}
 		}

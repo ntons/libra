@@ -107,28 +107,13 @@ func (srv *userServer) Login(
 		return
 	}
 
-	user, err := loginUser(
+	user, sess, err := loginUser(
 		ctx, app,
 		httputil.GetRemoteIpFromContext(ctx),
 		state.AcctIds,
 		req.CreateIfNotFound)
 	if err != nil {
 		log.Warnf("failed to login user: %v", err)
-		return
-	}
-	if user.BanTo.After(time.Now()) {
-		return nil, newPermissionDeniedError(&struct {
-			BanTo  int64  `json:"ban_to"`
-			BanFor string `json:"ban_for"`
-		}{
-			BanTo:  user.BanTo.Unix(),
-			BanFor: user.BanFor,
-		})
-	}
-
-	sess, err := newSess(ctx, app, user.Id)
-	if err != nil {
-		log.Warnf("failed to new session: %v", err)
 		return
 	}
 

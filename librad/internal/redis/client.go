@@ -14,6 +14,7 @@ type Client interface {
 	Get(context.Context, string) *redis.StringCmd
 	Set(context.Context, string, interface{}, time.Duration) *redis.StatusCmd
 	SetNX(context.Context, string, interface{}, time.Duration) *redis.BoolCmd
+	Del(ctx context.Context, keys ...string) *redis.IntCmd
 	EvalSha(context.Context, string, []string, ...interface{}) *redis.Cmd
 	ScriptLoad(context.Context, string) *redis.StringCmd
 }

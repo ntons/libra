@@ -34,11 +34,20 @@ const (
 
 // generate id
 func newId(appKey uint32, tag uint8) string {
-	id := make([]byte, rawIdLen)
-	binary.BigEndian.PutUint32(id, appKey)
-	io.ReadFull(rand.Reader, id[4:])
-	id[rawIdLen-1] = id[rawIdLen-1]&0xF0 | tag
-	return base32.StdEncoding.EncodeToString(id)
+	b := make([]byte, rawIdLen)
+	binary.BigEndian.PutUint32(b, appKey)
+	io.ReadFull(rand.Reader, b[4:])
+	b[rawIdLen-1] = b[rawIdLen-1]&0xF0 | tag
+	return base32.StdEncoding.EncodeToString(b)
+}
+func decId(id string) (appKey uint32, tag uint8, err error) {
+	b, err := base32.StdEncoding.DecodeString(id)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid id")
+	}
+	appKey = binary.BigEndian.Uint32(b)
+	tag = b[rawIdLen-1]
+	return
 }
 
 func newUserId(appKey uint32) string { return newId(appKey, 0x1) }
