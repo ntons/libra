@@ -243,7 +243,7 @@ func loginUser(
 	return user, sess, nil
 }
 
-func logoutUser(ctx context.Context, app *xApp, userIds ...string) (err error) {
+func logoutUser(ctx context.Context, userIds ...string) (err error) {
 	if len(userIds) > 0 {
 		if err = rdbAuth.Del(ctx, userIds...).Err(); err != nil {
 			log.Warnf("failed to revoke token from redis: %v", err)

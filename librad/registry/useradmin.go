@@ -21,7 +21,7 @@ func (srv *userAdminServer) SetMetadata(
 	ctx context.Context, req *v1pb.UserAdminSetMetadataRequest) (
 	_ *v1pb.UserAdminSetMetadataResponse, err error) {
 	trusted := L.RequireAuthBySecret(ctx)
-	if trusted == nil {
+	if trusted == nil || !idBelongToAppId(trusted.AppId, req.UserId) {
 		return nil, errUnauthenticated
 	}
 	if err = setUserMetadata(
@@ -36,7 +36,7 @@ func (srv *userAdminServer) GetMetadata(
 	ctx context.Context, req *v1pb.UserAdminGetMetadataRequest) (
 	_ *v1pb.UserAdminGetMetadataResponse, err error) {
 	trusted := L.RequireAuthBySecret(ctx)
-	if trusted == nil {
+	if trusted == nil || !idBelongToAppId(trusted.AppId, req.UserId) {
 		return nil, errUnauthenticated
 	}
 	user, err := getUser(ctx, trusted.AppId, req.UserId)
@@ -53,7 +53,7 @@ func (srv *userAdminServer) Get(
 	ctx context.Context, req *v1pb.UserAdminGetRequest) (
 	_ *v1pb.UserAdminGetResponse, err error) {
 	trusted := L.RequireAuthBySecret(ctx)
-	if trusted == nil {
+	if trusted == nil || !idBelongToAppId(trusted.AppId, req.UserIds...) {
 		return nil, errUnauthenticated
 	}
 	users, err := getUsers(ctx, trusted.AppId, req.UserIds)
@@ -70,22 +70,26 @@ func (srv *userAdminServer) Ban(
 	ctx context.Context, req *v1pb.UserAdminBanRequest) (
 	_ *v1pb.UserAdminBanResponse, err error) {
 	trusted := L.RequireAuthBySecret(ctx)
-	if trusted == nil {
+	if trusted == nil || !idBelongToAppId(trusted.AppId, req.UserIds...) {
 		return nil, errUnauthenticated
 	}
-	if req.BanSeconds > 0 {
+	if req.Seconds > 0 {
 		// ban
 		if err = banUsers(
 			ctx,
 			trusted.AppId,
 			req.UserIds,
-			time.Now().Add(time.Duration(req.BanSeconds)*time.Second),
-			req.BanFor,
+			time.Now().Add(time.Duration(req.Seconds)*time.Second),
+			req.Reason,
 		); err != nil {
 			log.Warnf("failed to ban users: %v", err)
 			return nil, errDatabaseUnavailable
 		}
-	} else if req.BanSeconds < 0 {
+		if err = logoutUser(ctx, req.UserIds...); err != nil {
+			log.Warnf("failed to logout users: %v", err)
+			return nil, errDatabaseUnavailable
+		}
+	} else if req.Seconds < 0 {
 		// unban
 		if err = unbanUsers(
 			ctx,
@@ -119,7 +123,7 @@ func (srv *userAdminServer) BindAcctId(
 	ctx context.Context, req *v1pb.UserAdminBindAcctIdRequest) (
 	_ *v1pb.UserAdminBindAcctIdResponse, err error) {
 	trusted := L.RequireAuthBySecret(ctx)
-	if trusted == nil {
+	if trusted == nil || !idBelongToAppId(trusted.AppId, req.UserId) {
 		return nil, errUnauthenticated
 	}
 	if _, err = bindAcctIdToUser(

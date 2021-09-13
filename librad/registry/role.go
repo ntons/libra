@@ -12,6 +12,7 @@ func fromDbRole(x *dbRole) *v1pb.RoleData {
 	return &v1pb.RoleData{
 		Id:       x.Id,
 		Index:    x.Index,
+		UserId:   x.UserId,
 		Metadata: x.Metadata,
 	}
 }

@@ -49,6 +49,24 @@ func decId(id string) (appKey uint32, tag uint8, err error) {
 	tag = b[rawIdLen-1]
 	return
 }
+func idBelongToAppId(appId string, ids ...string) bool {
+	return idBelongToApp(findAppById(appId), ids...)
+}
+func idBelongToApp(app *xApp, ids ...string) bool {
+	for _, id := range ids {
+		if app == nil {
+			return false
+		}
+		appKey, _, err := decId(id)
+		if err != nil {
+			return false
+		}
+		if appKey != app.Key {
+			return false
+		}
+	}
+	return true
+}
 
 func newUserId(appKey uint32) string { return newId(appKey, 0x1) }
 func newRoleId(appKey uint32) string { return newId(appKey, 0x2) }
