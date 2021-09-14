@@ -3,8 +3,12 @@ package registry
 import (
 	"encoding/json"
 
+	v1pb "github.com/ntons/libra-go/api/libra/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/ntons/libra/librad/internal/util"
 )
@@ -13,6 +17,12 @@ func newError(code codes.Code, msg interface{}) error {
 	switch msg := msg.(type) {
 	case string:
 		return status.Errorf(code, msg)
+	case proto.Message:
+		if b, err := protojson.Marshal(msg); err != nil {
+			return status.Errorf(code, "%v", msg)
+		} else {
+			return status.Errorf(code, util.BytesToString(b))
+		}
 	default:
 		if b, err := json.Marshal(msg); err != nil {
 			return status.Errorf(code, "%v", msg)
@@ -42,6 +52,12 @@ func newUnavailableError(msg interface{}) error {
 }
 func newPermissionDeniedError(msg interface{}) error {
 	return newError(codes.PermissionDenied, msg)
+}
+
+func newErrorDetail(code v1pb.ErrorCode, data proto.Message) *v1pb.ErrorDetail {
+	r := &v1pb.ErrorDetail{Code: code}
+	r.Data, _ = anypb.New(data)
+	return r
 }
 
 var (

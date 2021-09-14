@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	L "github.com/ntons/libra-go"
 	v1pb "github.com/ntons/libra-go/api/libra/v1"
 	"github.com/ntons/log-go"
 	"github.com/vmihailenco/msgpack/v4"
@@ -226,14 +225,14 @@ func loginUser(
 
 	// 检查封禁状态
 	if user.BanTo.After(time.Now()) {
-		err = newPermissionDeniedError(&L.ErrorDetail{
-			Err: int(v1pb.ErrorCode_ErrorCodeBan),
-			Data: &v1pb.ErrorBanDetail{
+		err = newPermissionDeniedError(newErrorDetail(
+			v1pb.ErrorCode_ErrorCodeBan,
+			&v1pb.BanErrorDetail{
 				UserId: user.Id,
 				BanTo:  int32(user.BanTo.Unix()),
 				BanFor: user.BanFor,
 			},
-		})
+		))
 		return
 	}
 
