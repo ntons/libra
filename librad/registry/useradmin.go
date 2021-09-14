@@ -73,48 +73,50 @@ func (srv *userAdminServer) Ban(
 	if trusted == nil || !idBelongToAppId(trusted.AppId, req.UserIds...) {
 		return nil, errUnauthenticated
 	}
-	if req.Seconds > 0 {
-		// ban
-		if err = banUsers(
-			ctx,
-			trusted.AppId,
-			req.UserIds,
-			time.Now().Add(time.Duration(req.Seconds)*time.Second),
-			req.Reason,
-		); err != nil {
-			log.Warnf("failed to ban users: %v", err)
-			return nil, errDatabaseUnavailable
-		}
-		if err = logoutUser(ctx, req.UserIds...); err != nil {
-			log.Warnf("failed to logout users: %v", err)
-			return nil, errDatabaseUnavailable
-		}
-	} else if req.Seconds < 0 {
-		// unban
-		if err = unbanUsers(
-			ctx,
-			trusted.AppId,
-			req.UserIds,
-		); err != nil {
-			log.Warnf("failed to unban users: %v", err)
-			return nil, errDatabaseUnavailable
-		}
-	}
-	users, err := getUsersWithFields(
-		ctx, trusted.AppId, req.UserIds, "ban_to", "ban_for")
-	if err != nil {
-		log.Warnf("failed to get users: %v", err)
-		return nil, errDatabaseUnavailable
-	}
-	now := time.Now()
 	res := &v1pb.UserAdminBanResponse{}
-	for _, user := range users {
-		state := &v1pb.UserBanState{Id: user.Id}
-		if user.BanTo.After(now) {
-			state.BanTo = user.BanTo.Unix()
-			state.BanFor = user.BanFor
+	if len(req.UserIds) > 0 {
+		if req.Seconds > 0 {
+			// ban
+			if err = banUsers(
+				ctx,
+				trusted.AppId,
+				req.UserIds,
+				time.Now().Add(time.Duration(req.Seconds)*time.Second),
+				req.Reason,
+			); err != nil {
+				log.Warnf("failed to ban users: %v", err)
+				return nil, errDatabaseUnavailable
+			}
+			if err = logoutUser(ctx, req.UserIds...); err != nil {
+				log.Warnf("failed to logout users: %v", err)
+				return nil, errDatabaseUnavailable
+			}
+		} else if req.Seconds < 0 {
+			// unban
+			if err = unbanUsers(
+				ctx,
+				trusted.AppId,
+				req.UserIds,
+			); err != nil {
+				log.Warnf("failed to unban users: %v", err)
+				return nil, errDatabaseUnavailable
+			}
 		}
-		res.States = append(res.States, state)
+		users, err := getUsersWithFields(
+			ctx, trusted.AppId, req.UserIds, "ban_to", "ban_for")
+		if err != nil {
+			log.Warnf("failed to get users: %v", err)
+			return nil, errDatabaseUnavailable
+		}
+		now := time.Now()
+		for _, user := range users {
+			state := &v1pb.UserBanState{Id: user.Id}
+			if user.BanTo.After(now) {
+				state.BanTo = user.BanTo.Unix()
+				state.BanFor = user.BanFor
+			}
+			res.States = append(res.States, state)
+		}
 	}
 	return res, nil
 }

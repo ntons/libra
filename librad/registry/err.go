@@ -5,6 +5,8 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/ntons/libra/librad/internal/util"
 )
 
 func newError(code codes.Code, msg interface{}) error {
@@ -15,7 +17,7 @@ func newError(code codes.Code, msg interface{}) error {
 		if b, err := json.Marshal(msg); err != nil {
 			return status.Errorf(code, "%v", msg)
 		} else {
-			return status.Errorf(code, string(b))
+			return status.Errorf(code, util.BytesToString(b))
 		}
 	}
 }
