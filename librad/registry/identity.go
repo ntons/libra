@@ -32,8 +32,16 @@ const (
 	rawTokenLen = 18
 )
 
+const (
+	userIdTag uint8 = 0x1
+	roleIdTag uint8 = 0x2
+)
+
 // generate id
 func newId(appKey uint32, tag uint8) string {
+	if tag > 0xF {
+		panic(fmt.Errorf("invalid id tag: %x", tag))
+	}
 	b := make([]byte, rawIdLen)
 	binary.BigEndian.PutUint32(b, appKey)
 	io.ReadFull(rand.Reader, b[4:])
@@ -68,8 +76,8 @@ func idBelongToApp(app *xApp, ids ...string) bool {
 	return true
 }
 
-func newUserId(appKey uint32) string { return newId(appKey, 0x1) }
-func newRoleId(appKey uint32) string { return newId(appKey, 0x2) }
+func newUserId(appKey uint32) string { return newId(appKey, userIdTag) }
+func newRoleId(appKey uint32) string { return newId(appKey, roleIdTag) }
 
 func newToken(app *xApp, id string) (string, error) {
 	raw, err := newTokenV1(app, id)

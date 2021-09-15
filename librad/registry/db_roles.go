@@ -79,6 +79,9 @@ func getRole(
 func getRoles(
 	ctx context.Context, appId string, roleIds []string) (
 	_ []*dbRole, err error) {
+	if len(roleIds) == 0 {
+		return
+	}
 	collection, err := getRoleCollection(ctx, appId)
 	if err != nil {
 		return
@@ -86,6 +89,30 @@ func getRoles(
 	cursor, err := collection.Find(
 		ctx,
 		bson.M{"_id": bson.M{"$in": roleIds}},
+	)
+	if err != nil {
+		return
+	}
+	var roles []*dbRole
+	if err = cursor.All(ctx, &roles); err != nil {
+		return
+	}
+	return roles, nil
+}
+
+func getRolesByUserId(
+	ctx context.Context, appId string, userIds []string) (
+	_ []*dbRole, err error) {
+	if len(userIds) == 0 {
+		return
+	}
+	collection, err := getRoleCollection(ctx, appId)
+	if err != nil {
+		return
+	}
+	cursor, err := collection.Find(
+		ctx,
+		bson.M{"user_id": bson.M{"$in": userIds}},
 	)
 	if err != nil {
 		return

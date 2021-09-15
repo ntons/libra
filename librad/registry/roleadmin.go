@@ -23,7 +23,7 @@ func (srv *roleAdminServer) Get(
 	if trusted == nil {
 		return nil, errUnauthenticated
 	}
-	roles, err := getRoles(ctx, trusted.AppId, req.RoleIds)
+	roles, err := getRoles(ctx, trusted.AppId, req.Ids)
 	if err != nil {
 		log.Warnf("failed to get roles: %v", err)
 		return nil, errDatabaseUnavailable

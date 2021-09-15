@@ -53,16 +53,50 @@ func (srv *userAdminServer) Get(
 	ctx context.Context, req *v1pb.UserAdminGetRequest) (
 	_ *v1pb.UserAdminGetResponse, err error) {
 	trusted := L.RequireAuthBySecret(ctx)
-	if trusted == nil || !idBelongToAppId(trusted.AppId, req.UserIds...) {
+	if trusted == nil || !idBelongToAppId(trusted.AppId, req.Ids...) {
 		return nil, errUnauthenticated
 	}
-	users, err := getUsers(ctx, trusted.AppId, req.UserIds)
-	if err != nil {
+	var (
+		userIds = req.Ids
+		roleIds []string
+		users   []*dbUser
+		roles   []*dbRole
+	)
+	if req.Options != nil && req.Options.Fuzzy {
+		userIds = make([]string, 0, len(req.Ids))
+		roleIds = make([]string, 0, len(req.Ids))
+		for _, id := range req.Ids {
+			if _, tag, _ := decId(id); tag == userIdTag {
+				userIds = append(userIds, id)
+			} else if tag == roleIdTag {
+				roleIds = append(roleIds, id)
+			}
+		}
+	}
+	if len(roleIds) > 0 {
+		roles, err := getRoles(ctx, trusted.AppId, roleIds)
+		if err != nil {
+			log.Warnf("failed to get roles: %v", err)
+			return nil, errDatabaseUnavailable
+		}
+		for _, role := range roles {
+			userIds = append(userIds, role.UserId)
+		}
+	}
+	if users, err = getUsers(ctx, trusted.AppId, userIds); err != nil {
 		log.Warnf("failed to get users: %v", err)
 		return nil, errDatabaseUnavailable
 	}
+	if req.Options != nil && req.Options.WithRoles {
+		if roles, err = getRolesByUserId(
+			ctx, trusted.AppId, userIds); err != nil {
+			log.Warnf("failed to get roles: %v", err)
+			return nil, errDatabaseUnavailable
+		}
+	}
 	return &v1pb.UserAdminGetResponse{
 		Users: fromDbUsers(users),
+		Roles: fromDbRoles(roles),
 	}, nil
 }
 
