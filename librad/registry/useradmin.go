@@ -59,8 +59,6 @@ func (srv *userAdminServer) Get(
 	var (
 		userIds = req.Ids
 		roleIds []string
-		users   []*dbUser
-		roles   []*dbRole
 	)
 	if req.Options != nil && req.Options.Fuzzy {
 		userIds = make([]string, 0, len(req.Ids))
@@ -83,6 +81,10 @@ func (srv *userAdminServer) Get(
 			userIds = append(userIds, role.UserId)
 		}
 	}
+	var (
+		users []*dbUser
+		roles []*dbRole
+	)
 	if users, err = getUsers(ctx, trusted.AppId, userIds); err != nil {
 		log.Warnf("failed to get users: %v", err)
 		return nil, errDatabaseUnavailable

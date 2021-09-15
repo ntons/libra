@@ -54,7 +54,7 @@ func decId(id string) (appKey uint32, tag uint8, err error) {
 		return 0, 0, fmt.Errorf("invalid id")
 	}
 	appKey = binary.BigEndian.Uint32(b)
-	tag = b[rawIdLen-1]
+	tag = 0x0F & b[rawIdLen-1]
 	return
 }
 func idBelongToAppId(appId string, ids ...string) bool {
