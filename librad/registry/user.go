@@ -17,11 +17,19 @@ import (
 )
 
 func fromDbUser(x *dbUser) *v1pb.UserData {
-	return &v1pb.UserData{
+	r := &v1pb.UserData{
 		Id:       x.Id,
 		AcctIds:  x.AcctIds,
+		CreateAt: x.CreateAt.Unix(),
+		LoginAt:  x.LoginAt.Unix(),
+		LoginIp:  x.LoginIp,
 		Metadata: x.Metadata,
 	}
+	if x.BanTo.After(time.Now()) {
+		r.BanTo = x.BanTo.Unix()
+		r.BanFor = x.BanFor
+	}
+	return r
 }
 func fromDbUsers(x []*dbUser) []*v1pb.UserData {
 	r := make([]*v1pb.UserData, 0, len(x))
