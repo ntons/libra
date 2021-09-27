@@ -132,8 +132,8 @@ github.com/ntons/ranking v0.1.7-0.20210308073015-fcb506a578cb h1:yXP9ERUoDSzB89E
 github.com/ntons/ranking v0.1.7-0.20210308073015-fcb506a578cb/go.mod h1:FjpMoe7c/m/JVZqmp5+2ZA9/u7/KS4GFx77JByRVdkA=
 github.com/ntons/remon v0.1.6 h1:q1ti0xWjGx6Sg+G+eQyGky4vYaI/Y8U5XlYXc1phMNk=
 github.com/ntons/remon v0.1.6/go.mod h1:sNLmxiIVE7bVzpNMyV1jQqskHgOCCZA38yFi4Q4TCgE=
-github.com/ntons/tongo/httputil v0.0.0-20210628011104-907b2999b312 h1:rTGRBnuLmmlfvMKiEBqy/B1KlOYEm+ptzkOnOACgH1k=
-github.com/ntons/tongo/httputil v0.0.0-20210628011104-907b2999b312/go.mod h1:BNNLfFexfO3+78NNVoA2XQA0QtAFBwRrquxm31vRcrA=
+github.com/ntons/tongo/httputil v0.0.0-20210926235700-c0c0e6e56ff5 h1:/jl2MVz92s0JeEDW4ro3Syu5eVLaIZKAaoI6QXZXmQ0=
+github.com/ntons/tongo/httputil v0.0.0-20210926235700-c0c0e6e56ff5/go.mod h1:BNNLfFexfO3+78NNVoA2XQA0QtAFBwRrquxm31vRcrA=
 github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5 h1:GzuYjk5Pdcu8lqbusID5Eonvaq2nCmqZe5tcTk8IptE=
 github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5/go.mod h1:bm1yZHOCwbn7yU5DYUFY9NnKv7hgUtV6mZjjithfA3k=
 github.com/nxadm/tail v1.4.4 h1:DQuhQpB1tVlglWS2hLQ5OV6B5r8aGxSrPc5Qo6uTN78=

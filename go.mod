@@ -14,7 +14,7 @@ require (
 	github.com/ntons/log-go/appenders/timedrollingfile v0.0.0-20210317052209-fcced1485be2
 	github.com/ntons/ranking v0.1.7-0.20210308073015-fcb506a578cb
 	github.com/ntons/remon v0.1.6
-	github.com/ntons/tongo/httputil v0.0.0-20210628011104-907b2999b312
+	github.com/ntons/tongo/httputil v0.0.0-20210926235700-c0c0e6e56ff5
 	github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5
 	github.com/pierrec/lz4/v4 v4.1.3
 	github.com/sigurn/crc16 v0.0.0-20160107003519-da416fad5162
