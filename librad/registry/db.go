@@ -99,6 +99,7 @@ func (x *xApp) isPermitted(path string) bool {
 
 // App collection with index
 type xAppIndex struct {
+	a        []*xApp
 	idIndex  map[string]*xApp
 	keyIndex map[uint32]*xApp
 }
@@ -112,7 +113,11 @@ func newAppIndex(apps []*xApp) *xAppIndex {
 		idIndex[a.Id] = a
 		keyIndex[a.Key] = a
 	}
-	return &xAppIndex{idIndex: idIndex, keyIndex: keyIndex}
+	return &xAppIndex{
+		a:        apps,
+		idIndex:  idIndex,
+		keyIndex: keyIndex,
+	}
 }
 
 func findAppById(id string) *xApp {
@@ -122,6 +127,9 @@ func findAppById(id string) *xApp {
 func findAppByKey(key uint32) *xApp {
 	a, _ := xApps.keyIndex[key]
 	return a
+}
+func listApps() []*xApp {
+	return xApps.a
 }
 
 // 会话缓存数据
@@ -187,6 +195,7 @@ func dbServe(ctx context.Context) {
 			}
 		}
 		xApps = newAppIndex(res)
+		appWatcher.trigger(res)
 		return
 	}
 	for {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	authpb "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	admv1pb "github.com/ntons/libra-go/api/libra/admin/v1"
 	v1pb "github.com/ntons/libra-go/api/libra/v1"
 	"google.golang.org/grpc"
 
@@ -18,6 +19,7 @@ type server struct {
 	ctx  context.Context
 	stop context.CancelFunc
 
+	app       *appServer
 	user      *userServer
 	role      *roleServer
 	auth      *authServer
@@ -38,6 +40,7 @@ func create(b json.RawMessage) (_ comm.Service, err error) {
 		srv.Stop()
 		return nil, fmt.Errorf("failed to dial database: %v", err)
 	}
+	srv.app = newAppServer()
 	srv.user = newUserServer()
 	srv.role = newRoleServer()
 	srv.auth = newAuthServer()
@@ -51,6 +54,7 @@ func (srv *server) Serve() { dbServe(srv.ctx) }
 func (srv *server) Stop() { srv.stop() }
 
 func (srv *server) RegisterGrpc(s *grpc.Server) (err error) {
+	admv1pb.RegisterAppServer(s, srv.app)
 	v1pb.RegisterUserServer(s, srv.user)
 	v1pb.RegisterRoleServer(s, srv.role)
 	authpb.RegisterAuthorizationServer(s, srv.auth)
