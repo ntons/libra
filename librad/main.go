@@ -1,21 +1,30 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"math/rand"
 	"os"
-	"os/signal"
 	"sort"
 	"strings"
 	"syscall"
 	"time"
 
+	_ "github.com/ntons/grpc-compressor/lz4" // register lz4 compressor
 	log "github.com/ntons/log-go"
 	logcfg "github.com/ntons/log-go/config"
+	"github.com/onemoreteam/httpframework"
+	"github.com/onemoreteam/httpframework/config"
+	"github.com/onemoreteam/httpframework/modularity"
+	_ "google.golang.org/grpc/encoding/gzip"
 
-	"github.com/ntons/libra/librad/internal/comm"
+	// load modules
+	_ "github.com/ntons/libra/librad/database"
+	_ "github.com/ntons/libra/librad/ranking"
+	_ "github.com/ntons/libra/librad/registry"
+	_ "github.com/ntons/libra/librad/syncer"
+	_ "github.com/onemoreteam/httpframework/modularity/log"
+	_ "github.com/onemoreteam/httpframework/modularity/server"
 )
 
 // build time variables
@@ -26,6 +35,17 @@ var (
 	GoVersion string
 	OSArch    string
 )
+
+func main() {
+	rand.Seed(time.Now().UnixNano())
+
+	logcfg.DefaultZapJsonConfig.Use()
+
+	if err := _main(); err != nil {
+		log.Error(err)
+		os.Exit(1)
+	}
+}
 
 func _main() (err error) {
 	clopts, err := parseCommandLineOptions()
@@ -41,79 +61,47 @@ func _main() (err error) {
 	if clopts.ShowVersionAndExit {
 		return
 	}
-	defer log.Info("server has stopped gracefully")
-
-	if err = comm.LoadConfig(clopts.ConfigFilePath); err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
-	}
-
-	if comm.Config.Log != nil {
-		if err = comm.Config.Log.Use(); err != nil {
-			return fmt.Errorf("failed to use log: %w", err)
-		}
-	}
 
 	if len(clopts.IncludeServices) > 0 {
-		services := make(map[string]json.RawMessage)
-		for _, name := range clopts.IncludeServices {
-			services[name] = comm.Config.Services[name]
-		}
-		comm.Config.Services = services
+		modularity.DeregisterAllExcept(clopts.IncludeServices...)
 	}
 	if len(clopts.ExcludeServices) > 0 {
-		for _, name := range clopts.ExcludeServices {
-			delete(comm.Config.Services, name)
-		}
+		modularity.Deregister(clopts.ExcludeServices...)
 	}
 
-	done := make(chan struct{}, 1)
-	defer func() { <-done }()
+	jb, err := config.BytesFromFile(clopts.ConfigFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to load configuration: %w", err)
+	}
+	if err = modularity.Initialize(jb); err != nil {
+		return fmt.Errorf("failed to initalize modules: %w", err)
+	}
 
+	defer log.Info("server has stopped gracefully")
+
+	done := make(chan error, 1)
 	go func() {
 		defer func() { close(done) }()
-		err = serve()
+		modularity.Serve()
 	}()
-	defer shutdown()
 
-	sig := make(chan os.Signal, 1)
-	signal.Ignore(syscall.SIGPIPE)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-	defer signal.Stop(sig)
+	httpframework.IgnoreSignal(syscall.SIGPIPE)
 	select {
-	case <-sig: // terminating by signal
-	case <-done: // terminating by server self
+	case <-httpframework.WatchSignal(syscall.SIGTERM, syscall.SIGINT).Chan():
+		modularity.Shutdown()
+		select {
+		case <-httpframework.WatchSignal(syscall.SIGTERM, syscall.SIGINT).Chan():
+		case <-done:
+		}
+	case err = <-done:
 	}
 
-	log.Infof("server is stopping")
+	modularity.Finalize()
+
 	return
 }
 
-func main() {
-	rand.Seed(time.Now().UnixNano())
-
-	//logcfg.Config{
-	//	Zap: &zap.Config{
-	//		Level:    zap.NewAtomicLevel(),
-	//		Encoding: "json",
-	//		EncoderConfig: func() zapcore.EncoderConfig {
-	//			encoder := zap.NewProductionEncoderConfig()
-	//			encoder.TimeKey = "time"
-	//			encoder.EncodeTime = zapcore.TimeEncoderOfLayout(
-	//				"2006-01-02T15:04:05.000Z07:00")
-	//			return encoder
-	//		}(),
-	//		OutputPaths:      []string{"stdout"},
-	//		ErrorOutputPaths: []string{"stderr"},
-	//	},
-	//}.Use()
-	logcfg.DefaultZapJsonConfig.Use()
-
-	if err := _main(); err != nil {
-		log.Error(err)
-		os.Exit(1)
-	}
-}
-
+////////////////////////////////////////////////////////////////////////////////
 type xStrings []string
 
 func (ss *xStrings) String() string {

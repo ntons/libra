@@ -6,7 +6,7 @@ import (
 	"github.com/ntons/libra-go/api/libra/v1"
 	"github.com/ntons/ranking"
 
-	"github.com/ntons/libra/librad/internal/redis"
+	"github.com/ntons/libra/librad/common/redis"
 )
 
 type bubbleChartServer struct {

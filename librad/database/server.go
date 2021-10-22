@@ -13,20 +13,14 @@ import (
 	"github.com/ntons/remon"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/anypb"
 
 	v1pb "github.com/ntons/libra-go/api/libra/v1"
-	"github.com/ntons/libra/librad/internal/comm"
-	"github.com/ntons/libra/librad/internal/redis"
-	"github.com/ntons/libra/librad/internal/util"
+	"github.com/ntons/libra/librad/common/redis"
+	"github.com/ntons/libra/librad/common/util"
 )
 
 const distlockTypeUrl = "https://github.com/ntons/distlock"
-
-func init() {
-	comm.RegisterService("database", create)
-}
 
 type server struct {
 	v1pb.UnimplementedDistlockServer
@@ -38,7 +32,7 @@ type server struct {
 	dl *distlock.Client // distlock
 }
 
-func create(b json.RawMessage) (comm.Service, error) {
+func createServer(jb json.RawMessage) (*server, error) {
 	dialMongo := func(
 		ctx context.Context, url string) (_ *mongo.Client, err error) {
 		mdb, err := mongo.NewClient(options.Client().ApplyURI(url))
@@ -54,7 +48,7 @@ func create(b json.RawMessage) (comm.Service, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	if err := json.Unmarshal(b, cfg); err != nil {
+	if err := json.Unmarshal(jb, cfg); err != nil {
 		return nil, err
 	} else if err = cfg.parse(); err != nil {
 		return nil, err
@@ -85,16 +79,6 @@ func create(b json.RawMessage) (comm.Service, error) {
 	}
 
 	return srv, nil
-}
-
-func (srv *server) Serve() {}
-func (srv *server) Stop()  {}
-
-func (srv *server) RegisterGrpc(g *grpc.Server) (err error) {
-	v1pb.RegisterDatabaseServer(g, srv)
-	v1pb.RegisterDistlockServer(g, srv)
-	v1pb.RegisterMailboxServer(g, srv)
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////////////

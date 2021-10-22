@@ -6,13 +6,9 @@ import (
 	"time"
 
 	"github.com/ntons/libra-go/api/libra/v1"
-	"google.golang.org/grpc"
 
-	"github.com/ntons/libra/librad/internal/comm"
-	"github.com/ntons/libra/librad/internal/redis"
+	"github.com/ntons/libra/librad/common/redis"
 )
-
-func init() { comm.RegisterService("ranking", create) }
 
 type request interface {
 	GetKey() *v1.ChartKey
@@ -24,7 +20,7 @@ type server struct {
 	leaderboard *leaderboardServer
 }
 
-func create(b json.RawMessage) (_ comm.Service, err error) {
+func createServer(b json.RawMessage) (_ *server, err error) {
 	cfg := &config{}
 	if err = json.Unmarshal(b, cfg); err != nil {
 		return
@@ -51,12 +47,3 @@ func create(b json.RawMessage) (_ comm.Service, err error) {
 
 	return srv, nil
 }
-
-func (r *server) RegisterGrpc(s *grpc.Server) (err error) {
-	v1.RegisterBubbleChartServer(s, r.bubblechart)
-	v1.RegisterLeaderboardServer(s, r.leaderboard)
-	return
-}
-
-func (*server) Serve() {}
-func (*server) Stop()  {}

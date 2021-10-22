@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	corepb "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	authpb "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	typepb "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	L "github.com/ntons/libra-go"
+	authpb "github.com/ntons/libra/librad/registry/envoy_service_auth_v3"
 	log "github.com/ntons/log-go"
 	statuspb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"

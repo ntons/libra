@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	"github.com/ntons/libra/librad/internal/util"
+	"github.com/ntons/libra/librad/common/util"
 )
 
 func newError(code codes.Code, msg interface{}) error {

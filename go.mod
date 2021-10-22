@@ -3,10 +3,13 @@ module github.com/ntons/libra
 go 1.15
 
 require (
-	github.com/envoyproxy/go-control-plane v0.9.9-0.20201210154907-fd9021fe5dad
+	github.com/cncf/xds/go v0.0.0-20210312221358-fbca930ec8ed
+	github.com/envoyproxy/go-control-plane v0.9.9-0.20210512163311-63b5d3c536b0
+	github.com/envoyproxy/protoc-gen-validate v0.1.0
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-redis/redis/v8 v8.3.3
+	github.com/golang/protobuf v1.5.2
 	github.com/ntons/distlock v0.2.0
 	github.com/ntons/grpc-compressor/lz4 v0.0.0-20210305100006-06d7d07e537e
 	github.com/ntons/libra-go v0.0.0-20211021102755-90ad80dce06e
@@ -16,18 +19,16 @@ require (
 	github.com/ntons/remon v0.1.6
 	github.com/ntons/tongo/httputil v0.0.0-20210926235700-c0c0e6e56ff5
 	github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5
+	github.com/onemoreteam/httpframework v0.0.0-20211022071354-b064d5c4d354
 	github.com/pierrec/lz4/v4 v4.1.3
 	github.com/sigurn/crc16 v0.0.0-20160107003519-da416fad5162
 	github.com/sigurn/utils v0.0.0-20190728110027-e1fefb11a144 // indirect
 	github.com/vmihailenco/msgpack/v4 v4.3.12
 	go.mongodb.org/mongo-driver v1.5.3
 	go.uber.org/multierr v1.6.0 // indirect
-	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
-	golang.org/x/tools v0.0.0-20200923182640-463111b69878 // indirect
-	google.golang.org/genproto v0.0.0-20201104152603-2e45c02ce95c
-	google.golang.org/grpc v1.35.0
-	google.golang.org/grpc/examples v0.0.0-20210301210255-fc8f38cccf75
-	google.golang.org/protobuf v1.25.0
+	google.golang.org/genproto v0.0.0-20210617175327-b9e0b3197ced
+	google.golang.org/grpc v1.40.0
+	google.golang.org/protobuf v1.26.0
 	gopkg.in/yaml.v2 v2.4.0
 	honnef.co/go/tools v0.0.1-2020.1.5 // indirect
 )
@@ -36,3 +37,4 @@ require (
 //replace github.com/ntons/remon => ../remon
 //replace github.com/ntons/distlock => ../distlock
 //replace github.com/ntons/ranking => ../ranking
+replace github.com/onemoreteam/httpframework => ../../onemoreteam/httpframework

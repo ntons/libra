@@ -3,13 +3,7 @@ package syncer
 import (
 	"encoding/json"
 	"sync"
-
-	"github.com/ntons/libra/librad/internal/comm"
 )
-
-func init() {
-	comm.RegisterService("syncer", create)
-}
 
 var (
 	cfg = &struct {
@@ -26,7 +20,7 @@ type server struct {
 	quit  chan struct{}
 }
 
-func create(b json.RawMessage) (_ comm.Service, err error) {
+func createServer(b json.RawMessage) (_ *server, err error) {
 	if err = json.Unmarshal(b, cfg); err != nil {
 		return
 	}
