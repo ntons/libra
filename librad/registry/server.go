@@ -19,12 +19,12 @@ type server struct {
 	ctx  context.Context
 	stop context.CancelFunc
 
-	app       *appServer
+	appAdmin  *appAdminServer
 	user      *userServer
 	role      *roleServer
 	auth      *authServer
-	useradmin *userAdminServer
-	roleadmin *roleAdminServer
+	userAdmin *userAdminServer
+	roleAdmin *roleAdminServer
 }
 
 func create(b json.RawMessage) (_ comm.Service, err error) {
@@ -40,12 +40,12 @@ func create(b json.RawMessage) (_ comm.Service, err error) {
 		srv.Stop()
 		return nil, fmt.Errorf("failed to dial database: %v", err)
 	}
-	srv.app = newAppServer()
+	srv.appAdmin = newAppServer()
 	srv.user = newUserServer()
 	srv.role = newRoleServer()
 	srv.auth = newAuthServer()
-	srv.useradmin = newUserAdminServer()
-	srv.roleadmin = newRoleAdminServer()
+	srv.userAdmin = newUserAdminServer()
+	srv.roleAdmin = newRoleAdminServer()
 	return srv, nil
 }
 
@@ -54,11 +54,11 @@ func (srv *server) Serve() { dbServe(srv.ctx) }
 func (srv *server) Stop() { srv.stop() }
 
 func (srv *server) RegisterGrpc(s *grpc.Server) (err error) {
-	admv1pb.RegisterAppServer(s, srv.app)
+	admv1pb.RegisterAppAdminServer(s, srv.appAdmin)
 	v1pb.RegisterUserServer(s, srv.user)
 	v1pb.RegisterRoleServer(s, srv.role)
 	authpb.RegisterAuthorizationServer(s, srv.auth)
-	v1pb.RegisterUserAdminServer(s, srv.useradmin)
-	v1pb.RegisterRoleAdminServer(s, srv.roleadmin)
+	v1pb.RegisterUserAdminServer(s, srv.userAdmin)
+	v1pb.RegisterRoleAdminServer(s, srv.roleAdmin)
 	return
 }

@@ -42,10 +42,12 @@ func (srv authServer) Check(
 	}
 
 	switch authBy {
+	case L.XLibraAuthByAdminSecret:
+		resp, err = srv.checkAdminSecret(ctx, req)
+	case L.XLibraAuthBySecret:
+		resp, err = srv.checkAppSecret(ctx, req)
 	case L.XLibraAuthByToken:
 		resp, err = srv.checkToken(ctx, req)
-	case L.XLibraAuthBySecret:
-		resp, err = srv.checkSecret(ctx, req)
 	case L.XLibraAuthBySecretAndOptionalToken:
 		resp, err = srv.checkSecretAndOptionalToken(ctx, req)
 	case L.XLibraAuthBySecretOrToken, L.XLibraAuthByTokenOrSecret:
@@ -75,8 +77,50 @@ func (srv authServer) Check(
 			okResp.HeadersToRemove = append(okResp.HeadersToRemove, key)
 		}
 	}
-
 	return
+}
+
+func (srv authServer) checkAdminSecret(
+	ctx context.Context, req *authpb.CheckRequest) (
+	_ *authpb.CheckResponse, err error) {
+	admId := req.Attributes.Request.Http.Headers[L.XLibraAdminId]
+	admSecret := req.Attributes.Request.Http.Headers[L.XLibraAdminSecret]
+	if admId == "" || admSecret == "" {
+		return srv.errToResponse(errUnauthenticated)
+	}
+
+	if adm := findAdminById(admId); adm == nil || adm.Secret != admSecret {
+		return srv.errToResponse(errInvalidAdminSecret)
+	} else if !adm.isPermitted(req.Attributes.Request.Http.Path) {
+		return srv.errToResponse(errPermissionDenied)
+	}
+
+	headers := []*corepb.HeaderValueOption{
+		{
+			Header: &corepb.HeaderValue{
+				Key:   L.XLibraTrustedAuthBy,
+				Value: L.XLibraAuthBySecret,
+			},
+		},
+		{
+			Header: &corepb.HeaderValue{
+				Key:   L.XLibraTrustedAdminId,
+				Value: admId,
+			},
+		},
+	}
+	return &authpb.CheckResponse{
+		Status: &statuspb.Status{},
+		HttpResponse: &authpb.CheckResponse_OkResponse{
+			OkResponse: &authpb.OkHttpResponse{
+				Headers: headers,
+				HeadersToRemove: []string{
+					L.XLibraAdminId,
+					L.XLibraAdminSecret,
+				},
+			},
+		},
+	}, nil
 }
 
 func (srv authServer) checkToken(
@@ -140,7 +184,7 @@ func (srv authServer) checkToken(
 	}, nil
 }
 
-func (srv authServer) checkSecret(
+func (srv authServer) checkAppSecret(
 	ctx context.Context, req *authpb.CheckRequest) (
 	_ *authpb.CheckResponse, err error) {
 	appId := req.Attributes.Request.Http.Headers[L.XLibraAppId]
@@ -187,11 +231,11 @@ func (srv authServer) checkSecretAndOptionalToken(
 	ctx context.Context, req *authpb.CheckRequest) (
 	_ *authpb.CheckResponse, err error) {
 	if _, ok := req.Attributes.Request.Http.Headers[L.XLibraToken]; !ok {
-		return srv.checkSecret(ctx, req)
+		return srv.checkAppSecret(ctx, req)
 	}
 
 	var resp1, resp2 *authpb.CheckResponse
-	if resp1, err = srv.checkSecret(ctx, req); err != nil {
+	if resp1, err = srv.checkAppSecret(ctx, req); err != nil {
 		return resp1, err
 	}
 	if resp2, err = srv.checkToken(ctx, req); err != nil {
@@ -205,7 +249,7 @@ func (srv authServer) checkSecretOrToken(
 	_ *authpb.CheckResponse, err error) {
 	var resp1, resp2 *authpb.CheckResponse
 	if _, ok := req.Attributes.Request.Http.Headers[L.XLibraAppSecret]; ok {
-		resp1, err = srv.checkSecret(ctx, req)
+		resp1, err = srv.checkAppSecret(ctx, req)
 		if err != nil || resp1.GetOkResponse() == nil {
 			return resp1, err
 		}

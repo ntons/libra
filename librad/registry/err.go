@@ -62,10 +62,11 @@ func newErrorDetail(code v1pb.ErrorCode, data proto.Message) *v1pb.ErrorDetail {
 
 var (
 	// Unauthenticated
-	errUnauthenticated  = newUnauthenticatedError("unauthenticated")
-	errLoginRequired    = newUnauthenticatedError("login required")
-	errInvalidToken     = newUnauthenticatedError("invalid token")
-	errInvalidAppSecret = newUnauthenticatedError("invalid app secret")
+	errUnauthenticated    = newUnauthenticatedError("unauthenticated")
+	errLoginRequired      = newUnauthenticatedError("login required")
+	errInvalidToken       = newUnauthenticatedError("invalid token")
+	errInvalidAppSecret   = newUnauthenticatedError("invalid app secret")
+	errInvalidAdminSecret = newUnauthenticatedError("invalid admin secret")
 
 	errMismatchedAppSecretAndToken = newUnauthenticatedError("mismatched app secret and token")
 

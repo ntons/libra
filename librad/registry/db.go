@@ -2,11 +2,9 @@ package registry
 
 import (
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/sha256"
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/ntons/log-go"
@@ -38,12 +36,15 @@ var (
 	rdbNonce redis.Client
 
 	// cached collection
-	dbAppCollection  *mongo.Collection
-	dbUserCollection = make(map[string]*mongo.Collection)
-	dbRoleCollection = make(map[string]*mongo.Collection)
+	dbAppCollection   *mongo.Collection
+	dbAdminCollection *mongo.Collection
+	dbUserCollection  = make(map[string]*mongo.Collection)
+	dbRoleCollection  = make(map[string]*mongo.Collection)
 
 	// app cache loaded from database
 	xApps = newAppIndex(nil)
+	// admin cache loaded from database
+	xAdmins = newAdminIndex(nil)
 
 	// 只更新会话数据
 	luaUpdateSessData = redis.NewScript(`
@@ -55,82 +56,6 @@ return redis.call("SETEX", KEYS[1], %d, cmsgpack.pack(d))`,
 		dbSessTTL/time.Second,
 	)
 )
-
-type xApp struct {
-	// 应用ID
-	Id string `bson:"_id"`
-	// 数值形式的应用ID
-	Key uint32 `bson:"key"`
-	// 应用签名密钥，授权访问
-	Secret string `bson:"secret,omitempty"`
-	// 应用指纹指纹，特异化应用数据，增加安全性
-	Fingerprint string `bson:"fingerprint,omitempty"`
-	// 允许的服务
-	Permissions []*xPermission `bson:"permissions,omitempty"`
-	// AES密钥，由Fingerprint生成
-	block cipher.Block
-}
-
-func (x *xApp) parse() (err error) {
-	// check permission expression
-	for _, p := range x.Permissions {
-		if err = p.parse(); err != nil {
-			return
-		}
-	}
-	// hash fingerprint to 32 bytes byte array, NewCipher must success
-	hash := sha256.Sum256([]byte(x.Fingerprint))
-	x.block, _ = aes.NewCipher(hash[:])
-	return
-}
-func (x *xApp) isPermitted(path string) bool {
-	for _, p := range cfg.CommonPermissions {
-		if p.isPermitted(path) {
-			return true
-		}
-	}
-	for _, p := range x.Permissions {
-		if p.isPermitted(path) {
-			return true
-		}
-	}
-	return false
-}
-
-// App collection with index
-type xAppIndex struct {
-	a        []*xApp
-	idIndex  map[string]*xApp
-	keyIndex map[uint32]*xApp
-}
-
-func newAppIndex(apps []*xApp) *xAppIndex {
-	var (
-		idIndex  = make(map[string]*xApp)
-		keyIndex = make(map[uint32]*xApp)
-	)
-	for _, a := range apps {
-		idIndex[a.Id] = a
-		keyIndex[a.Key] = a
-	}
-	return &xAppIndex{
-		a:        apps,
-		idIndex:  idIndex,
-		keyIndex: keyIndex,
-	}
-}
-
-func findAppById(id string) *xApp {
-	a, _ := xApps.idIndex[id]
-	return a
-}
-func findAppByKey(key uint32) *xApp {
-	a, _ := xApps.keyIndex[key]
-	return a
-}
-func listApps() []*xApp {
-	return xApps.a
-}
 
 // 会话缓存数据
 type dbSessData struct {
@@ -172,43 +97,91 @@ func dialDatabase(ctx context.Context) (err error) {
 	return
 }
 
-func dbServe(ctx context.Context) {
-	// load app configurations from database
-	loadApps := func(ctx context.Context) (err error) {
-		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-		collection, err := getAppCollection(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get app collection: %w", err)
-		}
-		cursor, err := collection.Find(ctx, bson.D{})
-		if err != nil {
-			return fmt.Errorf("failed to query apps: %w", err)
-		}
-		var res []*xApp
-		if err = cursor.All(ctx, &res); err != nil {
-			return
-		}
-		for _, a := range res {
-			if err = a.parse(); err != nil {
-				return
-			}
-		}
-		xApps = newAppIndex(res)
-		appWatcher.trigger(res)
+func loadApps(ctx context.Context) (err error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	collection, err := getAppCollection(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get app collection: %w", err)
+	}
+	cursor, err := collection.Find(ctx, bson.D{})
+	if err != nil {
+		return fmt.Errorf("failed to query apps: %w", err)
+	}
+	var res []*xApp
+	if err = cursor.All(ctx, &res); err != nil {
 		return
 	}
-	for {
-		if err := loadApps(ctx); err != nil {
-			log.Warnf("failed to load apps: %v", err)
-		}
-		jitter := time.Duration(rand.Int63n(int64(30 * time.Second)))
-		select {
-		case <-ctx.Done():
+	for _, a := range res {
+		if err = a.parse(); err != nil {
 			return
-		case <-time.After(45*time.Second + jitter): // [45s,75s)
 		}
 	}
+	xApps = newAppIndex(res)
+	appWatcher.trigger(res)
+	return
+}
+func loadAdmins(ctx context.Context) (err error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	collection, err := getAdminCollection(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get admin collection: %w", err)
+	}
+	cursor, err := collection.Find(ctx, bson.D{})
+	if err != nil {
+		return fmt.Errorf("failed to query admins: %w", err)
+	}
+	var res []*xAdmin
+	if err = cursor.All(ctx, &res); err != nil {
+		return
+	}
+	for _, a := range res {
+		if err = a.parse(); err != nil {
+			return
+		}
+	}
+	xAdmins = newAdminIndex(res)
+	return
+}
+
+func dbServe(ctx context.Context) {
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			if err := loadApps(ctx); err != nil {
+				log.Warnf("failed to load apps: %v", err)
+			}
+			jitter := time.Duration(rand.Int63n(int64(30 * time.Second)))
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(45*time.Second + jitter): // [45s,75s)
+			}
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			if err := loadAdmins(ctx); err != nil {
+				log.Warnf("failed to load apps: %v", err)
+			}
+			jitter := time.Duration(rand.Int63n(int64(30 * time.Second)))
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(45*time.Second + jitter): // [45s,75s)
+			}
+		}
+	}()
+
+	<-ctx.Done()
 }
 
 // get app collection
@@ -228,5 +201,24 @@ func getAppCollection(ctx context.Context) (*mongo.Collection, error) {
 		return nil, fmt.Errorf("failed to create index: %w", err)
 	}
 	dbAppCollection = collection
+	return collection, nil
+}
+
+func getAdminCollection(ctx context.Context) (*mongo.Collection, error) {
+	if dbAdminCollection != nil {
+		return dbAdminCollection, nil
+	}
+	const collectionName = "admins"
+	collection := mdb.Database(cfg.ConfigDBName).Collection(collectionName)
+	if _, err := collection.Indexes().CreateOne(
+		ctx,
+		mongo.IndexModel{
+			Keys:    bson.D{{Key: "key", Value: 1}},
+			Options: options.Index().SetUnique(true),
+		},
+	); err != nil {
+		return nil, fmt.Errorf("failed to create index: %w", err)
+	}
+	dbAdminCollection = collection
 	return collection, nil
 }
