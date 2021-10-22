@@ -1,4 +1,4 @@
-package registry
+package db
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 	"github.com/ntons/libra/librad/common/util"
 )
 
-type dbUser struct {
+type User struct {
 	Id string `bson:"_id"`
 	// 用户账号列表，其中任意一个匹配都可以认定为该用户
 	// 常见的用例为：
@@ -61,21 +61,21 @@ func getUserCollection(
 	return collection, nil
 }
 
-func getUser(
-	ctx context.Context, appId, userId string) (_ *dbUser, err error) {
+func GetUser(
+	ctx context.Context, appId, userId string) (_ *User, err error) {
 	collection, err := getUserCollection(ctx, appId)
 	if err != nil {
 		return
 	}
-	user := &dbUser{}
+	user := &User{}
 	if err = collection.FindOne(
 		ctx,
 		bson.M{"_id": userId},
 	).Decode(user); err != nil {
 		if err == mongo.ErrNoDocuments {
-			err = errRoleNotFound
+			err = ErrRoleNotFound
 		} else {
-			err = errDatabaseUnavailable
+			err = ErrDatabaseUnavailable
 		}
 		return
 	}
@@ -83,36 +83,36 @@ func getUser(
 }
 
 func getUserByAcctId(
-	ctx context.Context, appId, acctId string) (_ *dbUser, err error) {
+	ctx context.Context, appId, acctId string) (_ *User, err error) {
 	collection, err := getUserCollection(ctx, appId)
 	if err != nil {
 		return
 	}
-	user := &dbUser{}
+	user := &User{}
 	if err = collection.FindOne(
 		ctx,
 		bson.M{"acct_ids": acctId},
 	).Decode(user); err != nil {
 		if err == mongo.ErrNoDocuments {
-			err = errAcctIdNotFound
+			err = ErrAcctIdNotFound
 		} else {
-			err = errDatabaseUnavailable
+			err = ErrDatabaseUnavailable
 		}
 		return
 	}
 	return user, nil
 }
 
-func getUsers(
+func GetUsers(
 	ctx context.Context, appId string, userIds []string) (
-	_ []*dbUser, err error) {
+	_ []*User, err error) {
 	return getUsersWithOption(ctx, appId, userIds, nil)
 }
 
 // 批量拉取时的性能考虑
-func getUsersWithFields(
+func GetUsersWithFields(
 	ctx context.Context, appId string, userIds []string, fields ...string) (
-	_ []*dbUser, err error) {
+	_ []*User, err error) {
 	proj := bson.M{"_id": 1}
 	for _, field := range fields {
 		proj[field] = 1
@@ -123,7 +123,7 @@ func getUsersWithFields(
 
 func getUsersWithOption(
 	ctx context.Context, appId string, userIds []string,
-	opt *options.FindOptions) (_ []*dbUser, err error) {
+	opt *options.FindOptions) (_ []*User, err error) {
 	if len(userIds) == 0 {
 		return
 	}
@@ -143,17 +143,17 @@ func getUsersWithOption(
 	if err != nil {
 		return
 	}
-	var users []*dbUser
+	var users []*User
 	if err = cursor.All(ctx, &users); err != nil {
 		return
 	}
 	return users, nil
 }
 
-func loginUser(
-	ctx context.Context, app *xApp, userIp string,
+func LoginUser(
+	ctx context.Context, app *App, userIp string,
 	acctIds []string, createIfNotFound bool) (
-	_ *dbUser, _ *dbSess, err error) {
+	_ *User, _ *Sess, err error) {
 	if len(acctIds) > dbMaxAcctPerUser {
 		err = newInvalidArgumentError("too many acct ids")
 		return
@@ -163,7 +163,7 @@ func loginUser(
 		return
 	}
 	now := time.Now()
-	user := &dbUser{
+	user := &User{
 		Id:       newUserId(app.Key),
 		CreateAt: now,
 		CreateIp: userIp,
@@ -196,10 +196,10 @@ func loginUser(
 		options.FindOneAndUpdate().SetReturnDocument(options.After),
 	).Decode(user); err != nil {
 		if err == mongo.ErrNoDocuments {
-			err = errUserNotFound
+			err = ErrUserNotFound
 		} else {
 			log.Warnf("failed to access mongo: %v", err)
-			err = errDatabaseUnavailable
+			err = ErrDatabaseUnavailable
 		}
 		return
 	}
@@ -216,7 +216,7 @@ func loginUser(
 			},
 		); err != nil {
 			log.Warnf("failed to access mongo: %v", err)
-			err = errDatabaseUnavailable
+			err = ErrDatabaseUnavailable
 			return
 		}
 	}
@@ -245,17 +245,17 @@ func loginUser(
 	return user, sess, nil
 }
 
-func logoutUser(ctx context.Context, userIds ...string) (err error) {
+func LogoutUser(ctx context.Context, userIds ...string) (err error) {
 	if len(userIds) > 0 {
 		if err = rdbAuth.Del(ctx, userIds...).Err(); err != nil {
 			log.Warnf("failed to revoke token from redis: %v", err)
-			return errDatabaseUnavailable
+			return ErrDatabaseUnavailable
 		}
 	}
 	return
 }
 
-func bindAcctIdToUser(
+func BindAcctIdToUser(
 	ctx context.Context, appId, userId string,
 	acctIds []string, takeOverIfDuplicated bool) (
 	_ []string, err error) {
@@ -268,7 +268,7 @@ func bindAcctIdToUser(
 		return
 	}
 
-	user := &dbUser{}
+	user := &User{}
 
 	findAndBind := func(ctx context.Context) (err error) {
 		if err = collection.FindOneAndUpdate(
@@ -286,12 +286,12 @@ func bindAcctIdToUser(
 			options.FindOneAndUpdate().SetReturnDocument(options.After),
 		).Decode(user); err != nil {
 			if err == mongo.ErrNoDocuments {
-				return errUserNotFound
+				return ErrUserNotFound
 			} else if mongo.IsDuplicateKeyError(err) {
-				return errAcctAlreadyExists
+				return ErrAcctAlreadyExists
 			} else {
 				log.Warnf("failed to access mongo: %v", err)
-				return errDatabaseUnavailable
+				return ErrDatabaseUnavailable
 			}
 		}
 		return
@@ -303,7 +303,7 @@ func bindAcctIdToUser(
 			var sess mongo.Session
 			if sess, err = mdb.StartSession(); err != nil {
 				log.Warnf("failed to start db session: %v", err)
-				return errDatabaseUnavailable
+				return ErrDatabaseUnavailable
 			}
 			defer sess.EndSession(ctx)
 			// Transaction不能在Standalone中执行
@@ -329,7 +329,7 @@ func bindAcctIdToUser(
 						},
 					); err != nil {
 						log.Warnf("failed to access mongo: %v", err)
-						return nil, errDatabaseUnavailable
+						return nil, ErrDatabaseUnavailable
 					}
 					// 绑定到当前用户
 					if err = findAndBind(ctx); err != nil {
@@ -356,19 +356,19 @@ func bindAcctIdToUser(
 	return user.AcctIds, nil
 }
 
-func unbindAcctIdFromUser(
+func UnbindAcctIdFromUser(
 	ctx context.Context, appId, userId string, acctIds []string) (
 	_ []string, err error) {
 	if containAcctIdPlaceholder(acctIds) {
 		// 不允许解绑x$
-		return nil, errInvalidAcctId
+		return nil, ErrInvalidAcctId
 	}
 
 	collection, err := getUserCollection(ctx, appId)
 	if err != nil {
 		return
 	}
-	user := &dbUser{}
+	user := &User{}
 	if err = collection.FindOneAndUpdate(
 		ctx,
 		bson.M{
@@ -382,10 +382,10 @@ func unbindAcctIdFromUser(
 		options.FindOneAndUpdate().SetReturnDocument(options.After),
 	).Decode(user); err != nil {
 		if err == mongo.ErrNoDocuments {
-			return nil, errUserNotFound
+			return nil, ErrUserNotFound
 		} else {
 			log.Warnf("failed to access mongo: %v", err)
-			return nil, errDatabaseUnavailable
+			return nil, ErrDatabaseUnavailable
 		}
 	}
 	return user.AcctIds, nil
@@ -393,7 +393,7 @@ func unbindAcctIdFromUser(
 
 // 成不成功无所谓，尽可能保证即可
 func limitUserAcctCount(
-	ctx context.Context, collection *mongo.Collection, user *dbUser) {
+	ctx context.Context, collection *mongo.Collection, user *User) {
 	if len(user.AcctIds) > dbMaxAcctPerUser {
 		if err := collection.FindOneAndUpdate(
 			ctx,
@@ -416,7 +416,7 @@ func limitUserAcctCount(
 	}
 }
 
-func setUserMetadata(
+func SetUserMetadata(
 	ctx context.Context, appId, userId string,
 	md map[string]string) (err error) {
 	collection, err := getUserCollection(ctx, appId)
@@ -445,15 +445,15 @@ func setUserMetadata(
 			update,
 		); err != nil {
 			log.Warnf("failed to access user: %v", err)
-			return errDatabaseUnavailable
+			return ErrDatabaseUnavailable
 		} else if r.MatchedCount == 0 {
-			return errUserNotFound
+			return ErrUserNotFound
 		}
 	}
 	return
 }
 
-func banUsers(
+func BanUsers(
 	ctx context.Context, appId string, userIds []string,
 	banTo time.Time, banFor string) (err error) {
 	collection, err := getUserCollection(ctx, appId)
@@ -470,7 +470,7 @@ func banUsers(
 	return
 }
 
-func unbanUsers(
+func UnbanUsers(
 	ctx context.Context, appId string, userIds []string) (err error) {
 	collection, err := getUserCollection(ctx, appId)
 	if err != nil {
@@ -496,12 +496,12 @@ func containAcctIdPlaceholder(acctIds []string) bool {
 }
 
 func newSess(
-	ctx context.Context, app *xApp, userId string) (_ *dbSess, err error) {
+	ctx context.Context, app *App, userId string) (_ *Sess, err error) {
 	token, err := newToken(app, userId)
 	if err != nil {
 		return
 	}
-	s := &dbSess{
+	s := &Sess{
 		Token:  token,
 		AppId:  app.Id,
 		UserId: userId,
@@ -513,47 +513,47 @@ func newSess(
 	return s, nil
 }
 
-func checkToken(ctx context.Context, token string) (_ *dbSess, err error) {
+func CheckToken(ctx context.Context, token string) (_ *Sess, err error) {
 	app, userId, err := decToken(token)
 	if err != nil {
 		log.Warnf("failed to decode token: %v", err)
-		return nil, errInvalidToken
+		return nil, ErrInvalidToken
 	}
 	b, err := rdbAuth.Get(ctx, userId).Bytes()
 	if err != nil {
 		if err == redis.Nil {
-			return nil, errInvalidToken
+			return nil, ErrInvalidToken
 		} else {
 			log.Warnf("failed to get token from redis: %v", err)
-			return nil, errDatabaseUnavailable
+			return nil, ErrDatabaseUnavailable
 		}
 	}
-	s := &dbSess{
+	s := &Sess{
 		AppId:  app.Id,
 		UserId: userId,
-		app:    app,
+		App:    app,
 	}
 	if err = msgpack.Unmarshal(b, &s); err != nil {
 		log.Warnf("failed to decode SessData: %v", err)
-		return nil, errMalformedSessData
+		return nil, ErrMalformedSessData
 	}
 	if s.Token != token {
-		return nil, errInvalidToken
+		return nil, ErrInvalidToken
 	}
 	return s, nil
 }
 
-func checkNonce(ctx context.Context, appId, nonce string) (err error) {
+func CheckNonce(ctx context.Context, appId, nonce string) (err error) {
 	if len(nonce) > 32 {
-		return errInvalidNonce
+		return ErrInvalidNonce
 	}
 	key := fmt.Sprintf("%s$%s", appId, nonce)
 	ok, err := rdbNonce.SetNX(ctx, key, "", cfg.Nonce.timeout).Result()
 	if err != nil {
-		return errDatabaseUnavailable
+		return ErrDatabaseUnavailable
 	}
 	if !ok {
-		return errInvalidNonce
+		return ErrInvalidNonce
 	}
 	return
 }

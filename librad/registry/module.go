@@ -34,12 +34,3 @@ func (m *module) Initialize(jb json.RawMessage) (err error) {
 	v1pb.RegisterRoleAdminServer(sm.Default, m.srv.roleAdmin)
 	return
 }
-
-func (m *module) Serve() error {
-	dbServe(m.srv.ctx)
-	return nil
-}
-
-func (m *module) Shutdown() {
-	m.srv.stop()
-}

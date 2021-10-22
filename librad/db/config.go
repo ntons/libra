@@ -1,4 +1,4 @@
-package registry
+package db
 
 import (
 	"regexp"
@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-type xPermission struct {
+type Permission struct {
 	Path   string `json:"path,omitempty" bson:"path,omitempty"`
 	Prefix string `json:"prefix,omitempty" bson:"prefix,omitempty"`
 	Regexp string `json:"regexp,omitempty" bson:"regexp,omitempty"`
@@ -14,7 +14,7 @@ type xPermission struct {
 	re *regexp.Regexp
 }
 
-func (x *xPermission) parse() (err error) {
+func (x *Permission) parse() (err error) {
 	if x.Regexp != "" {
 		if x.re, err = regexp.Compile(x.Regexp); err != nil {
 			return
@@ -22,7 +22,7 @@ func (x *xPermission) parse() (err error) {
 	}
 	return
 }
-func (x *xPermission) isPermitted(path string) bool {
+func (x *Permission) isPermitted(path string) bool {
 	if x.Path != "" && path != x.Path {
 		return false
 	}
@@ -54,7 +54,7 @@ type xConfig struct {
 	// 配置/注册DB
 	Mongo string
 	// 每个App都有的通用权限
-	CommonPermissions []*xPermission
+	CommonPermissions []*Permission
 	// 配置DB名字
 	ConfigDBName string
 	// AppDB前缀

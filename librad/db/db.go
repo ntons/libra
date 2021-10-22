@@ -1,4 +1,4 @@
-package registry
+package db
 
 import (
 	"context"
@@ -58,17 +58,17 @@ return redis.call("SETEX", KEYS[1], %d, cmsgpack.pack(d))`,
 )
 
 // 会话缓存数据
-type dbSessData struct {
+type SessData struct {
 	RoleId    string `msgpack:"roleId"`
 	RoleIndex uint32 `msgpack:"roleIndex"`
 }
-type dbSess struct {
-	AppId  string     `msgpack:"-"`
-	UserId string     `msgpack:"-"`
-	Token  string     `msgpack:"token"`
-	Data   dbSessData `msgpack:"data"`
+type Sess struct {
+	AppId  string   `msgpack:"-"`
+	UserId string   `msgpack:"-"`
+	Token  string   `msgpack:"token"`
+	Data   SessData `msgpack:"data"`
 	//// 中转数据
-	app *xApp `msgpack:"-"`
+	App *App `msgpack:"-"`
 }
 
 func dialMongo(ctx context.Context) (_ *mongo.Client, err error) {
@@ -94,54 +94,6 @@ func dialDatabase(ctx context.Context) (err error) {
 	if mdb, err = dialMongo(ctx); err != nil {
 		return
 	}
-	return
-}
-
-func loadApps(ctx context.Context) (err error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	collection, err := getAppCollection(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get app collection: %w", err)
-	}
-	cursor, err := collection.Find(ctx, bson.D{})
-	if err != nil {
-		return fmt.Errorf("failed to query apps: %w", err)
-	}
-	var res []*xApp
-	if err = cursor.All(ctx, &res); err != nil {
-		return
-	}
-	for _, a := range res {
-		if err = a.parse(); err != nil {
-			return
-		}
-	}
-	xApps = newAppIndex(res)
-	appWatcher.trigger(res)
-	return
-}
-func loadAdmins(ctx context.Context) (err error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	collection, err := getAdminCollection(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get admin collection: %w", err)
-	}
-	cursor, err := collection.Find(ctx, bson.D{})
-	if err != nil {
-		return fmt.Errorf("failed to query admins: %w", err)
-	}
-	var res []*xAdmin
-	if err = cursor.All(ctx, &res); err != nil {
-		return
-	}
-	for _, a := range res {
-		if err = a.parse(); err != nil {
-			return
-		}
-	}
-	xAdmins = newAdminIndex(res)
 	return
 }
 

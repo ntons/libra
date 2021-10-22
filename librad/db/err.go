@@ -1,4 +1,4 @@
-package registry
+package db
 
 import (
 	"encoding/json"
@@ -62,20 +62,25 @@ func newErrorDetail(code v1pb.ErrorCode, data proto.Message) *v1pb.ErrorDetail {
 
 var (
 	// Unauthenticated
-	errUnauthenticated             = newUnauthenticatedError("unauthenticated")
-	errLoginRequired               = newUnauthenticatedError("login required")
-	errInvalidAppSecret            = newUnauthenticatedError("invalid app secret")
-	errInvalidAdminSecret          = newUnauthenticatedError("invalid admin secret")
-	errMismatchedAppSecretAndToken = newUnauthenticatedError("mismatched app secret and token")
+	ErrInvalidToken = newUnauthenticatedError("invalid token")
+
+	// NotFound
+	ErrUserNotFound = newNotFoundError("user not found")
+	ErrRoleNotFound = newNotFoundError("role not found")
+
+	ErrAcctIdNotFound = newNotFoundError("acct id not found")
+
+	// AlreadyExists
+	ErrAcctAlreadyExists = newAlreadyExistsError("acct already exists")
 
 	// InvalidArgument
-	errInvalidTimestamp = newInvalidArgumentError("invalid timestamp")
-	errInvalidState     = newInvalidArgumentError("invalid state")
-	errInvalidSignature = newInvalidArgumentError("invalid signature")
-	errInvalidMetadata  = newInvalidArgumentError("invalid metadata")
+	ErrInvalidNonce  = newInvalidArgumentError("invalid nonce")
+	ErrInvalidAppId  = newInvalidArgumentError("invalid app id")
+	ErrInvalidAcctId = newInvalidArgumentError("invalid acct id")
 
-	errMetadataTooLarge = newInvalidArgumentError("metadata too large")
+	// Internal
+	ErrMalformedSessData = newInternalError("malformed session data")
 
-	////// PermissionDenied
-	errPermissionDenied = newPermissionDeniedError("permission denied")
+	// Unavailable
+	ErrDatabaseUnavailable = newUnavailableError("database unavailable")
 )

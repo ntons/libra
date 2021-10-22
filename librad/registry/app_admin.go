@@ -3,6 +3,8 @@ package registry
 import (
 	"context"
 
+	"github.com/ntons/libra/librad/db"
+
 	admv1pb "github.com/ntons/libra-go/api/libra/admin/v1"
 )
 
@@ -18,7 +20,7 @@ func (srv *appAdminServer) List(
 	context.Context, *admv1pb.AppAdminListRequest) (
 	*admv1pb.AppAdminListResponse, error) {
 	resp := &admv1pb.AppAdminListResponse{}
-	for _, a := range listApps() {
+	for _, a := range db.ListApps() {
 		resp.Apps = append(resp.Apps, &admv1pb.AppData{Id: a.Id})
 	}
 	return resp, nil
@@ -27,13 +29,13 @@ func (srv *appAdminServer) List(
 func (srv *appAdminServer) Watch(
 	req *admv1pb.AppAdminListRequest,
 	stream admv1pb.AppAdmin_WatchServer) (err error) {
-	watcher := make(chan []*xApp, 10)
-	defer appWatcher.watch(watcher)()
+	watcher := make(chan []*db.App, 10)
+	defer db.WatchApps(watcher)()
 
 	{
 		// send the first reply
 		resp := &admv1pb.AppAdminListResponse{}
-		for _, a := range listApps() {
+		for _, a := range db.ListApps() {
 			resp.Apps = append(resp.Apps, &admv1pb.AppData{Id: a.Id})
 			stream.Send(resp)
 		}

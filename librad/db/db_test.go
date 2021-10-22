@@ -1,4 +1,4 @@
-package registry
+package db
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var testApp = &xApp{
+var testApp = &App{
 	Id:  "testapp",
 	Key: 1024,
 }

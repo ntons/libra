@@ -15,6 +15,8 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	"github.com/ntons/libra/librad/db"
 )
 
 // 只支持V3版本的验证服务，V2版本缺少Header剔除功能，无法满足安全需求。
@@ -89,9 +91,9 @@ func (srv authServer) checkAdminSecret(
 		return srv.errToResponse(errUnauthenticated)
 	}
 
-	if adm := findAdminById(admId); adm == nil || adm.Secret != admSecret {
+	if adm := db.FindAdminById(admId); adm == nil || adm.Secret != admSecret {
 		return srv.errToResponse(errInvalidAdminSecret)
-	} else if !adm.isPermitted(req.Attributes.Request.Http.Path) {
+	} else if !adm.IsPermitted(req.Attributes.Request.Http.Path) {
 		return srv.errToResponse(errPermissionDenied)
 	}
 
@@ -131,10 +133,10 @@ func (srv authServer) checkToken(
 		return srv.errToResponse(errUnauthenticated)
 	}
 
-	var sess *dbSess
-	if sess, err = checkToken(ctx, token); err != nil {
+	var sess *db.Sess
+	if sess, err = db.CheckToken(ctx, token); err != nil {
 		return srv.errToResponse(err)
-	} else if !sess.app.isPermitted(req.Attributes.Request.Http.Path) {
+	} else if !sess.App.IsPermitted(req.Attributes.Request.Http.Path) {
 		return srv.errToResponse(errPermissionDenied)
 	}
 
@@ -193,9 +195,9 @@ func (srv authServer) checkAppSecret(
 		return srv.errToResponse(errUnauthenticated)
 	}
 
-	if app := findAppById(appId); app == nil || app.Secret != appSecret {
+	if app := db.FindAppById(appId); app == nil || app.Secret != appSecret {
 		return srv.errToResponse(errInvalidAppSecret)
-	} else if !app.isPermitted(req.Attributes.Request.Http.Path) {
+	} else if !app.IsPermitted(req.Attributes.Request.Http.Path) {
 		return srv.errToResponse(errPermissionDenied)
 	}
 

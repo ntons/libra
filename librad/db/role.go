@@ -1,4 +1,4 @@
-package registry
+package db
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"github.com/ntons/libra/librad/common/redis"
 )
 
-type dbRole struct {
+type Role struct {
 	Id string `bson:"_id"`
 	// 角色序号，主要有一下几个用途
 	// 1. 创建用户发生重试时保证只有唯一一个角色被成功创建
@@ -54,31 +54,31 @@ func getRoleCollection(
 	return collection, nil
 }
 
-func getRole(
-	ctx context.Context, appId, userId, roleId string) (_ *dbRole, err error) {
+func GetRole(
+	ctx context.Context, appId, userId, roleId string) (_ *Role, err error) {
 	collection, err := getRoleCollection(ctx, appId)
 	if err != nil {
 		return
 	}
-	role := &dbRole{}
+	role := &Role{}
 	if err = collection.FindOne(
 		ctx,
 		// role必须属于user才算找到
 		bson.M{"_id": roleId, "user_id": userId},
 	).Decode(role); err != nil {
 		if err == mongo.ErrNoDocuments {
-			err = errRoleNotFound
+			err = ErrRoleNotFound
 		} else {
-			err = errDatabaseUnavailable
+			err = ErrDatabaseUnavailable
 		}
 		return
 	}
 	return role, nil
 }
 
-func getRoles(
+func GetRoles(
 	ctx context.Context, appId string, roleIds []string) (
-	_ []*dbRole, err error) {
+	_ []*Role, err error) {
 	if len(roleIds) == 0 {
 		return
 	}
@@ -93,16 +93,16 @@ func getRoles(
 	if err != nil {
 		return
 	}
-	var roles []*dbRole
+	var roles []*Role
 	if err = cursor.All(ctx, &roles); err != nil {
 		return
 	}
 	return roles, nil
 }
 
-func getRolesByUserId(
+func GetRolesByUserId(
 	ctx context.Context, appId string, userIds []string) (
-	_ []*dbRole, err error) {
+	_ []*Role, err error) {
 	if len(userIds) == 0 {
 		return
 	}
@@ -117,15 +117,15 @@ func getRolesByUserId(
 	if err != nil {
 		return
 	}
-	var roles []*dbRole
+	var roles []*Role
 	if err = cursor.All(ctx, &roles); err != nil {
 		return
 	}
 	return roles, nil
 }
 
-func listRoles(
-	ctx context.Context, appId, userId string) (_ []*dbRole, err error) {
+func ListRoles(
+	ctx context.Context, appId, userId string) (_ []*Role, err error) {
 	collection, err := getRoleCollection(ctx, appId)
 	if err != nil {
 		return
@@ -134,25 +134,25 @@ func listRoles(
 	if err != nil {
 		return
 	}
-	var roles []*dbRole
+	var roles []*Role
 	if err = cur.All(ctx, &roles); err != nil {
 		return
 	}
 	return roles, nil
 }
 
-func createRole(
+func CreateRole(
 	ctx context.Context, appId, userId string, index uint32) (
-	_ *dbRole, err error) {
-	app := findAppById(appId)
+	_ *Role, err error) {
+	app := FindAppById(appId)
 	if app == nil {
-		return nil, errInvalidAppId
+		return nil, ErrInvalidAppId
 	}
 	collection, err := getRoleCollection(ctx, appId)
 	if err != nil {
 		return
 	}
-	role := &dbRole{
+	role := &Role{
 		Id:       newRoleId(app.Key),
 		UserId:   userId,
 		Index:    index,
@@ -164,13 +164,13 @@ func createRole(
 	return role, nil
 }
 
-func signInRole(
+func SignInRole(
 	ctx context.Context, appId, userId, roleId string) (err error) {
 	collection, err := getRoleCollection(ctx, appId)
 	if err != nil {
 		return
 	}
-	var role dbRole
+	var role Role
 	if err = collection.FindOneAndUpdate(
 		ctx,
 		bson.M{"_id": roleId, "user_id": userId},
@@ -178,30 +178,30 @@ func signInRole(
 		options.FindOneAndUpdate().SetReturnDocument(options.After),
 	).Decode(&role); err != nil {
 		if err == mongo.ErrNoDocuments {
-			err = errRoleNotFound
+			err = ErrRoleNotFound
 		} else {
-			err = errDatabaseUnavailable
+			err = ErrDatabaseUnavailable
 		}
 		return
 	}
 	// update sess data
-	b, _ := msgpack.Marshal(&dbSessData{
+	b, _ := msgpack.Marshal(&SessData{
 		RoleId:    roleId,
 		RoleIndex: role.Index,
 	})
 	if err = luaUpdateSessData.Run(
 		ctx, rdbAuth, []string{userId}, b).Err(); err != nil {
 		if err == redis.Nil {
-			return errInvalidToken
+			return ErrInvalidToken
 		} else {
 			log.Warnf("failed to update session: %v", err)
-			return errDatabaseUnavailable
+			return ErrDatabaseUnavailable
 		}
 	}
 	return
 }
 
-func setRoleMetadata(
+func SetRoleMetadata(
 	ctx context.Context, appId, userId, roleId string,
 	md map[string]string) (err error) {
 	collection, err := getRoleCollection(ctx, appId)
@@ -230,9 +230,9 @@ func setRoleMetadata(
 			update,
 		); err != nil {
 			log.Warnf("failed to access user: %v", err)
-			return errDatabaseUnavailable
+			return ErrDatabaseUnavailable
 		} else if r.MatchedCount == 0 {
-			return errUserNotFound
+			return ErrUserNotFound
 		}
 	}
 	return

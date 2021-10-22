@@ -6,9 +6,11 @@ import (
 	L "github.com/ntons/libra-go"
 	v1pb "github.com/ntons/libra-go/api/libra/v1"
 	log "github.com/ntons/log-go"
+
+	"github.com/ntons/libra/librad/db"
 )
 
-func fromDbRole(x *dbRole) *v1pb.RoleData {
+func fromDbRole(x *db.Role) *v1pb.RoleData {
 	return &v1pb.RoleData{
 		Id:       x.Id,
 		Index:    x.Index,
@@ -16,7 +18,7 @@ func fromDbRole(x *dbRole) *v1pb.RoleData {
 		Metadata: x.Metadata,
 	}
 }
-func fromDbRoles(a []*dbRole) []*v1pb.RoleData {
+func fromDbRoles(a []*db.Role) []*v1pb.RoleData {
 	r := make([]*v1pb.RoleData, 0, len(a))
 	for _, x := range a {
 		r = append(r, fromDbRole(x))
@@ -39,7 +41,7 @@ func (srv *roleServer) List(
 	if trusted == nil {
 		return nil, errLoginRequired
 	}
-	roles, err := listRoles(ctx, trusted.AppId, trusted.UserId)
+	roles, err := db.ListRoles(ctx, trusted.AppId, trusted.UserId)
 	if err != nil {
 		log.Warnf("failed to list roles: %v", err)
 		return
@@ -53,7 +55,7 @@ func (srv *roleServer) Create(
 	if trusted == nil {
 		return nil, errLoginRequired
 	}
-	role, err := createRole(ctx, trusted.AppId, trusted.UserId, req.Index)
+	role, err := db.CreateRole(ctx, trusted.AppId, trusted.UserId, req.Index)
 	if err != nil {
 		return
 	}
@@ -66,7 +68,7 @@ func (srv *roleServer) SignIn(
 	if trusted == nil {
 		return nil, errLoginRequired
 	}
-	if err = signInRole(ctx, trusted.AppId, trusted.UserId, req.RoleId); err != nil {
+	if err = db.SignInRole(ctx, trusted.AppId, trusted.UserId, req.RoleId); err != nil {
 		return
 	}
 	return &v1pb.RoleSignInResponse{}, nil
@@ -83,7 +85,7 @@ func (srv *roleServer) SetMetadata(
 			return nil, errMetadataTooLarge
 		}
 	}
-	if err = setRoleMetadata(
+	if err = db.SetRoleMetadata(
 		ctx, trusted.AppId, trusted.UserId, req.RoleId, req.Metadata); err != nil {
 		return
 	}
@@ -98,7 +100,7 @@ func (srv *roleServer) GetMetadata(
 		return nil, errLoginRequired
 	}
 
-	role, err := getRole(ctx, trusted.AppId, trusted.UserId, req.RoleId)
+	role, err := db.GetRole(ctx, trusted.AppId, trusted.UserId, req.RoleId)
 	if err != nil {
 		return
 	}

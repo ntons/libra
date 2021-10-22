@@ -6,6 +6,8 @@ import (
 	L "github.com/ntons/libra-go"
 	v1pb "github.com/ntons/libra-go/api/libra/v1"
 	log "github.com/ntons/log-go"
+
+	"github.com/ntons/libra/librad/db"
 )
 
 type roleAdminServer struct {
@@ -23,10 +25,10 @@ func (srv *roleAdminServer) Get(
 	if trusted == nil {
 		return nil, errUnauthenticated
 	}
-	roles, err := getRoles(ctx, trusted.AppId, req.Ids)
+	roles, err := db.GetRoles(ctx, trusted.AppId, req.Ids)
 	if err != nil {
 		log.Warnf("failed to get roles: %v", err)
-		return nil, errDatabaseUnavailable
+		return nil, db.ErrDatabaseUnavailable
 	}
 	return &v1pb.RoleAdminGetResponse{
 		Roles: fromDbRoles(roles),

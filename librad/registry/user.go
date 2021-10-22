@@ -14,9 +14,11 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
+
+	"github.com/ntons/libra/librad/db"
 )
 
-func fromDbUser(x *dbUser) *v1pb.UserData {
+func fromDbUser(x *db.User) *v1pb.UserData {
 	r := &v1pb.UserData{
 		Id:       x.Id,
 		AcctIds:  x.AcctIds,
@@ -31,7 +33,7 @@ func fromDbUser(x *dbUser) *v1pb.UserData {
 	}
 	return r
 }
-func fromDbUsers(x []*dbUser) []*v1pb.UserData {
+func fromDbUsers(x []*db.User) []*v1pb.UserData {
 	r := make([]*v1pb.UserData, 0, len(x))
 	for _, e := range x {
 		r = append(r, fromDbUser(e))
@@ -55,10 +57,10 @@ type xGenericLoginState struct {
 
 func (srv *userServer) CheckLoginState(
 	ctx context.Context, appId string, anyState *anypb.Any) (
-	app *xApp, state *xGenericLoginState, err error) {
-	if app = findAppById(appId); app == nil {
+	app *db.App, state *xGenericLoginState, err error) {
+	if app = db.FindAppById(appId); app == nil {
 		log.Warnf("invalid app id: %v", appId)
-		return nil, nil, errInvalidAppId
+		return nil, nil, db.ErrInvalidAppId
 	}
 
 	x, err := anypb.UnmarshalNew(anyState, proto.UnmarshalOptions{})
@@ -78,12 +80,12 @@ func (srv *userServer) CheckLoginState(
 }
 
 func (srv *userServer) CheckUniformLoginState(
-	ctx context.Context, app *xApp, state *v1pb.UniformLoginState) (
+	ctx context.Context, app *db.App, state *v1pb.UniformLoginState) (
 	_ *xGenericLoginState, err error) {
 	if state == nil {
 		return nil, errInvalidState
 	}
-	if err = checkNonce(ctx, app.Id, state.Nonce); err != nil {
+	if err = db.CheckNonce(ctx, app.Id, state.Nonce); err != nil {
 		return
 	}
 	// ts-30 签名有效期只有30秒钟
@@ -115,7 +117,7 @@ func (srv *userServer) Login(
 		return
 	}
 
-	user, sess, err := loginUser(
+	user, sess, err := db.LoginUser(
 		ctx, app,
 		httputil.GetRemoteIpFromContext(ctx),
 		state.AcctIds,
@@ -146,7 +148,7 @@ func (srv *userServer) Bind(
 	}
 
 	resp := &v1pb.UserBindResponse{}
-	if resp.AcctIds, err = bindAcctIdToUser(
+	if resp.AcctIds, err = db.BindAcctIdToUser(
 		ctx, trusted.AppId, trusted.UserId,
 		state.AcctIds,
 		state.Properties.GetTakeOverAcctIdIfDuplicated()); err != nil {
@@ -168,7 +170,7 @@ func (srv *userServer) Unbind(
 	}
 
 	resp := &v1pb.UserUnbindResponse{}
-	if resp.AcctIds, err = unbindAcctIdFromUser(
+	if resp.AcctIds, err = db.UnbindAcctIdFromUser(
 		ctx, trusted.AppId, trusted.UserId, req.AcctIds); err != nil {
 		log.Warnf("failed to unbind acct from user: %v", err)
 		return
@@ -192,7 +194,7 @@ func (srv *userServer) SetMetadata(
 			return nil, errMetadataTooLarge
 		}
 	}
-	if err = setUserMetadata(
+	if err = db.SetUserMetadata(
 		ctx, trusted.AppId, trusted.UserId, req.Metadata); err != nil {
 		log.Warnf("failed to set user metadata: %v", err)
 		return
@@ -208,7 +210,7 @@ func (srv *userServer) GetMetadata(
 		return nil, errLoginRequired
 	}
 
-	user, err := getUser(ctx, trusted.AppId, trusted.UserId)
+	user, err := db.GetUser(ctx, trusted.AppId, trusted.UserId)
 	if err != nil {
 		return
 	}

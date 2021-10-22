@@ -1,4 +1,4 @@
-package registry
+package db
 
 import (
 	"bytes"
@@ -33,8 +33,8 @@ const (
 )
 
 const (
-	userIdTag uint8 = 0x1
-	roleIdTag uint8 = 0x2
+	UserIdTag uint8 = 0x1
+	RoleIdTag uint8 = 0x2
 )
 
 // generate id
@@ -48,7 +48,7 @@ func newId(appKey uint32, tag uint8) string {
 	b[rawIdLen-1] = b[rawIdLen-1]&0xF0 | tag
 	return base32.StdEncoding.EncodeToString(b)
 }
-func decId(id string) (appKey uint32, tag uint8, err error) {
+func DecId(id string) (appKey uint32, tag uint8, err error) {
 	b, err := base32.StdEncoding.DecodeString(id)
 	if err != nil {
 		return 0, 0, fmt.Errorf("invalid id")
@@ -57,15 +57,15 @@ func decId(id string) (appKey uint32, tag uint8, err error) {
 	tag = 0x0F & b[rawIdLen-1]
 	return
 }
-func idBelongToAppId(appId string, ids ...string) bool {
-	return idBelongToApp(findAppById(appId), ids...)
+func IdBelongToAppId(appId string, ids ...string) bool {
+	return idBelongToApp(FindAppById(appId), ids...)
 }
-func idBelongToApp(app *xApp, ids ...string) bool {
+func idBelongToApp(app *App, ids ...string) bool {
 	for _, id := range ids {
 		if app == nil {
 			return false
 		}
-		appKey, _, err := decId(id)
+		appKey, _, err := DecId(id)
 		if err != nil {
 			return false
 		}
@@ -76,10 +76,10 @@ func idBelongToApp(app *xApp, ids ...string) bool {
 	return true
 }
 
-func newUserId(appKey uint32) string { return newId(appKey, userIdTag) }
-func newRoleId(appKey uint32) string { return newId(appKey, roleIdTag) }
+func newUserId(appKey uint32) string { return newId(appKey, UserIdTag) }
+func newRoleId(appKey uint32) string { return newId(appKey, RoleIdTag) }
 
-func newToken(app *xApp, id string) (string, error) {
+func newToken(app *App, id string) (string, error) {
 	raw, err := newTokenV1(app, id)
 	if err != nil {
 		return "", err
@@ -87,7 +87,7 @@ func newToken(app *xApp, id string) (string, error) {
 	return base64.StdEncoding.EncodeToString(raw), nil
 }
 
-func decToken(t string) (app *xApp, id string, err error) {
+func decToken(t string) (app *App, id string, err error) {
 	raw, err := base64.StdEncoding.DecodeString(t)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to decode cred: %w", err)
@@ -103,7 +103,7 @@ func decToken(t string) (app *xApp, id string, err error) {
 // TokenV1{24}: 0x1+ivSeed{3}+appKey{4}+aes(rawId[4:]{6}+rand{8}+crc16)
 var t16 = crc16.MakeTable(crc16.CRC16_XMODEM)
 
-func newTokenV1(app *xApp, id string) (rawToken []byte, err error) {
+func newTokenV1(app *App, id string) (rawToken []byte, err error) {
 	rawId, err := base32.StdEncoding.DecodeString(id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode id: %w", err)
@@ -125,7 +125,7 @@ func newTokenV1(app *xApp, id string) (rawToken []byte, err error) {
 	return rawToken, nil
 }
 
-func decTokenV1(rawToken []byte) (app *xApp, id string, err error) {
+func decTokenV1(rawToken []byte) (app *App, id string, err error) {
 	if len(rawToken) != 24 {
 		err = fmt.Errorf("bad rawToken cred length: %d", len(rawToken))
 		return
