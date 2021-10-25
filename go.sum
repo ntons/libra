@@ -220,8 +220,8 @@ github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5 h1:GzuYjk5Pdcu8lq
 github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5/go.mod h1:bm1yZHOCwbn7yU5DYUFY9NnKv7hgUtV6mZjjithfA3k=
 github.com/nxadm/tail v1.4.4 h1:DQuhQpB1tVlglWS2hLQ5OV6B5r8aGxSrPc5Qo6uTN78=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
-github.com/onemoreteam/httpframework v0.0.0-20211022071354-b064d5c4d354 h1:nZqckKZ3DSersP6TehzYfpC6h4EXlv6auFmJepMmKO4=
-github.com/onemoreteam/httpframework v0.0.0-20211022071354-b064d5c4d354/go.mod h1:MCiI6nvBKxpE1+plNYTwvfdfrMqq4qyUqqKHKlNzbwo=
+github.com/onemoreteam/httpframework v0.0.0-20211022103909-931b9c165701 h1:2K4ET6F/rcVcTaHxqbKxccbi/l7vuhFu5tt1Pig3HI8=
+github.com/onemoreteam/httpframework v0.0.0-20211022103909-931b9c165701/go.mod h1:MCiI6nvBKxpE1+plNYTwvfdfrMqq4qyUqqKHKlNzbwo=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.10.1/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.12.1/go.mod h1:zj2OWP4+oCPe1qIXoGWkgMRwljMUYCdkwsT2108oapk=
