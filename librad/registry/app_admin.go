@@ -37,7 +37,9 @@ func (srv *appAdminServer) Watch(
 		resp := &admv1pb.AppAdminListResponse{}
 		for _, a := range db.ListApps() {
 			resp.Apps = append(resp.Apps, &admv1pb.AppData{Id: a.Id})
-			stream.Send(resp)
+			if err = stream.Send(resp); err != nil {
+				return
+			}
 		}
 	}
 
@@ -50,7 +52,9 @@ func (srv *appAdminServer) Watch(
 			resp := &admv1pb.AppAdminListResponse{}
 			for _, a := range as {
 				resp.Apps = append(resp.Apps, &admv1pb.AppData{Id: a.Id})
-				stream.Send(resp)
+				if err = stream.Send(resp); err != nil {
+					return
+				}
 			}
 		}
 	}

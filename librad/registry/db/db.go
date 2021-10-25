@@ -162,15 +162,6 @@ func getAdminCollection(ctx context.Context) (*mongo.Collection, error) {
 	}
 	const collectionName = "admins"
 	collection := mdb.Database(cfg.ConfigDBName).Collection(collectionName)
-	if _, err := collection.Indexes().CreateOne(
-		ctx,
-		mongo.IndexModel{
-			Keys:    bson.D{{Key: "key", Value: 1}},
-			Options: options.Index().SetUnique(true),
-		},
-	); err != nil {
-		return nil, fmt.Errorf("failed to create index: %w", err)
-	}
 	dbAdminCollection = collection
 	return collection, nil
 }
