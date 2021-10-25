@@ -50,9 +50,9 @@ func newUserServer() *userServer {
 }
 
 type xGenericLoginState struct {
-	AcctIds    []string
-	Properties *v1pb.LoginStateProperties
-	Features   []*v1pb.SessionFeature
+	AcctIds     []string
+	AcctDetails map[string]string
+	Properties  *v1pb.LoginStateProperties
 }
 
 func (srv *userServer) CheckLoginState(
@@ -103,9 +103,9 @@ func (srv *userServer) CheckUniformLoginState(
 		return nil, errInvalidSignature
 	}
 	return &xGenericLoginState{
-		AcctIds:    state.AcctIds,
-		Properties: state.Properties,
-		Features:   state.Features,
+		AcctIds:     state.AcctIds,
+		AcctDetails: state.AcctDetails,
+		Properties:  state.Properties,
 	}, nil
 }
 
@@ -128,6 +128,21 @@ func (srv *userServer) Login(
 	}
 
 	log.Infow("user login", "user_id", user.Id, "acct_ids", state.AcctIds)
+
+	for id, detail := range state.AcctDetails {
+		if detail == "" {
+			continue
+		}
+		if err := db.UpdateAcctDetail(ctx, req.AppId, id, detail); err != nil {
+			log.Warnw(
+				"failed to update acct detail",
+				"app_id", req.AppId,
+				"acct_id", id,
+				"detail", detail,
+				"error", err,
+			)
+		}
+	}
 
 	//grpc.SetHeader(ctx, metadata.Pairs(L.XLibraToken, sess.Token))
 	grpc.SetTrailer(ctx, metadata.Pairs(L.XLibraToken, sess.Token))

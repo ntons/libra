@@ -38,6 +38,7 @@ var (
 	// cached collection
 	dbAppCollection   *mongo.Collection
 	dbAdminCollection *mongo.Collection
+	dbAcctCollection  = make(map[string]*mongo.Collection)
 	dbUserCollection  = make(map[string]*mongo.Collection)
 	dbRoleCollection  = make(map[string]*mongo.Collection)
 
