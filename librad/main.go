@@ -21,9 +21,9 @@ import (
 	// load modules
 	_ "github.com/ntons/libra/librad/auth"
 	_ "github.com/ntons/libra/librad/database"
+	_ "github.com/ntons/libra/librad/db"
 	_ "github.com/ntons/libra/librad/ranking"
 	_ "github.com/ntons/libra/librad/registry"
-	_ "github.com/ntons/libra/librad/registry/db"
 	_ "github.com/ntons/libra/librad/syncer"
 	_ "github.com/onemoreteam/httpframework/modularity/log"
 	_ "github.com/onemoreteam/httpframework/modularity/server"

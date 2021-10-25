@@ -25,7 +25,7 @@ func newModule() *module {
 	return m
 }
 
-func (module) Name() string { return "registry_db" }
+func (module) Name() string { return "db" }
 
 func (m *module) Initialize(jb json.RawMessage) (err error) {
 	if err = json.Unmarshal(jb, &cfg); err != nil {

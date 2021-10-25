@@ -7,7 +7,7 @@ import (
 	v1pb "github.com/ntons/libra-go/api/libra/v1"
 	log "github.com/ntons/log-go"
 
-	"github.com/ntons/libra/librad/registry/db"
+	"github.com/ntons/libra/librad/db"
 )
 
 func fromDbRole(x *db.Role) *v1pb.RoleData {
