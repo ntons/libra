@@ -1,47 +1,53 @@
 # librad configuration
 # enable/disable service(s) by command line options
 
+# 日志配置
 log:
   level: {{ 'INFO'|env:'LIBRA_LOG_LEVEL' }}
 
+# 服务器配置
 server:
   listen: {{ ':80'|env:'LIBRAD_BIND' }}
 
+# 注册表服务
 registry:
   auth:
     redis:
-      - {{ ''|env:'LIBRAD_REGISTRY_AUTH_REDIS' }}
+    - {{ ''|env:'LIBRAD_REGISTRY_AUTH_REDIS' }}
   nonce:
     redis:
-      - {{ ''|env:'LIBRAD_REGISTRY_NONCE_REDIS' }}
+    - {{ ''|env:'LIBRAD_REGISTRY_NONCE_REDIS' }}
   mongo: {{ ''|env:'LIBRAD_REGISTRY_MONGO' }}
 
+# 数据库服务
 database:
   database: &database
     redis:
-      - {{ ''|env:'LIBRAD_DATABASE_REDIS' }}
+    - {{ ''|env:'LIBRAD_DATABASE_REDIS' }}
     mongo: {{ ''|env:'LIBRAD_DATABASE_MONGO' }}
   mailbox: &mailbox
     redis:
-      - {{ ''|env:'LIBRAD_MAILBOX_REDIS' }}
+    - {{ ''|env:'LIBRAD_MAILBOX_REDIS' }}
     mongo: {{ ''|env:'LIBRAD_MAILBOX_MONGO' }}
   distlock:
     redis:
-      - {{ ''|env:'LIBRAD_DISTLOCK_REDIS' }}
+    - {{ ''|env:'LIBRAD_DISTLOCK_REDIS' }}
     ttl: {{ '10s'|env:'LIBRAD_DISTLOCK_TTL' }}
 
+# 排行榜服务
+ranking:
+  bubblechart:
+    redis:
+    - {{ ''|env:'LIBRAD_BUBBLECHART_REDIS' }}
+  leaderboard:
+    redis:
+    - {{ ''|env:'LIBRAD_LEADERBOARD_REDIS' }}
+
+# 数据回写服务
 syncer:
   tasks:
   - name: db
     <<: *database
   - name: mb
     <<: *mailbox
-
-ranking:
-  bubblechart:
-    redis:
-      - {{ ''|env:'LIBRAD_BUBBLECHART_REDIS' }}
-  leaderboard:
-    redis:
-      - {{ ''|env:'LIBRAD_LEADERBOARD_REDIS' }}
 

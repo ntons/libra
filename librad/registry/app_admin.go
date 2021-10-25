@@ -3,7 +3,7 @@ package registry
 import (
 	"context"
 
-	"github.com/ntons/libra/librad/db"
+	"github.com/ntons/libra/librad/registry/db"
 
 	admv1pb "github.com/ntons/libra-go/api/libra/admin/v1"
 )

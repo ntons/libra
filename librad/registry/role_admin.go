@@ -5,9 +5,8 @@ import (
 
 	L "github.com/ntons/libra-go"
 	v1pb "github.com/ntons/libra-go/api/libra/v1"
+	"github.com/ntons/libra/librad/registry/db"
 	log "github.com/ntons/log-go"
-
-	"github.com/ntons/libra/librad/db"
 )
 
 type roleAdminServer struct {

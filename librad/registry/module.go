@@ -8,7 +8,6 @@ import (
 
 	admv1pb "github.com/ntons/libra-go/api/libra/admin/v1"
 	v1pb "github.com/ntons/libra-go/api/libra/v1"
-	authpb "github.com/ntons/libra/librad/registry/envoy_service_auth_v3"
 )
 
 func init() {
@@ -17,20 +16,22 @@ func init() {
 
 type module struct {
 	modularity.Skeleton
-	srv *server
 }
 
-func (module) Name() string { return "database" }
+func (module) Name() string { return "registry" }
 
 func (m *module) Initialize(jb json.RawMessage) (err error) {
-	if m.srv, err = createServer(jb); err != nil {
-		return
-	}
-	admv1pb.RegisterAppAdminServer(sm.Default, m.srv.appAdmin)
-	v1pb.RegisterUserServer(sm.Default, m.srv.user)
-	v1pb.RegisterRoleServer(sm.Default, m.srv.role)
-	authpb.RegisterAuthorizationServer(sm.Default, m.srv.auth)
-	v1pb.RegisterUserAdminServer(sm.Default, m.srv.userAdmin)
-	v1pb.RegisterRoleAdminServer(sm.Default, m.srv.roleAdmin)
+	var (
+		appAdmin  = newAppServer()
+		user      = newUserServer()
+		role      = newRoleServer()
+		userAdmin = newUserAdminServer()
+		roleAdmin = newRoleAdminServer()
+	)
+	admv1pb.RegisterAppAdminServer(sm.Default, appAdmin)
+	v1pb.RegisterUserServer(sm.Default, user)
+	v1pb.RegisterRoleServer(sm.Default, role)
+	v1pb.RegisterUserAdminServer(sm.Default, userAdmin)
+	v1pb.RegisterRoleAdminServer(sm.Default, roleAdmin)
 	return
 }

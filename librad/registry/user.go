@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	"github.com/ntons/libra/librad/db"
+	"github.com/ntons/libra/librad/registry/db"
 )
 
 func fromDbUser(x *db.User) *v1pb.UserData {
