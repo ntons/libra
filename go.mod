@@ -37,4 +37,4 @@ require (
 //replace github.com/ntons/remon => ../remon
 //replace github.com/ntons/distlock => ../distlock
 //replace github.com/ntons/ranking => ../ranking
-replace github.com/onemoreteam/httpframework => ../../onemoreteam/httpframework
+//replace github.com/onemoreteam/httpframework => ../../onemoreteam/httpframework
