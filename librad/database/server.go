@@ -11,12 +11,12 @@ import (
 	L "github.com/ntons/libra-go"
 	"github.com/ntons/log-go"
 	"github.com/ntons/remon"
+	"github.com/ntons/tongo/redis"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/protobuf/types/known/anypb"
 
 	v1pb "github.com/ntons/libra-go/api/libra/v1"
-	"github.com/ntons/libra/librad/common/redis"
 	"github.com/ntons/libra/librad/common/util"
 )
 
@@ -56,7 +56,8 @@ func createServer(jb json.RawMessage) (*server, error) {
 
 	srv := &server{}
 
-	if rdb, err := redis.DialCluster(ctx, cfg.Database.Redis); err != nil {
+	if rdb, err := redis.Dial(
+		ctx, cfg.Database.Redis, redis.WithPingTest()); err != nil {
 		return nil, err
 	} else if mdb, err := dialMongo(ctx, cfg.Database.Mongo); err != nil {
 		return nil, err
@@ -64,7 +65,8 @@ func createServer(jb json.RawMessage) (*server, error) {
 		srv.db = remon.New(rdb, mdb)
 	}
 
-	if rdb, err := redis.DialCluster(ctx, cfg.MailBox.Redis); err != nil {
+	if rdb, err := redis.Dial(
+		ctx, cfg.MailBox.Redis, redis.WithPingTest()); err != nil {
 		return nil, err
 	} else if mdb, err := dialMongo(ctx, cfg.MailBox.Mongo); err != nil {
 		return nil, err
@@ -72,7 +74,8 @@ func createServer(jb json.RawMessage) (*server, error) {
 		srv.mb = remon.NewMailClient(remon.New(rdb, mdb))
 	}
 
-	if rdb, err := redis.DialCluster(ctx, cfg.Distlock.Redis); err != nil {
+	if rdb, err := redis.Dial(
+		ctx, cfg.Distlock.Redis, redis.WithPingTest()); err != nil {
 		return nil, err
 	} else {
 		srv.dl = distlock.New(rdb)

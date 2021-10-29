@@ -12,7 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"github.com/ntons/libra/librad/common/redis"
+	"github.com/ntons/tongo/redis"
 )
 
 // |- config |- apps
@@ -86,10 +86,12 @@ func dialMongo(ctx context.Context) (_ *mongo.Client, err error) {
 }
 
 func dialDatabase(ctx context.Context) (err error) {
-	if rdbAuth, err = redis.DialCluster(ctx, cfg.Auth.Redis); err != nil {
+	if rdbAuth, err = redis.Dial(
+		ctx, cfg.Auth.Redis, redis.WithPingTest()); err != nil {
 		return
 	}
-	if rdbNonce, err = redis.DialCluster(ctx, cfg.Nonce.Redis); err != nil {
+	if rdbNonce, err = redis.Dial(
+		ctx, cfg.Nonce.Redis, redis.WithPingTest()); err != nil {
 		return
 	}
 	if mdb, err = dialMongo(ctx); err != nil {

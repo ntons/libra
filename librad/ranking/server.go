@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/ntons/libra-go/api/libra/v1"
-
-	"github.com/ntons/libra/librad/common/redis"
+	v1 "github.com/ntons/libra-go/api/libra/v1"
+	"github.com/ntons/tongo/redis"
 )
 
 type request interface {
@@ -31,15 +30,15 @@ func createServer(b json.RawMessage) (_ *server, err error) {
 
 	srv := &server{}
 
-	if cli, err := redis.DialCluster(
-		ctx, cfg.Bubblechart.Redis, redis.WithHashTag()); err != nil {
+	if cli, err := redis.Dial(
+		ctx, cfg.Bubblechart.Redis, redis.WithPingTest()); err != nil {
 		return nil, err
 	} else {
 		srv.bubblechart = newBubbleChartServer(cli)
 	}
 
-	if cli, err := redis.DialCluster(
-		ctx, cfg.Leaderboard.Redis, redis.WithHashTag()); err != nil {
+	if cli, err := redis.Dial(
+		ctx, cfg.Leaderboard.Redis, redis.WithPingTest()); err != nil {
 		return nil, err
 	} else {
 		srv.leaderboard = newLeaderboardServer(cli)

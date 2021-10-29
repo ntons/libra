@@ -11,7 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"github.com/ntons/libra/librad/common/redis"
+	"github.com/ntons/tongo/redis"
 )
 
 type Role struct {

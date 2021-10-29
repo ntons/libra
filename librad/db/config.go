@@ -42,11 +42,11 @@ var cfg = &xConfig{
 type xConfig struct {
 	// 登录态验证
 	Auth struct {
-		Redis []string
+		Redis string
 	}
 	// 随机数验证
 	Nonce struct {
-		Redis   []string
+		Redis   string
 		Timeout string
 		// parsed to
 		timeout time.Duration

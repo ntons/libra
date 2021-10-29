@@ -6,9 +6,7 @@ require (
 	github.com/cncf/xds/go v0.0.0-20210312221358-fbca930ec8ed
 	github.com/envoyproxy/go-control-plane v0.9.9-0.20210512163311-63b5d3c536b0
 	github.com/envoyproxy/protoc-gen-validate v0.1.0
-	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3
-	github.com/ghodss/yaml v1.0.0
-	github.com/go-redis/redis/v8 v8.3.3
+	github.com/go-redis/redis/v8 v8.11.4
 	github.com/golang/protobuf v1.5.2
 	github.com/ntons/distlock v0.2.0
 	github.com/ntons/grpc-compressor/lz4 v0.0.0-20210305100006-06d7d07e537e
@@ -18,6 +16,7 @@ require (
 	github.com/ntons/ranking v0.1.7-0.20210308073015-fcb506a578cb
 	github.com/ntons/remon v0.1.6
 	github.com/ntons/tongo/httputil v0.0.0-20210926235700-c0c0e6e56ff5
+	github.com/ntons/tongo/redis v0.0.0-20211029090121-38ace8c68271
 	github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5
 	github.com/onemoreteam/httpframework v0.0.0-20211022103909-931b9c165701
 	github.com/pierrec/lz4/v4 v4.1.3

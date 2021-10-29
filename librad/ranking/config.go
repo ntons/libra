@@ -1,7 +1,7 @@
 package ranking
 
 type chartConfig struct {
-	Redis []string
+	Redis string
 }
 
 type config struct {

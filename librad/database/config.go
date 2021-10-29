@@ -6,8 +6,8 @@ import (
 )
 
 type ReMonConfig struct {
-	Redis []string `json:"redis"`
-	Mongo string   `json:"mongo"`
+	Redis string `json:"redis"`
+	Mongo string `json:"mongo"`
 }
 
 func (cfg *ReMonConfig) parse() (err error) {
@@ -15,8 +15,8 @@ func (cfg *ReMonConfig) parse() (err error) {
 }
 
 type DistlockConfig struct {
-	Redis   []string `json:"redis"`
-	TTLExpr string   `json:"ttl"`
+	Redis   string `json:"redis"`
+	TTLExpr string `json:"ttl"`
 	// parsed values
 	ttl time.Duration
 }
