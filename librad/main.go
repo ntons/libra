@@ -20,6 +20,7 @@ import (
 
 	// load modules
 	_ "github.com/ntons/libra/librad/auth"
+	_ "github.com/ntons/libra/librad/cache"
 	_ "github.com/ntons/libra/librad/database"
 	_ "github.com/ntons/libra/librad/db"
 	_ "github.com/ntons/libra/librad/ranking"

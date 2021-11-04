@@ -10,9 +10,8 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/ntons/distlock v0.2.0
 	github.com/ntons/grpc-compressor/lz4 v0.0.0-20210305100006-06d7d07e537e
-	github.com/ntons/libra-go v0.0.0-20211025084900-166558c01eeb
+	github.com/ntons/libra-go v0.0.0-20211103053022-0f010134c23f
 	github.com/ntons/log-go v0.0.0-20210804015646-3ca0ced163e5
-	github.com/ntons/log-go/appenders/timedrollingfile v0.0.0-20210317052209-fcced1485be2
 	github.com/ntons/ranking v0.1.7-0.20210308073015-fcb506a578cb
 	github.com/ntons/remon v0.1.6
 	github.com/ntons/tongo/httputil v0.0.0-20210926235700-c0c0e6e56ff5
@@ -28,7 +27,6 @@ require (
 	google.golang.org/genproto v0.0.0-20210617175327-b9e0b3197ced
 	google.golang.org/grpc v1.40.0
 	google.golang.org/protobuf v1.26.0
-	gopkg.in/yaml.v2 v2.4.0
 	honnef.co/go/tools v0.0.1-2020.1.5 // indirect
 )
 

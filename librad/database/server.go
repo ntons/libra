@@ -9,15 +9,14 @@ import (
 
 	"github.com/ntons/distlock"
 	L "github.com/ntons/libra-go"
+	v1pb "github.com/ntons/libra-go/api/libra/v1"
+	"github.com/ntons/libra/librad/common/util"
 	"github.com/ntons/log-go"
 	"github.com/ntons/remon"
 	"github.com/ntons/tongo/redis"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/protobuf/types/known/anypb"
-
-	v1pb "github.com/ntons/libra-go/api/libra/v1"
-	"github.com/ntons/libra/librad/common/util"
 )
 
 const distlockTypeUrl = "https://github.com/ntons/distlock"
@@ -128,7 +127,7 @@ func (srv *server) lock(
 	ctx context.Context, key string, opts *v1pb.DistlockLockOptions) (
 	*anypb.Any, error) {
 	ttl := cfg.Distlock.ttl
-	if opts.TimeoutMilliseconds > 0 {
+	if opts != nil && opts.TimeoutMilliseconds > 0 {
 		ttl = time.Duration(opts.TimeoutMilliseconds) * time.Millisecond
 	}
 	if ttl > 10*time.Minute {
