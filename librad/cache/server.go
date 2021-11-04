@@ -11,6 +11,7 @@ import (
 	"github.com/ntons/log-go"
 	"github.com/ntons/tongo/redis"
 	"github.com/onemoreteam/httpframework/modularity"
+	"github.com/onemoreteam/httpframework/modularity/server"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -40,6 +41,8 @@ func (srv *cacheServer) Initialize(jb json.RawMessage) (err error) {
 		log.Warnf("failed to connect redis: %v", err)
 		return fmt.Errorf("failed to connect redis")
 	}
+
+	v1pb.RegisterCacheServer(server.Default, srv)
 	return
 }
 
@@ -80,8 +83,8 @@ func (srv *cacheServer) Set(
 }
 
 func (srv *cacheServer) Add(
-	ctx context.Context, req *v1pb.CacheSetRequest) (
-	_ *v1pb.CacheSetResponse, err error) {
+	ctx context.Context, req *v1pb.CacheAddRequest) (
+	_ *v1pb.CacheAddResponse, err error) {
 	trusted := L.RequireAuthBySecret(ctx)
 	if trusted == nil {
 		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
@@ -98,5 +101,5 @@ func (srv *cacheServer) Add(
 	if !ok {
 		return nil, status.Errorf(codes.AlreadyExists, "already exists")
 	}
-	return &v1pb.CacheSetResponse{}, nil
+	return &v1pb.CacheAddResponse{}, nil
 }
