@@ -49,7 +49,14 @@ func (srv *cacheServer) Initialize(jb json.RawMessage) (err error) {
 func (srv *cacheServer) Get(
 	ctx context.Context, req *v1pb.CacheSetRequest) (
 	_ *v1pb.CacheGetResponse, err error) {
-	value, err := srv.cli.Get(ctx, req.Key).Result()
+	trusted := L.RequireAuthBySecret(ctx)
+	if trusted == nil {
+		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
+	}
+	value, err := srv.cli.Get(
+		ctx,
+		getCacheKey(trusted.AppId, req.Key),
+	).Result()
 	if err != nil {
 		if err == redis.Nil {
 			return nil, status.Errorf(codes.NotFound, "not found")
