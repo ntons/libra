@@ -1,0 +1,76 @@
+# Standalone deployment for development and testing
+
+version: "3.9"
+
+services:
+  mongo0:
+    image: mongo:4.0-xenial
+    restart: unless-stopped
+    volumes:
+      - /var/libra/mongo0/db:/data/db
+      - /var/libra/mongo0/configdb:/data/configdb
+    command: ["--bind_ip_all","--replSet","rs0"]
+
+  mongo1:
+    image: mongo:4.0-xenial
+    restart: unless-stopped
+    volumes:
+      - /var/libra/mongo1/db:/data/db
+      - /var/libra/mongo1/configdb:/data/configdb
+    command: ["--bind_ip_all","--replSet","rs0"]
+
+  mongo2:
+    image: mongo:4.0-xenial
+    restart: unless-stopped
+    volumes:
+      - /var/libra/mongo2/db:/data/db
+      - /var/libra/mongo2/configdb:/data/configdb
+    command: ["--bind_ip_all","--replSet","rs0"]
+
+  mongo-init:
+    image: mongo:4.0-xenial
+    depends_on:
+      - mongo0
+      - mongo1
+      - mongo2
+    volumes:
+      - ./etc/mongo_init_rs.js:/etc/mongo_init_rs.js
+      - ./etc/mongo_init_onemore.js:/etc/mongo_init_onemore.js
+    command: sh -c "mongo mongodb://mongo0/test /etc/mongo_init_rs.js; mongo mongodb://mongo0,mongo1,mongo2/onemore?replicaSet=rs0 /etc/mongo_init_onemore.js"
+
+  redis0:
+    image: redis:4.0-alpine
+    restart: unless-stopped
+    volumes:
+      - ./etc/redis.conf:/etc/redis.conf
+      - /var/libra/redis0/data:/data
+    command: ["redis-server", "/etc/redis.conf"]
+
+  redis1:
+    image: redis:4.0-alpine
+    restart: unless-stopped
+    volumes:
+      - ./etc/redis.conf:/etc/redis.conf
+      - /var/libra/redis1/data:/data
+    command: ["redis-server", "/etc/redis.conf"]
+
+  redis2:
+    image: redis:4.0-alpine
+    restart: unless-stopped
+    volumes:
+      - ./etc/redis.conf:/etc/redis.conf
+      - /var/libra/redis2/data:/data
+    command: ["redis-server", "/etc/redis.conf"]
+
+  librad:
+    image: onemore/librad:0.3.0
+    depends_on:
+      - mongo-init
+      - redis0
+      - redis1
+      - redis2
+    ports:
+      - "50080:80"
+    volumes:
+      - ./etc/librad.yaml:/etc/librad.yaml
+

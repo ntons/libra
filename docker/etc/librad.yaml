@@ -1,0 +1,48 @@
+mongouri: &mongouri 'mongodb://mongo0,mongo1,mongo2/test?replicaSet=rs0'
+log:
+  level: debug
+server:
+  listen: ':80'
+db:
+  auth:
+    redis: 'redis://redis0:6379,redis1:6379,redis2:6379/1'
+  nonce:
+    redis: 'redis://redis0:6379,redis1:6379,redis2:6379/2'
+  mongo: *mongouri
+  commonpermissions:
+    - prefix: '/libra.'
+    - prefix: '/onemore.'
+  configdbname: 'onemore'
+database:
+  database: &database
+    redis: 'redis://redis0:6379,redis1:6379,redis2:6379/3'
+    mongo: *mongouri
+  mailbox: &mailbox
+    redis: 'redis://redis0:6379,redis1:6379,redis2:6379/4'
+    mongo: *mongouri
+  distlock:
+    redis: 'redis://redis0:6379,redis1:6379,redis2:6379/5'
+    ttl: '30s'
+ranking:
+  bubblechart:
+    redis: 'redis://redis0:6379,redis1:6379,redis2:6379/6'
+  leaderboard:
+    redis: 'redis://redis0:6379,redis1:6379,redis2:6379/7'
+cache:
+  redis: 'redis://redis0:6379,redis1:6379,redis2:6379/8'
+
+syncer:
+  tasks:
+  - name: db
+    redis:
+      - 'redis://redis0:6379/3'
+      - 'redis://redis1:6379/3'
+      - 'redis://redis2:6379/3'
+    mongo: *mongouri
+  - name: mb
+    redis:
+      - 'redis://redis0:6379/4'
+      - 'redis://redis1:6379/4'
+      - 'redis://redis2:6379/4'
+    mongo: *mongouri
+
