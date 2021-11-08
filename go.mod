@@ -15,7 +15,7 @@ require (
 	github.com/ntons/ranking v0.1.7-0.20210308073015-fcb506a578cb
 	github.com/ntons/remon v0.1.6
 	github.com/ntons/tongo/httputil v0.0.0-20210926235700-c0c0e6e56ff5
-	github.com/ntons/tongo/redis v0.0.0-20211029090121-38ace8c68271
+	github.com/ntons/tongo/redis v0.0.0-20211108034221-312ac468634b
 	github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5
 	github.com/onemoreteam/httpframework v0.0.0-20211022103909-931b9c165701
 	github.com/pierrec/lz4/v4 v4.1.3
