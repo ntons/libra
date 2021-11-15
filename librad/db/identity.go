@@ -49,6 +49,9 @@ func newId(appKey uint32, tag uint8) string {
 	return base32.StdEncoding.EncodeToString(b)
 }
 func DecId(id string) (appKey uint32, tag uint8, err error) {
+	if len(id) == 0 {
+		return 0, 0, fmt.Errorf("empty id")
+	}
 	b, err := base32.StdEncoding.DecodeString(id)
 	if err != nil {
 		return 0, 0, fmt.Errorf("invalid id")
