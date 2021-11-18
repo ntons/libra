@@ -176,10 +176,14 @@ func getAdminCollection(ctx context.Context) (*mongo.Collection, error) {
 
 func renameCollection(
 	ctx context.Context, dbName, srcTblName, dstTblName string) (err error) {
-	tblNames, err := mdb.Database(dbName).ListCollectionNames(ctx, nil)
+	log.Debugf("rename collecion: %v, %v, %v", dbName, srcTblName, dstTblName)
+	tblNames, err := mdb.Database(dbName).ListCollectionNames(ctx, bson.D{})
 	if err != nil {
+		log.Warnf("failed to list collection names: %v", err)
 		return
 	}
+	log.Debugf("list collection names: %v", tblNames)
+
 	srcFound, dstFound := false, false
 	for _, tblName := range tblNames {
 		if tblName == srcTblName {
@@ -189,10 +193,13 @@ func renameCollection(
 		}
 	}
 	if srcFound && !dstFound {
-		return mdb.Database("admin").RunCommand(ctx, bson.M{
-			"renameCollection": fmt.Sprintf("%s.%s", dbName, srcTblName),
-			"to":               fmt.Sprintf("%s.%s", dbName, dstTblName),
+		err = mdb.Database("admin").RunCommand(ctx, bson.D{
+			{"renameCollection", fmt.Sprintf("%s.%s", dbName, srcTblName)},
+			{"to", fmt.Sprintf("%s.%s", dbName, dstTblName)},
 		}).Err()
+		if err != nil {
+			log.Warnf("failed to rename table: %v", err)
+		}
 	}
 	return
 }
