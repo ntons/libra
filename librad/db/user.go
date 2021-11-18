@@ -43,11 +43,20 @@ type User struct {
 // get user collection of app
 func getUserCollection(
 	ctx context.Context, appId string) (*mongo.Collection, error) {
-	const collectionName = "users"
+	dbUserCollectionMu.Lock()
+	defer dbUserCollectionMu.Unlock()
+
+	const tblName = "libra.users"
 	if collection, ok := dbUserCollection[appId]; ok {
 		return collection, nil
 	}
-	collection := mdb.Database(getAppDBName(appId)).Collection(collectionName)
+
+	dbName := getAppDBName(appId)
+	///////////////////////////////////////////////
+	// 临时代码，表名迁移
+	renameCollection(ctx, dbName, "users", tblName)
+	///////////////////////////////////////////////
+	collection := mdb.Database(dbName).Collection(tblName)
 	if _, err := collection.Indexes().CreateOne(
 		ctx,
 		mongo.IndexModel{

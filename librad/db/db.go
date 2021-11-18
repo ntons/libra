@@ -38,9 +38,14 @@ var (
 	// cached collection
 	dbAppCollection   *mongo.Collection
 	dbAdminCollection *mongo.Collection
-	dbAcctCollection  = make(map[string]*mongo.Collection)
-	dbUserCollection  = make(map[string]*mongo.Collection)
-	dbRoleCollection  = make(map[string]*mongo.Collection)
+
+	dbAcctCollectionMu sync.Mutex
+	dbUserCollectionMu sync.Mutex
+	dbRoleCollectionMu sync.Mutex
+
+	dbAcctCollection = make(map[string]*mongo.Collection)
+	dbUserCollection = make(map[string]*mongo.Collection)
+	dbRoleCollection = make(map[string]*mongo.Collection)
 
 	// app cache loaded from database
 	xApps = newAppIndex(nil)
@@ -167,4 +172,27 @@ func getAdminCollection(ctx context.Context) (*mongo.Collection, error) {
 	collection := mdb.Database(cfg.ConfigDBName).Collection(collectionName)
 	dbAdminCollection = collection
 	return collection, nil
+}
+
+func renameCollection(
+	ctx context.Context, dbName, srcTblName, dstTblName string) (err error) {
+	tblNames, err := mdb.Database(dbName).ListCollectionNames(ctx, nil)
+	if err != nil {
+		return
+	}
+	srcFound, dstFound := false, false
+	for _, tblName := range tblNames {
+		if tblName == srcTblName {
+			srcFound = true
+		} else if tblName == dstTblName {
+			dstFound = true
+		}
+	}
+	if srcFound && !dstFound {
+		return mdb.Database("admin").RunCommand(ctx, bson.M{
+			"renameCollection": fmt.Sprintf("%s.%s", dbName, srcTblName),
+			"to":               fmt.Sprintf("%s.%s", dbName, dstTblName),
+		}).Err()
+	}
+	return
 }

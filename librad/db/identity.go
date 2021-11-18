@@ -49,11 +49,8 @@ func newId(appKey uint32, tag uint8) string {
 	return base32.StdEncoding.EncodeToString(b)
 }
 func DecId(id string) (appKey uint32, tag uint8, err error) {
-	if len(id) == 0 {
-		return 0, 0, fmt.Errorf("empty id")
-	}
 	b, err := base32.StdEncoding.DecodeString(id)
-	if err != nil {
+	if err != nil || len(b) != rawIdLen {
 		return 0, 0, fmt.Errorf("invalid id")
 	}
 	appKey = binary.BigEndian.Uint32(b)
@@ -64,10 +61,10 @@ func IdBelongToAppId(appId string, ids ...string) bool {
 	return idBelongToApp(FindAppById(appId), ids...)
 }
 func idBelongToApp(app *App, ids ...string) bool {
+	if app == nil {
+		return false
+	}
 	for _, id := range ids {
-		if app == nil {
-			return false
-		}
 		appKey, _, err := DecId(id)
 		if err != nil {
 			return false
