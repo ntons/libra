@@ -55,9 +55,9 @@ func (srv *roleServer) List(
 	ctx context.Context, req *v1pb.RoleListRequest) (
 	resp *v1pb.RoleListResponse, err error) {
 	var appId, userId string
-	if trusted := L.RequireAuthByToken(ctx); trusted == nil {
+	if trusted := L.RequireAuthByToken(ctx); trusted != nil {
 		appId, userId = trusted.AppId, trusted.UserId
-	} else if trusted := L.RequireAuthBySecret(ctx); trusted == nil {
+	} else if trusted := L.RequireAuthBySecret(ctx); trusted != nil {
 		appId, userId = trusted.AppId, req.UserId
 	} else {
 		return nil, errLoginRequired
@@ -75,9 +75,9 @@ func (srv *roleServer) Create(
 	ctx context.Context, req *v1pb.RoleCreateRequest) (
 	resp *v1pb.RoleCreateResponse, err error) {
 	var appId, userId string
-	if trusted := L.RequireAuthByToken(ctx); trusted == nil {
+	if trusted := L.RequireAuthByToken(ctx); trusted != nil {
 		appId, userId = trusted.AppId, trusted.UserId
-	} else if trusted := L.RequireAuthBySecret(ctx); trusted == nil {
+	} else if trusted := L.RequireAuthBySecret(ctx); trusted != nil {
 		appId, userId = trusted.AppId, req.UserId
 	} else {
 		return nil, errLoginRequired
@@ -94,9 +94,9 @@ func (srv *roleServer) SignIn(
 	ctx context.Context, req *v1pb.RoleSignInRequest) (
 	resp *v1pb.RoleSignInResponse, err error) {
 	var appId string
-	if trusted := L.RequireAuthByToken(ctx); trusted == nil {
+	if trusted := L.RequireAuthByToken(ctx); trusted != nil {
 		appId = trusted.AppId
-	} else if trusted := L.RequireAuthBySecret(ctx); trusted == nil {
+	} else if trusted := L.RequireAuthBySecret(ctx); trusted != nil {
 		appId = trusted.AppId
 	} else {
 		return nil, errLoginRequired
@@ -112,9 +112,9 @@ func (srv *roleServer) SetMetadata(
 	ctx context.Context, req *v1pb.RoleSetMetadataRequest) (
 	resp *v1pb.RoleSetMetadataResponse, err error) {
 	var appId string
-	if trusted := L.RequireAuthByToken(ctx); trusted == nil {
+	if trusted := L.RequireAuthByToken(ctx); trusted != nil {
 		appId = trusted.AppId
-	} else if trusted := L.RequireAuthBySecret(ctx); trusted == nil {
+	} else if trusted := L.RequireAuthBySecret(ctx); trusted != nil {
 		appId = trusted.AppId
 	} else {
 		return nil, errLoginRequired
@@ -136,9 +136,9 @@ func (srv *roleServer) GetMetadata(
 	ctx context.Context, req *v1pb.RoleGetMetadataRequest) (
 	resp *v1pb.RoleGetMetadataResponse, err error) {
 	var appId string
-	if trusted := L.RequireAuthByToken(ctx); trusted == nil {
+	if trusted := L.RequireAuthByToken(ctx); trusted != nil {
 		appId = trusted.AppId
-	} else if trusted := L.RequireAuthBySecret(ctx); trusted == nil {
+	} else if trusted := L.RequireAuthBySecret(ctx); trusted != nil {
 		appId = trusted.AppId
 	} else {
 		return nil, errLoginRequired
