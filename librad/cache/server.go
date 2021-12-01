@@ -47,7 +47,7 @@ func (srv *cacheServer) Initialize(jb json.RawMessage) (err error) {
 }
 
 func (srv *cacheServer) Get(
-	ctx context.Context, req *v1pb.CacheSetRequest) (
+	ctx context.Context, req *v1pb.CacheGetRequest) (
 	_ *v1pb.CacheGetResponse, err error) {
 	trusted := L.RequireAuthBySecret(ctx)
 	if trusted == nil {

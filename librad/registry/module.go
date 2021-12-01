@@ -22,16 +22,12 @@ func (module) Name() string { return "registry" }
 
 func (m *module) Initialize(jb json.RawMessage) (err error) {
 	var (
-		appAdmin  = newAppServer()
-		user      = newUserServer()
-		role      = newRoleServer()
-		userAdmin = newUserAdminServer()
-		roleAdmin = newRoleAdminServer()
+		appAdmin = newAppServer()
+		user     = newUserServer()
+		role     = newRoleServer()
 	)
 	admv1pb.RegisterAppAdminServer(sm.Default, appAdmin)
 	v1pb.RegisterUserServer(sm.Default, user)
 	v1pb.RegisterRoleServer(sm.Default, role)
-	v1pb.RegisterUserAdminServer(sm.Default, userAdmin)
-	v1pb.RegisterRoleAdminServer(sm.Default, roleAdmin)
 	return
 }

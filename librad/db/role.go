@@ -64,7 +64,7 @@ func getRoleCollection(
 }
 
 func GetRole(
-	ctx context.Context, appId, userId, roleId string) (_ *Role, err error) {
+	ctx context.Context, appId /*, userId*/, roleId string) (_ *Role, err error) {
 	collection, err := getRoleCollection(ctx, appId)
 	if err != nil {
 		return
@@ -73,7 +73,7 @@ func GetRole(
 	if err = collection.FindOne(
 		ctx,
 		// role必须属于user才算找到
-		bson.M{"_id": roleId, "user_id": userId},
+		bson.M{"_id": roleId /*, "user_id": userId*/},
 	).Decode(role); err != nil {
 		if err == mongo.ErrNoDocuments {
 			err = ErrRoleNotFound
@@ -174,7 +174,7 @@ func CreateRole(
 }
 
 func SignInRole(
-	ctx context.Context, appId, userId, roleId string) (err error) {
+	ctx context.Context, appId /*,userId*/, roleId string) (err error) {
 	collection, err := getRoleCollection(ctx, appId)
 	if err != nil {
 		return
@@ -182,7 +182,7 @@ func SignInRole(
 	var role Role
 	if err = collection.FindOneAndUpdate(
 		ctx,
-		bson.M{"_id": roleId, "user_id": userId},
+		bson.M{"_id": roleId /*, "user_id": userId*/},
 		bson.M{"$set": bson.M{"sign_in_at": time.Now()}},
 		options.FindOneAndUpdate().SetReturnDocument(options.After),
 	).Decode(&role); err != nil {
@@ -199,7 +199,7 @@ func SignInRole(
 		RoleIndex: role.Index,
 	})
 	if err = luaUpdateSessData.Run(
-		ctx, rdbAuth, []string{userId}, b).Err(); err != nil {
+		ctx, rdbAuth, []string{role.UserId}, b).Err(); err != nil {
 		if err == redis.Nil {
 			return ErrInvalidToken
 		} else {
@@ -211,7 +211,7 @@ func SignInRole(
 }
 
 func SetRoleMetadata(
-	ctx context.Context, appId, userId, roleId string,
+	ctx context.Context, appId /*, userId*/, roleId string,
 	md map[string]string) (err error) {
 	collection, err := getRoleCollection(ctx, appId)
 	if err != nil {
@@ -235,7 +235,7 @@ func SetRoleMetadata(
 		}
 		if r, err := collection.UpdateOne(
 			ctx,
-			bson.M{"_id": roleId, "user_id": userId},
+			bson.M{"_id": roleId /*, "user_id": userId*/},
 			update,
 		); err != nil {
 			log.Warnf("failed to access user: %v", err)

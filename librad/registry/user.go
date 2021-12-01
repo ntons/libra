@@ -49,6 +49,131 @@ func newUserServer() *userServer {
 	return &userServer{}
 }
 
+func (srv *userServer) Get(
+	ctx context.Context, req *v1pb.UserGetRequest) (
+	_ *v1pb.UserGetResponse, err error) {
+	trusted := L.RequireAuthBySecret(ctx)
+	if trusted == nil || !db.IdBelongToAppId(trusted.AppId, req.Ids...) {
+		return nil, errUnauthenticated
+	}
+	var (
+		userIds = req.Ids
+		roleIds []string
+	)
+	if req.Options != nil && req.Options.Fuzzy {
+		userIds = make([]string, 0, len(req.Ids))
+		roleIds = make([]string, 0, len(req.Ids))
+		for _, id := range req.Ids {
+			if _, tag, _ := db.DecId(id); tag == db.UserIdTag {
+				userIds = append(userIds, id)
+			} else if tag == db.RoleIdTag {
+				roleIds = append(roleIds, id)
+			}
+		}
+	}
+	if len(roleIds) > 0 {
+		roles, err := db.GetRoles(ctx, trusted.AppId, roleIds)
+		if err != nil {
+			log.Warnf("failed to get roles: %v", err)
+			return nil, db.ErrDatabaseUnavailable
+		}
+		for _, role := range roles {
+			userIds = append(userIds, role.UserId)
+		}
+	}
+	var (
+		users []*db.User
+		roles []*db.Role
+	)
+	if users, err = db.GetUsers(ctx, trusted.AppId, userIds); err != nil {
+		log.Warnf("failed to get users: %v", err)
+		return nil, db.ErrDatabaseUnavailable
+	}
+	if req.Options != nil && req.Options.WithRoles {
+		if roles, err = db.GetRolesByUserId(
+			ctx, trusted.AppId, userIds); err != nil {
+			log.Warnf("failed to get roles: %v", err)
+			return nil, db.ErrDatabaseUnavailable
+		}
+	}
+	return &v1pb.UserGetResponse{
+		Users: fromDbUsers(users),
+		Roles: fromDbRoles(roles),
+	}, nil
+}
+
+func (srv *userServer) Ban(
+	ctx context.Context, req *v1pb.UserBanRequest) (
+	_ *v1pb.UserBanResponse, err error) {
+	trusted := L.RequireAuthBySecret(ctx)
+	if trusted == nil || !db.IdBelongToAppId(trusted.AppId, req.UserIds...) {
+		return nil, errUnauthenticated
+	}
+	res := &v1pb.UserBanResponse{}
+	if len(req.UserIds) > 0 {
+		if req.Seconds > 0 {
+			// ban
+			if err = db.BanUsers(
+				ctx,
+				trusted.AppId,
+				req.UserIds,
+				time.Now().Add(time.Duration(req.Seconds)*time.Second),
+				req.Reason,
+			); err != nil {
+				log.Warnf("failed to ban users: %v", err)
+				return nil, db.ErrDatabaseUnavailable
+			}
+			if err = db.LogoutUser(ctx, req.UserIds...); err != nil {
+				log.Warnf("failed to logout users: %v", err)
+				return nil, db.ErrDatabaseUnavailable
+			}
+		} else if req.Seconds < 0 {
+			// unban
+			if err = db.UnbanUsers(
+				ctx,
+				trusted.AppId,
+				req.UserIds,
+			); err != nil {
+				log.Warnf("failed to unban users: %v", err)
+				return nil, db.ErrDatabaseUnavailable
+			}
+		}
+		users, err := db.GetUsersWithFields(
+			ctx, trusted.AppId, req.UserIds, "ban_to", "ban_for")
+		if err != nil {
+			log.Warnf("failed to get users: %v", err)
+			return nil, db.ErrDatabaseUnavailable
+		}
+		now := time.Now()
+		for _, user := range users {
+			state := &v1pb.UserBanState{Id: user.Id}
+			if user.BanTo.After(now) {
+				state.BanTo = user.BanTo.Unix()
+				state.BanFor = user.BanFor
+			}
+			res.States = append(res.States, state)
+		}
+	}
+	return res, nil
+}
+
+func (srv *userServer) BindAcctId(
+	ctx context.Context, req *v1pb.UserBindAcctIdRequest) (
+	_ *v1pb.UserBindAcctIdResponse, err error) {
+	trusted := L.RequireAuthBySecret(ctx)
+	if trusted == nil || !db.IdBelongToAppId(trusted.AppId, req.UserId) {
+		return nil, errUnauthenticated
+	}
+	if _, err = db.BindAcctIdToUser(
+		ctx, trusted.AppId, req.UserId, req.AcctIds,
+		req.TakeOverAcctIdIfDuplicated,
+	); err != nil {
+		log.Warnf("failed to transfer acct id: %v", err)
+		return nil, db.ErrDatabaseUnavailable
+	}
+	return &v1pb.UserBindAcctIdResponse{}, nil
+}
+
 type xGenericLoginState struct {
 	AcctIds     []string
 	AcctDetails map[string]string
@@ -153,25 +278,29 @@ func (srv *userServer) Login(
 func (srv *userServer) Bind(
 	ctx context.Context, req *v1pb.UserBindRequest) (
 	_ *v1pb.UserBindResponse, err error) {
-	trusted := L.RequireAuthByToken(ctx)
-	if trusted == nil {
+	var appId, userId string
+	if trusted := L.RequireAuthByToken(ctx); trusted != nil {
+		appId, userId = trusted.AppId, trusted.UserId
+	} else if trusted := L.RequireAuthBySecret(ctx); trusted != nil {
+		appId, userId = trusted.AppId, req.UserId
+	} else {
 		return nil, errLoginRequired
 	}
-	_, state, err := srv.CheckLoginState(ctx, trusted.AppId, req.State)
+
+	_, state, err := srv.CheckLoginState(ctx, appId, req.State)
 	if err != nil {
 		return
 	}
 
 	resp := &v1pb.UserBindResponse{}
 	if resp.AcctIds, err = db.BindAcctIdToUser(
-		ctx, trusted.AppId, trusted.UserId,
-		state.AcctIds,
+		ctx, appId, userId, state.AcctIds,
 		state.Properties.GetTakeOverAcctIdIfDuplicated()); err != nil {
 		log.Warnf("failed to bind acct to user: %v", err)
 		return
 	}
 	for _, acctId := range state.AcctIds {
-		log.Infow("user bind acct", "user_id", trusted.UserId, "acct_id", acctId)
+		log.Infow("user bind acct", "user_id", userId, "acct_id", acctId)
 	}
 	return resp, nil
 }
@@ -179,19 +308,23 @@ func (srv *userServer) Bind(
 func (srv *userServer) Unbind(
 	ctx context.Context, req *v1pb.UserUnbindRequest) (
 	_ *v1pb.UserUnbindResponse, err error) {
-	trusted := L.RequireAuthByToken(ctx)
-	if trusted == nil {
+	var appId, userId string
+	if trusted := L.RequireAuthByToken(ctx); trusted != nil {
+		appId, userId = trusted.AppId, trusted.UserId
+	} else if trusted := L.RequireAuthBySecret(ctx); trusted != nil {
+		appId, userId = trusted.AppId, req.UserId
+	} else {
 		return nil, errLoginRequired
 	}
 
 	resp := &v1pb.UserUnbindResponse{}
 	if resp.AcctIds, err = db.UnbindAcctIdFromUser(
-		ctx, trusted.AppId, trusted.UserId, req.AcctIds); err != nil {
+		ctx, appId, userId, req.AcctIds); err != nil {
 		log.Warnf("failed to unbind acct from user: %v", err)
 		return
 	}
 	for _, acctId := range req.AcctIds {
-		log.Infow("user unbind acct", "user_id", trusted.UserId, "acct_id", acctId)
+		log.Infow("user unbind acct", "user_id", userId, "acct_id", acctId)
 	}
 	return resp, nil
 }
@@ -199,8 +332,12 @@ func (srv *userServer) Unbind(
 func (srv *userServer) SetMetadata(
 	ctx context.Context, req *v1pb.UserSetMetadataRequest) (
 	_ *v1pb.UserSetMetadataResponse, err error) {
-	trusted := L.RequireAuthByToken(ctx)
-	if trusted == nil {
+	var appId, userId string
+	if trusted := L.RequireAuthByToken(ctx); trusted != nil {
+		appId, userId = trusted.AppId, trusted.UserId
+	} else if trusted := L.RequireAuthBySecret(ctx); trusted != nil {
+		appId, userId = trusted.AppId, req.UserId
+	} else {
 		return nil, errLoginRequired
 	}
 
@@ -210,7 +347,7 @@ func (srv *userServer) SetMetadata(
 		}
 	}
 	if err = db.SetUserMetadata(
-		ctx, trusted.AppId, trusted.UserId, req.Metadata); err != nil {
+		ctx, appId, userId, req.Metadata); err != nil {
 		log.Warnf("failed to set user metadata: %v", err)
 		return
 	}
@@ -220,12 +357,16 @@ func (srv *userServer) SetMetadata(
 func (srv *userServer) GetMetadata(
 	ctx context.Context, req *v1pb.UserGetMetadataRequest) (
 	resp *v1pb.UserGetMetadataResponse, err error) {
-	trusted := L.RequireAuthByToken(ctx)
-	if trusted == nil {
+	var appId, userId string
+	if trusted := L.RequireAuthByToken(ctx); trusted != nil {
+		appId, userId = trusted.AppId, trusted.UserId
+	} else if trusted := L.RequireAuthBySecret(ctx); trusted != nil {
+		appId, userId = trusted.AppId, req.UserId
+	} else {
 		return nil, errLoginRequired
 	}
 
-	user, err := db.GetUser(ctx, trusted.AppId, trusted.UserId)
+	user, err := db.GetUser(ctx, appId, userId)
 	if err != nil {
 		return
 	}

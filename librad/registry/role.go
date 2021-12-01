@@ -34,59 +34,99 @@ func newRoleServer() *roleServer {
 	return &roleServer{}
 }
 
+func (srv *roleServer) Get(
+	ctx context.Context, req *v1pb.RoleGetRequest) (
+	res *v1pb.RoleGetResponse, err error) {
+	trusted := L.RequireAuthBySecret(ctx)
+	if trusted == nil {
+		return nil, errUnauthenticated
+	}
+	roles, err := db.GetRoles(ctx, trusted.AppId, req.Ids)
+	if err != nil {
+		log.Warnf("failed to get roles: %v", err)
+		return nil, db.ErrDatabaseUnavailable
+	}
+	return &v1pb.RoleGetResponse{
+		Roles: fromDbRoles(roles),
+	}, nil
+}
+
 func (srv *roleServer) List(
 	ctx context.Context, req *v1pb.RoleListRequest) (
 	resp *v1pb.RoleListResponse, err error) {
-	trusted := L.RequireAuthByToken(ctx)
-	if trusted == nil {
+	var appId, userId string
+	if trusted := L.RequireAuthByToken(ctx); trusted == nil {
+		appId, userId = trusted.AppId, trusted.UserId
+	} else if trusted := L.RequireAuthBySecret(ctx); trusted == nil {
+		appId, userId = trusted.AppId, req.UserId
+	} else {
 		return nil, errLoginRequired
 	}
-	roles, err := db.ListRoles(ctx, trusted.AppId, trusted.UserId)
+
+	roles, err := db.ListRoles(ctx, appId, userId)
 	if err != nil {
 		log.Warnf("failed to list roles: %v", err)
 		return
 	}
 	return &v1pb.RoleListResponse{Roles: fromDbRoles(roles)}, nil
 }
+
 func (srv *roleServer) Create(
 	ctx context.Context, req *v1pb.RoleCreateRequest) (
 	resp *v1pb.RoleCreateResponse, err error) {
-	trusted := L.RequireAuthByToken(ctx)
-	if trusted == nil {
+	var appId, userId string
+	if trusted := L.RequireAuthByToken(ctx); trusted == nil {
+		appId, userId = trusted.AppId, trusted.UserId
+	} else if trusted := L.RequireAuthBySecret(ctx); trusted == nil {
+		appId, userId = trusted.AppId, req.UserId
+	} else {
 		return nil, errLoginRequired
 	}
-	role, err := db.CreateRole(ctx, trusted.AppId, trusted.UserId, req.Index)
+
+	role, err := db.CreateRole(ctx, appId, userId, req.Index)
 	if err != nil {
 		return
 	}
 	return &v1pb.RoleCreateResponse{Role: fromDbRole(role)}, nil
 }
+
 func (srv *roleServer) SignIn(
 	ctx context.Context, req *v1pb.RoleSignInRequest) (
 	resp *v1pb.RoleSignInResponse, err error) {
-	trusted := L.RequireAuthByToken(ctx)
-	if trusted == nil {
+	var appId string
+	if trusted := L.RequireAuthByToken(ctx); trusted == nil {
+		appId = trusted.AppId
+	} else if trusted := L.RequireAuthBySecret(ctx); trusted == nil {
+		appId = trusted.AppId
+	} else {
 		return nil, errLoginRequired
 	}
-	if err = db.SignInRole(ctx, trusted.AppId, trusted.UserId, req.RoleId); err != nil {
+
+	if err = db.SignInRole(ctx, appId, req.RoleId); err != nil {
 		return
 	}
 	return &v1pb.RoleSignInResponse{}, nil
 }
+
 func (srv *roleServer) SetMetadata(
 	ctx context.Context, req *v1pb.RoleSetMetadataRequest) (
 	resp *v1pb.RoleSetMetadataResponse, err error) {
-	trusted := L.RequireAuthByToken(ctx)
-	if trusted == nil {
+	var appId string
+	if trusted := L.RequireAuthByToken(ctx); trusted == nil {
+		appId = trusted.AppId
+	} else if trusted := L.RequireAuthBySecret(ctx); trusted == nil {
+		appId = trusted.AppId
+	} else {
 		return nil, errLoginRequired
 	}
+
 	for k, v := range req.Metadata {
 		if len(k)+len(v) > 1024 {
 			return nil, errMetadataTooLarge
 		}
 	}
 	if err = db.SetRoleMetadata(
-		ctx, trusted.AppId, trusted.UserId, req.RoleId, req.Metadata); err != nil {
+		ctx, appId, req.RoleId, req.Metadata); err != nil {
 		return
 	}
 	return &v1pb.RoleSetMetadataResponse{}, nil
@@ -95,12 +135,16 @@ func (srv *roleServer) SetMetadata(
 func (srv *roleServer) GetMetadata(
 	ctx context.Context, req *v1pb.RoleGetMetadataRequest) (
 	resp *v1pb.RoleGetMetadataResponse, err error) {
-	trusted := L.RequireAuthByToken(ctx)
-	if trusted == nil {
+	var appId string
+	if trusted := L.RequireAuthByToken(ctx); trusted == nil {
+		appId = trusted.AppId
+	} else if trusted := L.RequireAuthBySecret(ctx); trusted == nil {
+		appId = trusted.AppId
+	} else {
 		return nil, errLoginRequired
 	}
 
-	role, err := db.GetRole(ctx, trusted.AppId, trusted.UserId, req.RoleId)
+	role, err := db.GetRole(ctx, appId, req.RoleId)
 	if err != nil {
 		return
 	}
