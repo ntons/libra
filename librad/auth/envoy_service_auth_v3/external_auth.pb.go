@@ -649,7 +649,7 @@ func (*UnimplementedAuthorizationServer) Check(context.Context, *CheckRequest) (
 }
 
 func RegisterAuthorizationServer(s grpc.ServiceRegistrar, srv AuthorizationServer) {
-	s.RegisterService(&_Authorization_serviceDesc, srv)
+	s.RegisterService(&Authorization_ServiceDesc, srv)
 }
 
 func _Authorization_Check_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -670,7 +670,7 @@ func _Authorization_Check_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
-var _Authorization_serviceDesc = grpc.ServiceDesc{
+var Authorization_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "envoy.service.auth.v3.Authorization",
 	HandlerType: (*AuthorizationServer)(nil),
 	Methods: []grpc.MethodDesc{

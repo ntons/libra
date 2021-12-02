@@ -26,8 +26,8 @@ func (m *module) Initialize(jb json.RawMessage) (err error) {
 		user     = newUserServer()
 		role     = newRoleServer()
 	)
-	admv1pb.RegisterAppAdminServer(sm.Default, appAdmin)
-	v1pb.RegisterUserServer(sm.Default, user)
-	v1pb.RegisterRoleServer(sm.Default, role)
+	sm.RegisterService(&admv1pb.AppAdmin_ServiceDesc, appAdmin)
+	sm.RegisterService(&v1pb.User_ServiceDesc, user)
+	sm.RegisterService(&v1pb.Role_ServiceDesc, role)
 	return
 }

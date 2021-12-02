@@ -36,16 +36,13 @@ func getRoleCollection(
 	dbRoleCollectionMu.Lock()
 	defer dbRoleCollectionMu.Unlock()
 
-	const tblName = "libra.roles"
 	if collection, ok := dbRoleCollection[appId]; ok {
 		return collection, nil
 	}
 
+	const tblName = "libra.roles"
 	dbName := getAppDBName(appId)
-	///////////////////////////////////////////////
-	// 临时代码，表名迁移
-	renameCollection(ctx, dbName, "roles", tblName)
-	///////////////////////////////////////////////
+
 	collection := mdb.Database(dbName).Collection(tblName)
 	if _, err := collection.Indexes().CreateOne(
 		ctx,

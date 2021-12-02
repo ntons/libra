@@ -24,8 +24,8 @@ func (m *databaseModule) Initialize(jb json.RawMessage) (err error) {
 	if err != nil {
 		return
 	}
-	v1pb.RegisterDatabaseServer(servermodule.Default, srv)
-	v1pb.RegisterDistlockServer(servermodule.Default, srv)
-	v1pb.RegisterMailboxServer(servermodule.Default, srv)
+	servermodule.RegisterService(&v1pb.Database_ServiceDesc, srv)
+	servermodule.RegisterService(&v1pb.Distlock_ServiceDesc, srv)
+	servermodule.RegisterService(&v1pb.Mailbox_ServiceDesc, srv)
 	return
 }

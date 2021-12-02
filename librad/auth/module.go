@@ -20,6 +20,6 @@ type module struct {
 func (module) Name() string { return "auth" }
 
 func (m *module) Initialize(jb json.RawMessage) (err error) {
-	authpb.RegisterAuthorizationServer(sm.Default, newAuthServer())
+	sm.RegisterService(&authpb.Authorization_ServiceDesc, newAuthServer())
 	return
 }

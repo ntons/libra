@@ -20,11 +20,14 @@ type rankingModule struct {
 func (rankingModule) Name() string { return "ranking" }
 
 func (m *rankingModule) Initialize(jb json.RawMessage) (err error) {
+	if jb == nil {
+		return
+	}
 	srv, err := createServer(jb)
 	if err != nil {
 		return
 	}
-	v1pb.RegisterBubbleChartServer(servermodule.Default, srv.bubblechart)
-	v1pb.RegisterLeaderboardServer(servermodule.Default, srv.leaderboard)
+	servermodule.RegisterService(&v1pb.BubbleChart_ServiceDesc, srv.bubblechart)
+	servermodule.RegisterService(&v1pb.Leaderboard_ServiceDesc, srv.leaderboard)
 	return
 }

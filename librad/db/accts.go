@@ -35,16 +35,13 @@ func getAcctCollection(
 	dbAcctCollectionMu.Lock()
 	defer dbAcctCollectionMu.Unlock()
 
-	const tblName = "libra.accts"
 	if collection, ok := dbAcctCollection[appId]; ok {
 		return collection, nil
 	}
 
+	const tblName = "libra.accts"
 	dbName := getAppDBName(appId)
-	///////////////////////////////////////////////
-	// 临时代码，表名迁移
-	renameCollection(ctx, dbName, "accts", tblName)
-	///////////////////////////////////////////////
+
 	collection := mdb.Database(dbName).Collection(tblName)
 	dbAcctCollection[appId] = collection
 	return collection, nil
