@@ -8,7 +8,7 @@ ENV GOPROXY=https://goproxy.cn,direct
 
 WORKDIR /go/src/github.com/ntons/libra
 
-COPY go.mod go.sum .
+COPY go.mod go.sum ./
 
 RUN go mod download -x
 
