@@ -1,9 +1,6 @@
 #!/bin/bash
 
-usage()
-{
-    echo "Usage: $0 [usw|hk]"
-}
+. $(dirname $0)/env.sh
 
 while [ $# -gt 0 ]; do
     REGISTRY="$1ccr.ccs.tencentyun.com"
