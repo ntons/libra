@@ -33,6 +33,8 @@ type User struct {
 	// 上次登录时IP
 	LoginIp string `bson:"login_ip,omitempty"`
 	// 封号时间
+	BanAt time.Time `bson:"ban_at,omitempty"`
+	// 封号时间
 	BanTo time.Time `bson:"ban_to,omitempty"`
 	// 封号原因
 	BanFor string `bson:"ban_for,omitempty"`
@@ -117,7 +119,7 @@ func GetUsers(
 
 // 批量拉取时的性能考虑
 func GetUsersWithFields(
-	ctx context.Context, appId string, userIds []string, fields ...string) (
+	ctx context.Context, appId string, userIds, fields []string) (
 	_ []*User, err error) {
 	proj := bson.M{"_id": 1}
 	for _, field := range fields {
@@ -157,13 +159,14 @@ func getUsersWithOption(
 }
 
 func LoginUser(
-	ctx context.Context, app *App, userIp string,
+	ctx context.Context, app *App, clientIp, deviceId string,
 	acctIds []string, createIfNotFound bool) (
 	_ *User, _ *Sess, err error) {
 	if len(acctIds) > dbMaxAcctPerUser {
 		err = newInvalidArgumentError("too many acct ids")
 		return
 	}
+
 	collection, err := getUserCollection(ctx, app.Id)
 	if err != nil {
 		return
@@ -172,7 +175,7 @@ func LoginUser(
 	user := &User{
 		Id:       newUserId(app.Key),
 		CreateAt: now,
-		CreateIp: userIp,
+		CreateIp: clientIp,
 	}
 	// 这里正确执行隐含了一个前置条件，acct_ids字段必须是索引。
 	// 当给进来的acct_ids列表可以映射到多个User的时候addToSet必然会失败，
@@ -189,7 +192,7 @@ func LoginUser(
 		bson.M{
 			"$set": bson.M{
 				"login_at": now,
-				"login_ip": userIp,
+				"login_ip": clientIp,
 			},
 			"$addToSet": bson.M{
 				"acct_ids": bson.M{
@@ -222,16 +225,15 @@ func LoginUser(
 			},
 		); err != nil {
 			log.Warnf("failed to access mongo: %v", err)
-			err = ErrDatabaseUnavailable
-			return
+			return nil, nil, ErrDatabaseUnavailable
 		}
 	}
 
 	limitUserAcctCount(ctx, collection, user)
 
 	// 检查封禁状态
-	if user.BanTo.After(time.Now()) {
-		err = newPermissionDeniedError(newErrorDetail(
+	if user.BanTo.After(now) {
+		return nil, nil, newPermissionDeniedError(newErrorDetail(
 			v1pb.ErrorCode_ErrorCodeBan,
 			&v1pb.BanErrorDetail{
 				UserId: user.Id,
@@ -239,7 +241,31 @@ func LoginUser(
 				BanFor: user.BanFor,
 			},
 		))
-		return
+	}
+
+	// 检查通用封禁
+	var keys = append([]string{}, user.AcctIds...)
+	if clientIp != "" {
+		keys = append(keys, clientIp)
+	}
+	if deviceId != "" {
+		keys = append(keys, deviceId)
+	}
+	if len(keys) > 0 {
+		var block *BlockData
+		if block, err = IsBlocked(ctx, app.Id, keys); err != nil {
+			return nil, nil, ErrDatabaseUnavailable
+		}
+		if block != nil {
+			return nil, nil, newPermissionDeniedError(newErrorDetail(
+				v1pb.ErrorCode_ErrorCodeBan,
+				&v1pb.BanErrorDetail{
+					UserId: user.Id,
+					BanTo:  int32(block.BanTo.Unix()),
+					BanFor: block.BanFor,
+				},
+			))
+		}
 	}
 
 	// 创建会话
@@ -469,7 +495,11 @@ func BanUsers(
 	if _, err = collection.UpdateMany(
 		ctx,
 		bson.M{"_id": bson.M{"$in": userIds}},
-		bson.M{"$set": bson.M{"ban_to": banTo, "ban_for": banFor}},
+		bson.M{"$set": bson.M{
+			"ban_at":  time.Now(),
+			"ban_to":  banTo,
+			"ban_for": banFor,
+		}},
 	); err != nil {
 		return
 	}
@@ -485,7 +515,11 @@ func UnbanUsers(
 	if _, err = collection.UpdateMany(
 		ctx,
 		bson.M{"_id": bson.M{"$in": userIds}},
-		bson.M{"$unset": bson.M{"ban_to": 1, "ban_for": 1}},
+		bson.M{"$unset": bson.M{
+			"ban_at":  1,
+			"ban_to":  1,
+			"ban_for": 1,
+		}},
 	); err != nil {
 		return
 	}

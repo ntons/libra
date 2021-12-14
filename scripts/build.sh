@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 IMAGE="onemore/librad"
 
 VERSION=$(cat VERSION)

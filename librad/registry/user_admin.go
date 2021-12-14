@@ -141,7 +141,8 @@ func (srv *userAdminServer) Ban(
 			}
 		}
 		users, err := db.GetUsersWithFields(
-			ctx, trusted.AppId, req.UserIds, "ban_to", "ban_for")
+			ctx, trusted.AppId, req.UserIds,
+			[]string{"ban_to", "ban_for"})
 		if err != nil {
 			log.Warnf("failed to get users: %v", err)
 			return nil, db.ErrDatabaseUnavailable

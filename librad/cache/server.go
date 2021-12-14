@@ -96,16 +96,15 @@ func (srv *cacheServer) Add(
 	if trusted == nil {
 		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
 	}
-	ok, err := srv.cli.SetNX(
+	if ok, err := srv.cli.SetNX(
 		ctx,
 		getCacheKey(trusted.AppId, req.Key),
 		req.Value,
-		getTimeout(req.Options)).Result()
-	if err != nil {
+		getTimeout(req.Options),
+	).Result(); err != nil {
 		log.Warnf("failed to set to redis: %v", err)
 		return nil, status.Errorf(codes.Unavailable, "redis error")
-	}
-	if !ok {
+	} else if !ok {
 		return nil, status.Errorf(codes.AlreadyExists, "already exists")
 	}
 	return &v1pb.CacheAddResponse{}, nil

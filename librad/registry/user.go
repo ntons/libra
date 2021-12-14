@@ -109,52 +109,91 @@ func (srv *userServer) Ban(
 	if trusted == nil || !db.IdBelongToAppId(trusted.AppId, req.UserIds...) {
 		return nil, errUnauthenticated
 	}
-	res := &v1pb.UserBanResponse{}
+
+	resp := &v1pb.UserBanResponse{}
+
 	if len(req.UserIds) > 0 {
+		var (
+			appId   = trusted.AppId
+			userIds = req.UserIds
+			now     = time.Now()
+		)
+
 		if req.Seconds > 0 {
-			// ban
-			if err = db.BanUsers(
-				ctx,
-				trusted.AppId,
-				req.UserIds,
-				time.Now().Add(time.Duration(req.Seconds)*time.Second),
-				req.Reason,
-			); err != nil {
+			var (
+				banTo  = now.Add(time.Duration(req.Seconds) * time.Second)
+				banFor = req.Reason
+			)
+			if err = db.BanUsers(ctx, appId, userIds, banTo, banFor); err != nil {
 				log.Warnf("failed to ban users: %v", err)
 				return nil, db.ErrDatabaseUnavailable
 			}
-			if err = db.LogoutUser(ctx, req.UserIds...); err != nil {
+			if err = db.LogoutUser(ctx, userIds...); err != nil {
 				log.Warnf("failed to logout users: %v", err)
 				return nil, db.ErrDatabaseUnavailable
 			}
 		} else if req.Seconds < 0 {
-			// unban
-			if err = db.UnbanUsers(
-				ctx,
-				trusted.AppId,
-				req.UserIds,
-			); err != nil {
+			if err = db.UnbanUsers(ctx, appId, userIds); err != nil {
 				log.Warnf("failed to unban users: %v", err)
 				return nil, db.ErrDatabaseUnavailable
 			}
 		}
-		users, err := db.GetUsersWithFields(
-			ctx, trusted.AppId, req.UserIds, "ban_to", "ban_for")
+
+		fields := []string{"ban_to", "ban_for"}
+		users, err := db.GetUsersWithFields(ctx, appId, userIds, fields)
 		if err != nil {
 			log.Warnf("failed to get users: %v", err)
 			return nil, db.ErrDatabaseUnavailable
 		}
-		now := time.Now()
+
 		for _, user := range users {
 			state := &v1pb.UserBanState{Id: user.Id}
 			if user.BanTo.After(now) {
 				state.BanTo = user.BanTo.Unix()
 				state.BanFor = user.BanFor
 			}
-			res.States = append(res.States, state)
+			resp.States = append(resp.States, state)
 		}
 	}
-	return res, nil
+	return resp, nil
+}
+
+func (srv *userServer) Block(
+	ctx context.Context, req *v1pb.UserBlockRequest) (
+	_ *v1pb.UserBlockResponse, err error) {
+	trusted := L.RequireAuthBySecret(ctx)
+	if trusted == nil {
+		return nil, errUnauthenticated
+	}
+
+	var keys []string
+	keys = append(keys, req.AcctIds...)
+	keys = append(keys, req.DeviceIds...)
+	keys = append(keys, req.ClientIps...)
+
+	if len(keys) > 0 {
+		var (
+			appId = trusted.AppId
+			now   = time.Now()
+		)
+		if req.Seconds > 0 {
+			var (
+				banTo  = now.Add(time.Duration(req.Seconds) * time.Second)
+				banFor = req.Reason
+			)
+			if err = db.Block(ctx, appId, keys, banTo, banFor); err != nil {
+				log.Warnf("failed to ban keys: %v", err)
+				return nil, db.ErrDatabaseUnavailable
+			}
+		} else if req.Seconds < 0 {
+			if err = db.Allow(ctx, appId, keys); err != nil {
+				log.Warnf("failed to unban keys: %v", err)
+				return nil, db.ErrDatabaseUnavailable
+			}
+		}
+	}
+
+	return &v1pb.UserBlockResponse{}, nil
 }
 
 func (srv *userServer) BindAcctId(
@@ -174,15 +213,9 @@ func (srv *userServer) BindAcctId(
 	return &v1pb.UserBindAcctIdResponse{}, nil
 }
 
-type xGenericLoginState struct {
-	AcctIds     []string
-	AcctDetails map[string]string
-	Properties  *v1pb.LoginStateProperties
-}
-
 func (srv *userServer) CheckLoginState(
 	ctx context.Context, appId string, anyState *anypb.Any) (
-	app *db.App, state *xGenericLoginState, err error) {
+	app *db.App, state *v1pb.UniformLoginState, err error) {
 	if app = db.FindAppById(appId); app == nil {
 		log.Warnf("invalid app id: %v", appId)
 		return nil, nil, db.ErrInvalidAppId
@@ -195,7 +228,7 @@ func (srv *userServer) CheckLoginState(
 
 	switch x := x.(type) {
 	case *v1pb.UniformLoginState:
-		if state, err = srv.CheckUniformLoginState(ctx, app, x); err != nil {
+		if err = srv.CheckUniformLoginState(ctx, app, x); err != nil {
 			return
 		}
 	default:
@@ -205,10 +238,9 @@ func (srv *userServer) CheckLoginState(
 }
 
 func (srv *userServer) CheckUniformLoginState(
-	ctx context.Context, app *db.App, state *v1pb.UniformLoginState) (
-	_ *xGenericLoginState, err error) {
+	ctx context.Context, app *db.App, state *v1pb.UniformLoginState) (err error) {
 	if state == nil {
-		return nil, errInvalidState
+		return errInvalidState
 	}
 	if err = db.CheckNonce(ctx, app.Id, state.Nonce); err != nil {
 		return
@@ -217,7 +249,7 @@ func (srv *userServer) CheckUniformLoginState(
 	// ts+5  是为了容忍一定的系统时间误差
 	ts := time.Now().Unix()
 	if state.Timestamp < ts-30 || state.Timestamp > ts+5 {
-		return nil, errInvalidTimestamp
+		return errInvalidTimestamp
 	}
 	signature := state.Signature
 	state.Signature = ""
@@ -225,27 +257,33 @@ func (srv *userServer) CheckUniformLoginState(
 	if !strings.EqualFold(signature, expected) {
 		log.Warnf("signature mismatch: %s, %s, %s, %s",
 			signature, expected, app.Secret, state)
-		return nil, errInvalidSignature
+		return errInvalidSignature
 	}
-	return &xGenericLoginState{
-		AcctIds:     state.AcctIds,
-		AcctDetails: state.AcctDetails,
-		Properties:  state.Properties,
-	}, nil
+	return
 }
 
 func (srv *userServer) Login(
 	ctx context.Context, req *v1pb.UserLoginRequest) (
 	_ *v1pb.UserLoginResponse, err error) {
-	app, state, err := srv.CheckLoginState(ctx, req.AppId, req.State)
+	appId := req.AppId
+
+	app, state, err := srv.CheckLoginState(ctx, appId, req.State)
 	if err != nil {
 		return
 	}
 
+	clientIp := req.GetClient().GetIp()
+	if clientIp == "" {
+		clientIp = state.UserIp
+	}
+	if clientIp == "" {
+		clientIp = httputil.GetRemoteIpFromContext(ctx)
+	}
+
+	deviceId := req.GetDevice().GetId()
+
 	user, sess, err := db.LoginUser(
-		ctx, app,
-		httputil.GetRemoteIpFromContext(ctx),
-		state.AcctIds,
+		ctx, app, clientIp, deviceId, state.AcctIds,
 		req.CreateIfNotFound)
 	if err != nil {
 		log.Warnf("failed to login user: %v", err)
@@ -258,10 +296,10 @@ func (srv *userServer) Login(
 		if detail == "" {
 			continue
 		}
-		if err := db.UpdateAcctDetail(ctx, req.AppId, id, detail); err != nil {
+		if err := db.UpdateAcctDetail(ctx, appId, id, detail); err != nil {
 			log.Warnw(
 				"failed to update acct detail",
-				"app_id", req.AppId,
+				"app_id", appId,
 				"acct_id", id,
 				"detail", detail,
 				"error", err,
@@ -295,7 +333,7 @@ func (srv *userServer) Bind(
 	resp := &v1pb.UserBindResponse{}
 	if resp.AcctIds, err = db.BindAcctIdToUser(
 		ctx, appId, userId, state.AcctIds,
-		state.Properties.GetTakeOverAcctIdIfDuplicated()); err != nil {
+		state.GetProperties().GetTakeOverAcctIdIfDuplicated()); err != nil {
 		log.Warnf("failed to bind acct to user: %v", err)
 		return
 	}
