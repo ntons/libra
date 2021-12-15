@@ -228,7 +228,7 @@ func (srv *userServer) CheckLoginState(
 
 	switch x := x.(type) {
 	case *v1pb.UniformLoginState:
-		if err = srv.CheckUniformLoginState(ctx, app, x); err != nil {
+		if state, err = srv.CheckUniformLoginState(ctx, app, x); err != nil {
 			return
 		}
 	default:
@@ -238,9 +238,10 @@ func (srv *userServer) CheckLoginState(
 }
 
 func (srv *userServer) CheckUniformLoginState(
-	ctx context.Context, app *db.App, state *v1pb.UniformLoginState) (err error) {
+	ctx context.Context, app *db.App, state *v1pb.UniformLoginState) (
+	_ *v1pb.UniformLoginState, err error) {
 	if state == nil {
-		return errInvalidState
+		return nil, errInvalidState
 	}
 	if err = db.CheckNonce(ctx, app.Id, state.Nonce); err != nil {
 		return
@@ -249,7 +250,7 @@ func (srv *userServer) CheckUniformLoginState(
 	// ts+5  是为了容忍一定的系统时间误差
 	ts := time.Now().Unix()
 	if state.Timestamp < ts-30 || state.Timestamp > ts+5 {
-		return errInvalidTimestamp
+		return nil, errInvalidTimestamp
 	}
 	signature := state.Signature
 	state.Signature = ""
@@ -257,9 +258,9 @@ func (srv *userServer) CheckUniformLoginState(
 	if !strings.EqualFold(signature, expected) {
 		log.Warnf("signature mismatch: %s, %s, %s, %s",
 			signature, expected, app.Secret, state)
-		return errInvalidSignature
+		return nil, errInvalidSignature
 	}
-	return
+	return state, nil
 }
 
 func (srv *userServer) Login(
