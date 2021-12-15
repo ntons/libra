@@ -167,6 +167,7 @@ func (srv *userServer) Block(
 	}
 
 	var keys []string
+	keys = append(keys, req.Keys...)
 	keys = append(keys, req.AcctIds...)
 	keys = append(keys, req.DeviceIds...)
 	keys = append(keys, req.ClientIps...)
