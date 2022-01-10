@@ -31,6 +31,9 @@ func (m *module) Initialize(jb json.RawMessage) (err error) {
 	if err = json.Unmarshal(jb, &cfg); err != nil {
 		return
 	}
+	if err = cfg.parse(); err != nil {
+		return
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	if err = dialDatabase(ctx); err != nil {
