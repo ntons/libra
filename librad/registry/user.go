@@ -28,6 +28,7 @@ func fromDbUser(x *db.User) *v1pb.UserData {
 		Metadata: x.Metadata,
 	}
 	if x.BanTo.After(time.Now()) {
+		r.BanAt = x.BanAt.Unix()
 		r.BanTo = x.BanTo.Unix()
 		r.BanFor = x.BanFor
 	}
@@ -149,6 +150,7 @@ func (srv *userServer) Ban(
 		for _, user := range users {
 			state := &v1pb.UserBanState{Id: user.Id}
 			if user.BanTo.After(now) {
+				state.BanAt = user.BanAt.Unix()
 				state.BanTo = user.BanTo.Unix()
 				state.BanFor = user.BanFor
 			}
