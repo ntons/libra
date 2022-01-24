@@ -1,7 +1,7 @@
 ################################################################################
 # Stage 1: Build binaries
 ################################################################################
-FROM golang:1.16.4-buster AS builder
+FROM golang:1.17.6-buster AS builder
 
 ENV GOPATH=/go
 ENV GOPROXY=https://goproxy.cn,direct
