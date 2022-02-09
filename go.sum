@@ -210,8 +210,8 @@ github.com/ntons/log-go v0.0.0-20210804015646-3ca0ced163e5 h1:P1CriWty6jug2vU09D
 github.com/ntons/log-go v0.0.0-20210804015646-3ca0ced163e5/go.mod h1:YFK536HWWIMdNhjgvJnumUlvmq+rRn3IGDIBexpUO8A=
 github.com/ntons/ranking v0.1.7-0.20210308073015-fcb506a578cb h1:yXP9ERUoDSzB89E3aK1Pv7sR3L6oX7ShEr1BwZqKxYQ=
 github.com/ntons/ranking v0.1.7-0.20210308073015-fcb506a578cb/go.mod h1:FjpMoe7c/m/JVZqmp5+2ZA9/u7/KS4GFx77JByRVdkA=
-github.com/ntons/remon v0.1.7-0.20220124101328-5e90d2bf18f0 h1:UT064j8MjJkXDgWyXXVIKloHrtHwtARRrg7KK+6tjFc=
-github.com/ntons/remon v0.1.7-0.20220124101328-5e90d2bf18f0/go.mod h1:sNLmxiIVE7bVzpNMyV1jQqskHgOCCZA38yFi4Q4TCgE=
+github.com/ntons/remon v0.1.7 h1:o3HUZipNnwALvM77oUMcSPLqCb7CbFLV9UgsVQiPdhU=
+github.com/ntons/remon v0.1.7/go.mod h1:sNLmxiIVE7bVzpNMyV1jQqskHgOCCZA38yFi4Q4TCgE=
 github.com/ntons/tongo/httputil v0.0.0-20210926235700-c0c0e6e56ff5 h1:/jl2MVz92s0JeEDW4ro3Syu5eVLaIZKAaoI6QXZXmQ0=
 github.com/ntons/tongo/httputil v0.0.0-20210926235700-c0c0e6e56ff5/go.mod h1:BNNLfFexfO3+78NNVoA2XQA0QtAFBwRrquxm31vRcrA=
 github.com/ntons/tongo/redis v0.0.0-20211108034221-312ac468634b h1:JvsgkftTLi164YiSvXBoxFtkIA4yDjDbGyoEmkpcGqE=
