@@ -13,7 +13,7 @@ require (
 	github.com/ntons/libra-go v0.0.0-20220124024252-2087d947cf8f
 	github.com/ntons/log-go v0.0.0-20210804015646-3ca0ced163e5
 	github.com/ntons/ranking v0.1.7-0.20210308073015-fcb506a578cb
-	github.com/ntons/remon v0.1.6
+	github.com/ntons/remon v0.1.7-0.20220124101328-5e90d2bf18f0
 	github.com/ntons/tongo/httputil v0.0.0-20210926235700-c0c0e6e56ff5
 	github.com/ntons/tongo/redis v0.0.0-20211108034221-312ac468634b
 	github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5
