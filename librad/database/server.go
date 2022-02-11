@@ -326,7 +326,11 @@ func (srv *server) List(
 	}
 	list, err := srv.mb.List(ctx, key)
 	if err != nil {
-		return nil, fromRemonError(err)
+		if err == remon.ErrNotFound && req.Options.GetRegardNotFoundAsEmpty() {
+			list, err = nil, nil
+		} else {
+			return nil, fromRemonError(err)
+		}
 	}
 	resp := &v1pb.MailboxListResponse{}
 	for _, e := range list {
@@ -377,11 +381,7 @@ func (srv *server) Pull(
 		ids = append(ids, id)
 	}
 	if ids, err = srv.mb.Pull(ctx, key, ids...); err != nil {
-		if err == remon.ErrNotFound && req.Options.GetRegardNotFoundAsEmpty() {
-			ids, err = nil, nil
-		} else {
-			return nil, fromRemonError(err)
-		}
+		return nil, fromRemonError(err)
 	}
 	resp := &v1pb.MailboxPullResponse{
 		PulledIds: make([]string, len(ids)),
