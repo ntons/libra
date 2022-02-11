@@ -377,7 +377,11 @@ func (srv *server) Pull(
 		ids = append(ids, id)
 	}
 	if ids, err = srv.mb.Pull(ctx, key, ids...); err != nil {
-		return nil, fromRemonError(err)
+		if err == remon.ErrNotFound && req.Options.GetRegardNotFoundAsEmpty() {
+			ids, err = nil, nil
+		} else {
+			return nil, fromRemonError(err)
+		}
 	}
 	resp := &v1pb.MailboxPullResponse{
 		PulledIds: make([]string, len(ids)),

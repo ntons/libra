@@ -59,7 +59,11 @@ func (srv *cacheServer) Get(
 	).Result()
 	if err != nil {
 		if err == redis.Nil {
-			return nil, status.Errorf(codes.NotFound, "not found")
+			if req.Options.GetRegardNotFoundAsEmpty() {
+				value, err = "", nil
+			} else {
+				return nil, status.Errorf(codes.NotFound, "not found")
+			}
 		} else {
 			log.Warnf("failed to get from redis: %v", err)
 			return nil, status.Errorf(codes.Unavailable, "redis error")
@@ -81,7 +85,7 @@ func (srv *cacheServer) Set(
 		ctx,
 		getCacheKey(trusted.AppId, req.Key),
 		req.Value,
-		getTimeout(req.Options),
+		getTimeout(req.Options.GetTimeoutMilliseconds()),
 	).Err(); err != nil {
 		log.Warnf("failed to set to redis: %v", err)
 		return nil, status.Errorf(codes.Unavailable, "redis error")
@@ -100,7 +104,7 @@ func (srv *cacheServer) Add(
 		ctx,
 		getCacheKey(trusted.AppId, req.Key),
 		req.Value,
-		getTimeout(req.Options),
+		getTimeout(req.Options.GetTimeoutMilliseconds()),
 	).Result(); err != nil {
 		log.Warnf("failed to set to redis: %v", err)
 		return nil, status.Errorf(codes.Unavailable, "redis error")
