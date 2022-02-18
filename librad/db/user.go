@@ -8,7 +8,7 @@ import (
 
 	v1pb "github.com/ntons/libra-go/api/libra/v1"
 	"github.com/ntons/log-go"
-	"github.com/ntons/tongo/redis"
+	"github.com/ntons/redis"
 	"github.com/vmihailenco/msgpack/v4"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"

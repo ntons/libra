@@ -6,7 +6,7 @@ import (
 	"time"
 
 	v1 "github.com/ntons/libra-go/api/libra/v1"
-	"github.com/ntons/tongo/redis"
+	"github.com/ntons/redis"
 )
 
 type request interface {

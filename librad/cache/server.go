@@ -9,7 +9,7 @@ import (
 	L "github.com/ntons/libra-go"
 	v1pb "github.com/ntons/libra-go/api/libra/v1"
 	"github.com/ntons/log-go"
-	"github.com/ntons/tongo/redis"
+	"github.com/ntons/redis"
 	"github.com/onemoreteam/httpframework/modularity"
 	"github.com/onemoreteam/httpframework/modularity/server"
 	"google.golang.org/grpc/codes"
