@@ -3,17 +3,18 @@ module github.com/ntons/libra
 go 1.17
 
 require (
-	github.com/cncf/xds/go v0.0.0-20210312221358-fbca930ec8ed
-	github.com/envoyproxy/go-control-plane v0.9.9-0.20210512163311-63b5d3c536b0
+	github.com/cncf/xds/go v0.0.0-20211011173535-cb28da3451f1
+	github.com/envoyproxy/go-control-plane v0.9.10-0.20210907150352-cf90f659a021
 	github.com/envoyproxy/protoc-gen-validate v0.1.0
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/golang/protobuf v1.5.2
 	github.com/ntons/distlock v0.2.0
 	github.com/ntons/grpc-compressor/lz4 v0.0.0-20210305100006-06d7d07e537e
-	github.com/ntons/libra-go v0.0.0-20220211021314-1b46bbc61b61
+	github.com/ntons/libra-go v0.0.0-20220222062241-c03fba911fc6
 	github.com/ntons/log-go v0.0.0-20210804015646-3ca0ced163e5
 	github.com/ntons/ranking v0.1.7-0.20210308073015-fcb506a578cb
-	github.com/ntons/redis v0.1.1
+	github.com/ntons/redis v0.1.2-0.20220217100137-fe77685ec0b4
+	github.com/ntons/redmq v0.0.0-20220222065331-070944d0f346
 	github.com/ntons/remon v0.1.7
 	github.com/ntons/tongo/httputil v0.0.0-20210926235700-c0c0e6e56ff5
 	github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5
@@ -23,8 +24,8 @@ require (
 	github.com/vmihailenco/msgpack/v4 v4.3.12
 	go.mongodb.org/mongo-driver v1.5.3
 	google.golang.org/genproto v0.0.0-20210617175327-b9e0b3197ced
-	google.golang.org/grpc v1.40.0
-	google.golang.org/protobuf v1.26.0
+	google.golang.org/grpc v1.44.0
+	google.golang.org/protobuf v1.27.1
 )
 
 require (
