@@ -58,6 +58,9 @@ func (srv *gatewayServer) Initialize(jb json.RawMessage) (err error) {
 }
 
 func (srv *gatewayServer) Serve() error {
+	if srv.mq == nil {
+		return srv.Skeleton.Serve()
+	}
 	var ctx context.Context
 	ctx, srv.quit = context.WithCancel(context.Background())
 	srv.mq.Serve(ctx)
