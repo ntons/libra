@@ -9,21 +9,21 @@ require (
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/golang/protobuf v1.5.2
 	github.com/ntons/distlock v0.2.0
-	github.com/ntons/grpc-compressor/lz4 v0.0.0-20210305100006-06d7d07e537e
-	github.com/ntons/libra-go v0.0.0-20220222062241-c03fba911fc6
-	github.com/ntons/log-go v0.0.0-20210804015646-3ca0ced163e5
+	github.com/ntons/grpc-compressor v0.1.1
+	github.com/ntons/libra-go v0.0.0-20220301024945-9c9ff939dc0f
+	github.com/ntons/log-go v0.1.0
 	github.com/ntons/ranking v0.1.7-0.20210308073015-fcb506a578cb
 	github.com/ntons/redis v0.1.2-0.20220217100137-fe77685ec0b4
 	github.com/ntons/redmq v0.0.0-20220222065331-070944d0f346
 	github.com/ntons/remon v0.1.7
 	github.com/ntons/tongo/httputil v0.0.0-20210926235700-c0c0e6e56ff5
 	github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5
-	github.com/onemoreteam/httpframework v0.0.0-20211112074923-c9a5c5f9c7ce
+	github.com/onemoreteam/httpframework v0.1.2-0.20220301023911-259e38a8a715
 	github.com/pierrec/lz4/v4 v4.1.3
 	github.com/sigurn/crc16 v0.0.0-20160107003519-da416fad5162
 	github.com/vmihailenco/msgpack/v4 v4.3.12
 	go.mongodb.org/mongo-driver v1.5.3
-	google.golang.org/genproto v0.0.0-20210617175327-b9e0b3197ced
+	google.golang.org/genproto v0.0.0-20220118154757-00ab72f36ad5
 	google.golang.org/grpc v1.44.0
 	google.golang.org/protobuf v1.27.1
 )
@@ -32,13 +32,13 @@ require (
 	github.com/aws/aws-sdk-go v1.34.28 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
-	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3 // indirect
-	github.com/ghodss/yaml v1.0.0 // indirect
+	github.com/flosch/pongo2/v4 v4.0.2 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.5.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.7.3 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/klauspost/compress v1.9.5 // indirect
+	github.com/onemoreteam/yaml v1.0.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sigurn/utils v0.0.0-20190728110027-e1fefb11a144 // indirect
 	github.com/soheilhy/cmux v0.1.5 // indirect
@@ -49,7 +49,7 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
-	go.uber.org/zap v1.16.0 // indirect
+	go.uber.org/zap v1.17.0 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
 	golang.org/x/net v0.0.0-20210428140749-89ef3d95e781 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
@@ -57,7 +57,6 @@ require (
 	golang.org/x/text v0.3.6 // indirect
 	google.golang.org/appengine v1.6.6 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	honnef.co/go/tools v0.0.1-2020.1.5 // indirect
 )
 
 //replace github.com/ntons/libra-go => ../libra-go
