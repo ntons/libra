@@ -38,14 +38,14 @@ func GetAcctIdByDetail(
 		return nil, fmt.Errorf("failed to get collection: %w", err)
 	}
 
-	filter := bson.D{}
+	filter := bson.M{}
 	for key, val := range keyVals {
-		filter = append(filter, bson.E{key, val})
+		filter["detail."+key] = val
 	}
 	cursor, err := collection.Find(
 		ctx,
 		filter,
-		options.Find().SetProjection(bson.D{{"_id", 1}}),
+		options.Find().SetProjection(bson.M{"_id": 1}),
 	)
 	if err != nil {
 		return
