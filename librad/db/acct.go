@@ -30,6 +30,40 @@ func UpdateAcctDetail(
 	return
 }
 
+func GetAcctIdByDetail(
+	ctx context.Context, appId string, keyVals map[string]string) (
+	acctIds []string, err error) {
+	collection, err := getAcctCollection(ctx, appId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get collection: %w", err)
+	}
+
+	filter := bson.D{}
+	for key, val := range keyVals {
+		filter = append(filter, bson.E{key, val})
+	}
+	cursor, err := collection.Find(
+		ctx,
+		filter,
+		options.Find().SetProjection(bson.D{{"_id", 1}}),
+	)
+	if err != nil {
+		return
+	}
+
+	results := []struct {
+		Id string `bson:"_id"`
+	}{}
+	if err = cursor.All(ctx, &results); err != nil {
+		return
+	}
+
+	for _, x := range results {
+		acctIds = append(acctIds, x.Id)
+	}
+	return
+}
+
 func getAcctCollection(
 	ctx context.Context, appId string) (*mongo.Collection, error) {
 	dbAcctCollectionMu.Lock()

@@ -90,25 +90,24 @@ func GetUser(
 	return user, nil
 }
 
-func getUserByAcctId(
-	ctx context.Context, appId, acctId string) (_ *User, err error) {
+func GetUsersByAcctId(
+	ctx context.Context, appId string, acctIds ...string) (_ []*User, err error) {
 	collection, err := getUserCollection(ctx, appId)
 	if err != nil {
 		return
 	}
-	user := &User{}
-	if err = collection.FindOne(
+	cursor, err := collection.Find(
 		ctx,
-		bson.M{"acct_ids": acctId},
-	).Decode(user); err != nil {
-		if err == mongo.ErrNoDocuments {
-			err = ErrAcctIdNotFound
-		} else {
-			err = ErrDatabaseUnavailable
-		}
-		return
+		bson.M{"acct_ids": bson.M{"$in": acctIds}},
+	)
+	if err != nil {
+		return nil, ErrDatabaseUnavailable
 	}
-	return user, nil
+	var users []*User
+	if err = cursor.All(ctx, &users); err != nil {
+		return nil, ErrDatabaseUnavailable
+	}
+	return users, nil
 }
 
 func GetUsers(

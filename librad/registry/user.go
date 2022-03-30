@@ -103,6 +103,61 @@ func (srv *userServer) Get(
 	}, nil
 }
 
+func (srv *userServer) Query(
+	ctx context.Context, req *v1pb.UserQueryRequest) (
+	_ *v1pb.UserQueryResponse, err error) {
+	trusted := L.RequireAuthBySecret(ctx)
+	if trusted == nil {
+		return nil, errUnauthenticated
+	}
+
+	var acctIds []string
+	if req.Filters == nil {
+		return nil, newInvalidArgumentError("require filters")
+	} else if req.Filters.AcctDetails != nil {
+		if acctIds, err = db.GetAcctIdByDetail(
+			ctx,
+			trusted.AppId,
+			req.Filters.AcctDetails,
+		); err != nil {
+			return nil, newInternalError("failed to query")
+		}
+	} else {
+		return nil, newInvalidArgumentError("require filters")
+	}
+
+	resp := &v1pb.UserQueryResponse{}
+	if len(acctIds) > 0 {
+		var (
+			users []*db.User
+			roles []*db.Role
+		)
+		if users, err = db.GetUsersByAcctId(
+			ctx,
+			trusted.AppId,
+			acctIds...,
+		); err != nil {
+			return
+		}
+
+		if req.Options != nil && req.Options.WithRoles {
+			var userIds []string
+			for _, user := range users {
+				userIds = append(userIds, user.Id)
+			}
+			if roles, err = db.GetRolesByUserId(
+				ctx, trusted.AppId, userIds); err != nil {
+				log.Warnf("failed to get roles: %v", err)
+				return nil, db.ErrDatabaseUnavailable
+			}
+		}
+
+		resp.Users = fromDbUsers(users)
+		resp.Roles = fromDbRoles(roles)
+	}
+	return resp, nil
+}
+
 func (srv *userServer) Ban(
 	ctx context.Context, req *v1pb.UserBanRequest) (
 	_ *v1pb.UserBanResponse, err error) {
