@@ -54,7 +54,7 @@ func (srv *userServer) Get(
 	ctx context.Context, req *v1pb.UserGetRequest) (
 	_ *v1pb.UserGetResponse, err error) {
 	trusted := L.RequireAuthBySecret(ctx)
-	if trusted == nil || !db.IdBelongToAppId(trusted.AppId, req.Ids...) {
+	if trusted == nil {
 		return nil, errUnauthenticated
 	}
 	var (
