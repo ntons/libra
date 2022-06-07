@@ -53,6 +53,8 @@ func createServer(jb json.RawMessage) (*server, error) {
 		return nil, err
 	}
 
+	log.Debugf("database.cfg: %#v", cfg)
+
 	srv := &server{}
 
 	if rdb, err := redis.Dial(
