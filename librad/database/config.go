@@ -5,13 +5,22 @@ import (
 	"time"
 )
 
-type ReMonConfig struct {
-	Redis string `json:"redis"`
-	Mongo string `json:"mongo"`
+type DatabaseConfig struct {
+	Redis       string `json:"redis"`
+	Mongo       string `json:"mongo"`
+	MaxDataSize int    `json:"maxDataSize"`
 }
 
-func (cfg *ReMonConfig) parse() (err error) {
+func (cfg *DatabaseConfig) parse() (err error) {
+	if cfg.MaxDataSize <= 0 {
+		cfg.MaxDataSize = 256 * 1024
+	}
 	return
+}
+
+type MailBoxConfig struct {
+	Redis string `json:"redis"`
+	Mongo string `json:"mongo"`
 }
 
 type DistlockConfig struct {
@@ -32,12 +41,15 @@ func (cfg *DistlockConfig) parse() (err error) {
 }
 
 type config struct {
-	Database ReMonConfig    `json:"database"`
-	MailBox  ReMonConfig    `json:"mailbox"`
+	Database DatabaseConfig `json:"database"`
+	MailBox  MailBoxConfig  `json:"mailbox"`
 	Distlock DistlockConfig `json:"distlock"`
 }
 
 func (cfg *config) parse() (err error) {
+	if err = cfg.Database.parse(); err != nil {
+		return
+	}
 	if err = cfg.Distlock.parse(); err != nil {
 		return
 	}

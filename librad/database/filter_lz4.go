@@ -12,7 +12,7 @@ const lz4MaxLen = 256 * 1024
 type lz4Filter struct{}
 
 func (f lz4Filter) Encode(in []byte) ([]byte, bool, error) {
-	if len(in) > lz4MaxLen {
+	if len(in) > cfg.Database.MaxDataSize {
 		return nil, false, fmt.Errorf("too large")
 	}
 	buf := make([]byte, len(in))
@@ -27,7 +27,7 @@ func (f lz4Filter) Encode(in []byte) ([]byte, bool, error) {
 	return buf[:n], false, nil
 }
 func (f lz4Filter) Decode(in []byte) ([]byte, error) {
-	var buf [lz4MaxLen]byte
+	buf := make([]byte, cfg.Database.MaxDataSize)
 	n, err := lz4.UncompressBlock(in, buf[:])
 	if err != nil {
 		return nil, err
