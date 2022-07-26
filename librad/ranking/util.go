@@ -39,6 +39,9 @@ func fromChartEntries(in []*v1.ChartEntry) (out []*ranking.Entry) {
 }
 
 func fromChartOptions(appId string, in *v1.ChartOptions) (out []ranking.Option) {
+	if in == nil {
+		return
+	}
 	if in.Capacity > 0 {
 		out = append(out, ranking.WithCapacity(in.Capacity))
 	} else {
