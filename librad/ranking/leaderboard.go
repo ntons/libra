@@ -20,6 +20,21 @@ func newLeaderboardServer(cli redis.Client) *leaderboardServer {
 	return &leaderboardServer{cli: ranking.New(cli)}
 }
 
+func (lb *leaderboardServer) Add(
+	ctx context.Context, req *v1.LeaderboardAddRequest) (
+	resp *v1.LeaderboardAddResponse, err error) {
+	trusted := L.RequireAuthBySecret(ctx)
+	if trusted == nil {
+		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
+	}
+	if err = lb.get(trusted.AppId, req).Add(
+		ctx, fromChartEntries(req.Entries)...); err != nil {
+		return
+	}
+	resp = &v1.LeaderboardAddResponse{}
+	return
+}
+
 func (lb *leaderboardServer) SetScore(
 	ctx context.Context, req *v1.LeaderboardSetScoreRequest) (
 	resp *v1.LeaderboardSetScoreResponse, err error) {
@@ -27,7 +42,7 @@ func (lb *leaderboardServer) SetScore(
 	if trusted == nil {
 		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
 	}
-	if err = lb.get(trusted.AppId, req).SetScore(
+	if err = lb.get(trusted.AppId, req).Set(
 		ctx, fromChartEntries(req.Entries)...); err != nil {
 		return
 	}
@@ -42,7 +57,7 @@ func (lb *leaderboardServer) IncrScore(
 	if trusted == nil {
 		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
 	}
-	if err = lb.get(trusted.AppId, req).IncrScore(
+	if err = lb.get(trusted.AppId, req).Incr(
 		ctx, fromChartEntries(req.Entries)...); err != nil {
 		return
 	}
