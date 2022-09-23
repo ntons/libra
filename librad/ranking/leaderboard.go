@@ -127,6 +127,32 @@ func (lb *leaderboardServer) SetInfo(
 	return &v1.LeaderboardSetInfoResponse{}, nil
 }
 
+func (lb *leaderboardServer) RandByScore(
+	ctx context.Context, req *v1.LeaderboardRandByScoreRequest) (
+	resp *v1.LeaderboardRandByScoreResponse, err error) {
+	trusted := L.RequireAuthBySecret(ctx)
+	if trusted == nil {
+		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
+	}
+
+	args := make([]ranking.RandByScoreArg, 0, len(req.Intervals))
+	for _, v := range req.Intervals {
+		args = append(args, ranking.RandByScoreArg{
+			Min:   v.Min,
+			Max:   v.Max,
+			Count: int(v.Count),
+		})
+	}
+
+	entries, err := lb.get(trusted.AppId, req).RandByScore(ctx, args...)
+	if err != nil {
+		return
+	}
+	return &v1.LeaderboardRandByScoreResponse{
+		Entries: toChartEntries(entries),
+	}, nil
+}
+
 func (lb *leaderboardServer) get(appId string, req request) ranking.Leaderboard {
 	return lb.cli.GetLeaderboard(
 		fromChartKey(appId, req.GetKey()),

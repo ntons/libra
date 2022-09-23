@@ -1,6 +1,6 @@
 module github.com/ntons/libra
 
-go 1.17
+go 1.18
 
 require (
 	github.com/cncf/xds/go v0.0.0-20211011173535-cb28da3451f1
@@ -10,10 +10,10 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/ntons/distlock v0.2.0
 	github.com/ntons/grpc-compressor v0.1.1
-	github.com/ntons/libra-go v0.0.0-20220922075037-10142f3b79b5
+	github.com/ntons/libra-go v0.0.0-20220923002230-5aae59d40684
 	github.com/ntons/log-go v0.1.0
-	github.com/ntons/ranking v0.1.8-0.20220922074557-5a7caef34ae0
-	github.com/ntons/redis v0.1.2-0.20220217100137-fe77685ec0b4
+	github.com/ntons/ranking v0.1.8-0.20220923000746-002cc713a99a
+	github.com/ntons/redis v0.1.3
 	github.com/ntons/redmq v0.0.0-20220222065331-070944d0f346
 	github.com/ntons/remon v0.1.7
 	github.com/ntons/tongo/httputil v0.0.0-20210926235700-c0c0e6e56ff5
