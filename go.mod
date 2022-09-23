@@ -1,4 +1,4 @@
-module github.com/ntons/libra/librad
+module github.com/ntons/libra
 
 go 1.18
 
