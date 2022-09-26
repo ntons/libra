@@ -27,11 +27,24 @@ func (lb *leaderboardServer) Add(
 	if trusted == nil {
 		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
 	}
-	if err = lb.get(trusted.AppId, req).Add(
-		ctx, fromChartEntries(req.Entries)...); err != nil {
+
+	x := lb.get(trusted.AppId, req)
+	if err = x.Add(ctx, fromChartEntries(req.Entries)...); err != nil {
 		return
 	}
-	resp = &v1.LeaderboardAddResponse{}
+
+	var ids = make([]string, 0, len(req.Entries))
+	for _, e := range req.Entries {
+		ids = append(ids, e.Id)
+	}
+	entries, err := x.GetById(ctx, ids...)
+	if err != nil {
+		return
+	}
+
+	resp = &v1.LeaderboardAddResponse{
+		Entries: toChartEntries(entries),
+	}
 	return
 }
 
