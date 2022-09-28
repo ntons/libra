@@ -2,6 +2,7 @@ package ranking
 
 import (
 	"context"
+	"errors"
 
 	L "github.com/ntons/libra-go"
 	v1 "github.com/ntons/libra-go/api/libra/v1"
@@ -30,6 +31,9 @@ func (lb *leaderboardServer) Add(
 
 	x := lb.get(trusted.AppId, req)
 	if err = x.Add(ctx, fromChartEntries(req.Entries)...); err != nil {
+		if errors.Is(err, ranking.ErrChartFull) {
+			err = status.Errorf(codes.OutOfRange, err.Error())
+		}
 		return
 	}
 
@@ -57,6 +61,9 @@ func (lb *leaderboardServer) SetScore(
 	}
 	if err = lb.get(trusted.AppId, req).Set(
 		ctx, fromChartEntries(req.Entries)...); err != nil {
+		if errors.Is(err, ranking.ErrChartFull) {
+			err = status.Errorf(codes.OutOfRange, err.Error())
+		}
 		return
 	}
 	resp = &v1.LeaderboardSetScoreResponse{}
@@ -85,7 +92,7 @@ func (lb *leaderboardServer) GetRange(
 	if trusted == nil {
 		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
 	}
-	entries, err := lb.get(trusted.AppId, req).GetRange(ctx, req.Offset, req.Count)
+	entries, err := lb.get(trusted.AppId, req).GetByRank(ctx, req.Offset, req.Count)
 	if err != nil {
 		return
 	}

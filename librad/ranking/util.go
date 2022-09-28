@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ntons/libra-go/api/libra/v1"
+	v1 "github.com/ntons/libra-go/api/libra/v1"
 	"github.com/ntons/ranking"
 )
 
@@ -57,6 +57,9 @@ func fromChartOptions(appId string, in *v1.ChartOptions) (out []ranking.Option) 
 	if in.IdleExpire > 0 {
 		out = append(out, ranking.WithIdleExpire(
 			time.Duration(in.IdleExpire)*time.Second))
+	}
+	if in.NotTrim {
+		out = append(out, ranking.WithNotTrim())
 	}
 	return nil
 }

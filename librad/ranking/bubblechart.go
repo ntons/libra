@@ -48,7 +48,7 @@ func (bb *bubbleChartServer) SwapByRank(
 func (bb *bubbleChartServer) GetRange(
 	ctx context.Context, req *v1.BubbleChartGetRangeRequest) (
 	resp *v1.BubbleChartGetRangeResponse, err error) {
-	entries, err := bb.get(req).GetRange(ctx, req.Offset, req.Count)
+	entries, err := bb.get(req).GetByRank(ctx, req.Offset, req.Count)
 	if err != nil {
 		return
 	}
