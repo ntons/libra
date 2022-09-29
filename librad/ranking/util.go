@@ -48,20 +48,18 @@ func fromChartOptions(appId string, in *v1.ChartOptions) (out []ranking.Option) 
 		out = append(out, ranking.WithCapacity(1000))
 	}
 	if in.ConstructFrom != nil {
-		out = append(out, ranking.WithConstructFrom(
-			fromChartKey(appId, in.ConstructFrom)))
+		out = append(out, ranking.WithConstructFrom(fromChartKey(appId, in.ConstructFrom)))
 	}
 	if in.ExpireAt > 0 {
 		out = append(out, ranking.WithExpireAt(time.Unix(in.ExpireAt, 0)))
 	}
 	if in.IdleExpire > 0 {
-		out = append(out, ranking.WithIdleExpire(
-			time.Duration(in.IdleExpire)*time.Second))
+		out = append(out, ranking.WithIdleExpire(time.Duration(in.IdleExpire)*time.Second))
 	}
 	if in.NotTrim {
 		out = append(out, ranking.WithNotTrim())
 	}
-	return nil
+	return
 }
 
 func fromChartKey(appId string, ck *v1.ChartKey) string {
