@@ -12,7 +12,7 @@ require (
 	github.com/ntons/grpc-compressor v0.1.1
 	github.com/ntons/libra-go v0.0.0-20220928023633-d545a0bd32b2
 	github.com/ntons/log-go v0.1.0
-	github.com/ntons/ranking v0.1.8-0.20220929090010-ecc1181663d5
+	github.com/ntons/ranking v0.1.8-0.20220929102258-402cabc02980
 	github.com/ntons/redis v0.1.3
 	github.com/ntons/redmq v0.0.0-20220222065331-070944d0f346
 	github.com/ntons/remon v0.1.7

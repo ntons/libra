@@ -209,8 +209,8 @@ github.com/ntons/log-go v0.0.0-20200924092648-d9caee8882d8/go.mod h1:R+uLqm/b64q
 github.com/ntons/log-go v0.0.0-20210804015646-3ca0ced163e5/go.mod h1:YFK536HWWIMdNhjgvJnumUlvmq+rRn3IGDIBexpUO8A=
 github.com/ntons/log-go v0.1.0 h1:CiNY2inkHyvpm5ArV2mc1kMnKjI8nP6jeDiBLiqiRjM=
 github.com/ntons/log-go v0.1.0/go.mod h1:kpKvKE1dtOpvlZDNLAXx4zC+rylAo2Ob6jCeT0TQF60=
-github.com/ntons/ranking v0.1.8-0.20220929090010-ecc1181663d5 h1:1O7HTipc34xSZy8wU9dHTor7QLgRhqBGumSlKCRRbYw=
-github.com/ntons/ranking v0.1.8-0.20220929090010-ecc1181663d5/go.mod h1:76/NZwhXZPCKnCjPnaxG5fMZAm0M6RZ7VlJ33m7CkKk=
+github.com/ntons/ranking v0.1.8-0.20220929102258-402cabc02980 h1:G2g10Cm/dTjD/4ZvbQAr3cGqqm67vV7ufIrmI84C5Ck=
+github.com/ntons/ranking v0.1.8-0.20220929102258-402cabc02980/go.mod h1:76/NZwhXZPCKnCjPnaxG5fMZAm0M6RZ7VlJ33m7CkKk=
 github.com/ntons/redis v0.1.2-0.20220217100137-fe77685ec0b4/go.mod h1:kysondb8mIWDqiQXQBnK6+MsRg4NHMIAYSo5Lhwq6Pc=
 github.com/ntons/redis v0.1.3 h1:vxpX3b6yvfLy5xY1e1rXiE6oGFqeYh0esKbxzAmXV00=
 github.com/ntons/redis v0.1.3/go.mod h1:kysondb8mIWDqiQXQBnK6+MsRg4NHMIAYSo5Lhwq6Pc=
