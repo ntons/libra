@@ -4,17 +4,17 @@ import (
 	"context"
 
 	v1 "github.com/ntons/libra-go/api/libra/v1"
-	"github.com/ntons/ranking"
+	"github.com/ntons/redchart"
 	"github.com/ntons/redis"
 )
 
 type bubbleChartServer struct {
 	v1.UnimplementedBubbleChartServer
-	cli ranking.Client
+	cli redchart.Client
 }
 
 func newBubbleChartServer(cli redis.Client) *bubbleChartServer {
-	return &bubbleChartServer{cli: ranking.New(cli)}
+	return &bubbleChartServer{cli: redchart.New(cli)}
 }
 
 func (bb *bubbleChartServer) Append(
@@ -86,7 +86,7 @@ func (bb *bubbleChartServer) SetInfo(
 	return
 }
 
-func (bb *bubbleChartServer) get(req request) ranking.BubbleChart {
+func (bb *bubbleChartServer) get(req request) redchart.BubbleChart {
 	return bb.cli.GetBubbleChart(
 		fromChartKey("", req.GetKey()),
 		fromChartOptions("", req.GetOptions())...)

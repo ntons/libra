@@ -92,34 +92,50 @@ type keyedRequest interface {
 	GetKey() *v1pb.EntryKey
 }
 
-func uniKey(ctx context.Context, req keyedRequest) (_ string, err error) {
-	var isValidStr = func(s string, min, max int) bool {
-		if len(s) < min || max < len(s) {
+func isValidStr(s string, min, max int) bool {
+	if len(s) < min || max < len(s) {
+		return false
+	}
+	for _, r := range s {
+		if (r < 'a' || 'z' < r) &&
+			(r < 'A' || 'Z' < r) &&
+			(r < '0' || '9' < r) &&
+			(r != '_') && (r != '-') {
 			return false
 		}
-		for _, r := range s {
-			if (r < 'a' || 'z' < r) &&
-				(r < 'A' || 'Z' < r) &&
-				(r < '0' || '9' < r) &&
-				(r != '_') && (r != '-') {
-				return false
-			}
-		}
-		return true
 	}
-	trusted := L.RequireAuthBySecret(ctx)
-	if trusted == nil {
+	return true
+}
+
+func getAppId(ctx context.Context) (appId string, err error) {
+	if trusted := L.RequireAuthBySecret(ctx); trusted == nil {
 		return "", errUnauthenticated
 	} else if !isValidStr(trusted.AppId, 1, 32) {
 		return "", errInvalidArgument
+	} else {
+		return trusted.AppId, nil
 	}
-	k := req.GetKey()
-	if !isValidStr(k.GetKind(), 1, 32) || !isValidStr(k.GetId(), 1, 64) {
+}
+
+func getUniqKey(appId string, key *v1pb.EntryKey) (_ string, err error) {
+	if key == nil || !isValidStr(key.Kind, 1, 32) || !isValidStr(key.Id, 1, 64) {
 		return "", errInvalidArgument
 	}
 	// default remon key mapping strategy split key by ':'
 	// into (database, collection, _id)
-	return fmt.Sprintf("%s:%s:%s", trusted.AppId, k.Kind, k.Id), nil
+	return fmt.Sprintf("%s:%s:%s", appId, key.Kind, key.Id), nil
+}
+
+func getAppIdAndUniqKey(ctx context.Context, key *v1pb.EntryKey) (_, _ string, err error) {
+	appId, err := getAppId(ctx)
+	if err != nil {
+		return
+	}
+	uniqKey, err := getUniqKey(appId, key)
+	if err != nil {
+		return
+	}
+	return appId, uniqKey, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -182,7 +198,7 @@ func (srv *server) ensureLock(
 func (srv *server) Lock(
 	ctx context.Context, req *v1pb.DistlockLockRequest) (
 	_ *v1pb.DistlockLockResponse, err error) {
-	key, err := uniKey(ctx, req)
+	_, key, err := getAppIdAndUniqKey(ctx, req.Key)
 	if err != nil {
 		return
 	}
@@ -196,7 +212,7 @@ func (srv *server) Lock(
 func (srv *server) Unlock(
 	ctx context.Context, req *v1pb.DistlockUnlockRequest) (
 	_ *v1pb.DistlockUnlockResponse, err error) {
-	key, err := uniKey(ctx, req)
+	_, key, err := getAppIdAndUniqKey(ctx, req.Key)
 	if err != nil {
 		return
 	}
@@ -232,8 +248,7 @@ func (srv *server) Unlock(
 func (srv *server) Get(
 	ctx context.Context, req *v1pb.DatabaseGetRequest) (
 	_ *v1pb.DatabaseGetResponse, err error) {
-	log.Debugw("database.get", "req", req)
-	key, err := uniKey(ctx, req)
+	_, key, err := getAppIdAndUniqKey(ctx, req.Key)
 	if err != nil {
 		return
 	}
@@ -275,7 +290,7 @@ func (srv *server) Set(
 	_ *v1pb.DatabaseSetResponse, err error) {
 	// 在处理解锁之前检查请求参数，如果请求参数错误，就很难去猜测
 	// 这个请求的真正意图要不要处理锁，所以还是不要动的好
-	key, err := uniKey(ctx, req)
+	_, key, err := getAppIdAndUniqKey(ctx, req.Key)
 	if err != nil {
 		return
 	}
@@ -322,7 +337,7 @@ func (srv *server) Set(
 func (srv *server) List(
 	ctx context.Context, req *v1pb.MailboxListRequest) (
 	_ *v1pb.MailboxListResponse, err error) {
-	key, err := uniKey(ctx, req)
+	_, key, err := getAppIdAndUniqKey(ctx, req.Key)
 	if err != nil {
 		return
 	}
@@ -351,7 +366,7 @@ func (srv *server) List(
 func (srv *server) Push(
 	ctx context.Context, req *v1pb.MailboxPushRequest) (
 	_ *v1pb.MailboxPushResponse, err error) {
-	key, err := uniKey(ctx, req)
+	_, key, err := getAppIdAndUniqKey(ctx, req.Key)
 	if err != nil {
 		return
 	}
@@ -370,7 +385,7 @@ func (srv *server) Push(
 func (srv *server) Pull(
 	ctx context.Context, req *v1pb.MailboxPullRequest) (
 	_ *v1pb.MailboxPullResponse, err error) {
-	key, err := uniKey(ctx, req)
+	_, key, err := getAppIdAndUniqKey(ctx, req.Key)
 	if err != nil {
 		return
 	}
@@ -392,4 +407,50 @@ func (srv *server) Pull(
 		resp.PulledIds[i] = fmt.Sprintf("%x", id)
 	}
 	return resp, nil
+}
+
+func (srv *server) Send(
+	ctx context.Context, req *v1pb.MailboxSendRequest) (
+	_ *v1pb.MailboxSendResponse, err error) {
+	appId, err := getAppId(ctx)
+	if err != nil {
+		return
+	}
+
+	buf, err := encodeMessage(req.Data)
+	if err != nil {
+		return nil, fromProtoError(err)
+	}
+
+	opts := make([]remon.PushOption, 0, 2)
+	if req.Capacity > 0 {
+		opts = append(opts, remon.WithCapacity(int(req.Capacity)))
+	}
+	if req.RemoveEarliestOnFull {
+		opts = append(opts, remon.WithPushStrategy(remon.PullOldestOnFull))
+	}
+
+	// we send these mails as many as possible, then return the first error
+	for _, key := range req.Keys {
+		var (
+			_key string
+			_err error
+		)
+		if _key, _err = getUniqKey(appId, key); err != nil {
+			if err == nil {
+				err = _err
+			}
+			continue
+		}
+		if _, _err = srv.mb.Push(ctx, _key, buf, opts...); err != nil {
+			if _err != remon.ErrMailFull {
+				return nil, fromRemonError(err)
+			}
+			if err == nil {
+				err = _err
+			}
+			continue
+		}
+	}
+	return &v1pb.MailboxSendResponse{}, nil
 }
