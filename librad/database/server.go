@@ -417,39 +417,41 @@ func (srv *server) Send(
 		return
 	}
 
-	buf, err := encodeMessage(req.Data)
-	if err != nil {
-		return nil, fromProtoError(err)
-	}
-
-	opts := make([]remon.PushOption, 0, 2)
-	if req.Capacity > 0 {
-		opts = append(opts, remon.WithCapacity(int(req.Capacity)))
-	}
-	if req.RemoveEarliestOnFull {
-		opts = append(opts, remon.WithPushStrategy(remon.PullOldestOnFull))
-	}
-
-	// we send these mails as many as possible, then return the first error
-	for _, key := range req.Keys {
-		var (
-			_key string
-			_err error
-		)
-		if _key, _err = getUniqKey(appId, key); err != nil {
-			if err == nil {
-				err = _err
-			}
-			continue
+	for _, e := range req.Envelopes {
+		buf, err := encodeMessage(e.Data)
+		if err != nil {
+			return nil, fromProtoError(err)
 		}
-		if _, _err = srv.mb.Push(ctx, _key, buf, opts...); err != nil {
-			if _err != remon.ErrMailFull {
-				return nil, fromRemonError(err)
+
+		opts := make([]remon.PushOption, 0, 2)
+		if e.Capacity > 0 {
+			opts = append(opts, remon.WithCapacity(int(e.Capacity)))
+		}
+		if e.RemoveEarliestOnFull {
+			opts = append(opts, remon.WithPushStrategy(remon.PullOldestOnFull))
+		}
+
+		// we send these mails as many as possible, then return the first error
+		for _, key := range e.Keys {
+			var (
+				_key string
+				_err error
+			)
+			if _key, _err = getUniqKey(appId, key); err != nil {
+				if err == nil {
+					err = _err
+				}
+				continue
 			}
-			if err == nil {
-				err = _err
+			if _, _err = srv.mb.Push(ctx, _key, buf, opts...); err != nil {
+				if _err != remon.ErrMailFull {
+					return nil, fromRemonError(err)
+				}
+				if err == nil {
+					err = _err
+				}
+				continue
 			}
-			continue
 		}
 	}
 	return &v1pb.MailboxSendResponse{}, nil
