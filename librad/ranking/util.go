@@ -53,13 +53,13 @@ func fromChartOptions(appId string, in *v1.ChartOptions) (out []redchart.Option)
 	if in.ExpireAt > 0 {
 		out = append(out, redchart.WithExpireAt(time.Unix(in.ExpireAt, 0)))
 	}
-	if in.IdleExpire > 0 {
-		out = append(out, redchart.WithIdleExpire(time.Duration(in.IdleExpire)*time.Second))
+	if in.Expire > 0 {
+		out = append(out, redchart.WithExpire(time.Duration(in.Expire)*time.Second))
 	}
-	if in.NotTrim {
-		out = append(out, redchart.WithNotTrim())
+	if in.NoTrim {
+		out = append(out, redchart.WithNoTrim())
 	}
-	if in.DiscardInfo {
+	if in.NoInfo {
 		out = append(out, redchart.WithNoInfo())
 	}
 	return
