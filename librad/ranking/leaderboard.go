@@ -21,6 +21,22 @@ func newLeaderboardServer(cli redis.Client) *leaderboardServer {
 	return &leaderboardServer{cli: redchart.New(cli)}
 }
 
+func (lb *leaderboardServer) Touch(
+	ctx context.Context, req *v1.LeaderboardTouchRequest) (
+	resp *v1.LeaderboardTouchResponse, err error) {
+	trusted := L.RequireAuthBySecret(ctx)
+	if trusted == nil {
+		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
+	}
+
+	x := lb.get(trusted.AppId, req)
+	if err = x.Touch(ctx); err != nil {
+		return
+	}
+
+	return &v1.LeaderboardTouchResponse{}, nil
+}
+
 func (lb *leaderboardServer) Add(
 	ctx context.Context, req *v1.LeaderboardAddRequest) (
 	resp *v1.LeaderboardAddResponse, err error) {
