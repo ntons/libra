@@ -21,7 +21,7 @@ func (bb *bubbleChartServer) Append(
 	ctx context.Context, req *v1.BubbleChartAppendRequest) (
 	resp *v1.BubbleChartAppendResponse, err error) {
 	if err = bb.get(req).Append(
-		ctx, fromChartEntries(req.Entries)...); err != nil {
+		ctx, fromChartEntries(req.Entries)); err != nil {
 		return
 	}
 	return
@@ -59,7 +59,7 @@ func (bb *bubbleChartServer) GetRange(
 func (bb *bubbleChartServer) GetById(
 	ctx context.Context, req *v1.BubbleChartGetByIdRequest) (
 	resp *v1.BubbleChartGetByIdResponse, err error) {
-	entries, err := bb.get(req).GetById(ctx, req.Ids...)
+	entries, err := bb.get(req).GetById(ctx, req.Ids)
 	if err != nil {
 		return
 	}
@@ -70,7 +70,7 @@ func (bb *bubbleChartServer) GetById(
 func (bb *bubbleChartServer) RemoveById(
 	ctx context.Context, req *v1.BubbleChartRemoveByIdRequest) (
 	resp *v1.BubbleChartRemoveByIdResponse, err error) {
-	if err = bb.get(req).RemoveById(ctx, req.Ids...); err != nil {
+	if err = bb.get(req).RemoveById(ctx, req.Ids); err != nil {
 		return
 	}
 	return
@@ -80,7 +80,7 @@ func (bb *bubbleChartServer) SetInfo(
 	ctx context.Context, req *v1.BubbleChartSetInfoRequest) (
 	resp *v1.BubbleChartSetInfoResponse, err error) {
 	if err = bb.get(req).SetInfo(
-		ctx, fromChartEntries(req.Entries)...); err != nil {
+		ctx, fromChartEntries(req.Entries)); err != nil {
 		return
 	}
 	return

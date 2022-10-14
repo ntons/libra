@@ -2,7 +2,6 @@ package ranking
 
 import (
 	"context"
-	"errors"
 
 	L "github.com/ntons/libra-go"
 	v1 "github.com/ntons/libra-go/api/libra/v1"
@@ -37,32 +36,24 @@ func (lb *leaderboardServer) Touch(
 	return &v1.LeaderboardTouchResponse{}, nil
 }
 
-func (lb *leaderboardServer) Add(
-	ctx context.Context, req *v1.LeaderboardAddRequest) (
-	resp *v1.LeaderboardAddResponse, err error) {
+func (lb *leaderboardServer) Set(
+	ctx context.Context, req *v1.LeaderboardSetRequest) (
+	resp *v1.LeaderboardSetResponse, err error) {
 	trusted := L.RequireAuthBySecret(ctx)
 	if trusted == nil {
 		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
 	}
-
-	x := lb.get(trusted.AppId, req)
-	if err = x.Add(ctx, fromChartEntries(req.Entries)...); err != nil {
-		if errors.Is(err, redchart.ErrChartFull) {
-			err = status.Errorf(codes.OutOfRange, err.Error())
-		}
-		return
-	}
-
-	var ids = make([]string, 0, len(req.Entries))
-	for _, e := range req.Entries {
-		ids = append(ids, e.Id)
-	}
-	entries, err := x.GetById(ctx, ids...)
+	entries, err := lb.get(trusted.AppId, req).Set(
+		ctx,
+		fromChartEntries(req.Entries),
+		redchart.WithSetOnlyAdd(req.OnlyAdd),
+		redchart.WithSetOnlyUpdate(req.OnlyUpdate),
+		redchart.WithSetIncrBy(req.IncrBy),
+	)
 	if err != nil {
 		return
 	}
-
-	resp = &v1.LeaderboardAddResponse{
+	resp = &v1.LeaderboardSetResponse{
 		Entries: toChartEntries(entries),
 	}
 	return
@@ -75,29 +66,11 @@ func (lb *leaderboardServer) SetScore(
 	if trusted == nil {
 		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
 	}
-	if err = lb.get(trusted.AppId, req).Set(
-		ctx, fromChartEntries(req.Entries)...); err != nil {
-		if errors.Is(err, redchart.ErrChartFull) {
-			err = status.Errorf(codes.OutOfRange, err.Error())
-		}
+	if _, err = lb.get(trusted.AppId, req).Set(
+		ctx, fromChartEntries(req.Entries)); err != nil {
 		return
 	}
 	resp = &v1.LeaderboardSetScoreResponse{}
-	return
-}
-
-func (lb *leaderboardServer) IncrScore(
-	ctx context.Context, req *v1.LeaderboardIncrScoreRequest) (
-	resp *v1.LeaderboardIncrScoreResponse, err error) {
-	trusted := L.RequireAuthBySecret(ctx)
-	if trusted == nil {
-		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
-	}
-	if err = lb.get(trusted.AppId, req).Incr(
-		ctx, fromChartEntries(req.Entries)...); err != nil {
-		return
-	}
-	resp = &v1.LeaderboardIncrScoreResponse{}
 	return
 }
 
@@ -118,6 +91,23 @@ func (lb *leaderboardServer) GetRange(
 	return
 }
 
+func (lb *leaderboardServer) GetByRank(
+	ctx context.Context, req *v1.LeaderboardGetByRankRequest) (
+	resp *v1.LeaderboardGetByRankResponse, err error) {
+	trusted := L.RequireAuthBySecret(ctx)
+	if trusted == nil {
+		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
+	}
+	entries, err := lb.get(trusted.AppId, req).GetByRank(ctx, req.Offset, req.Count)
+	if err != nil {
+		return
+	}
+	resp = &v1.LeaderboardGetByRankResponse{
+		Entries: toChartEntries(entries),
+	}
+	return
+}
+
 func (lb *leaderboardServer) GetById(
 	ctx context.Context, req *v1.LeaderboardGetByIdRequest) (
 	resp *v1.LeaderboardGetByIdResponse, err error) {
@@ -125,7 +115,7 @@ func (lb *leaderboardServer) GetById(
 	if trusted == nil {
 		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
 	}
-	entries, err := lb.get(trusted.AppId, req).GetById(ctx, req.Ids...)
+	entries, err := lb.get(trusted.AppId, req).GetById(ctx, req.Ids)
 	if err != nil {
 		return
 	}
@@ -142,7 +132,7 @@ func (lb *leaderboardServer) RemoveById(
 	if trusted == nil {
 		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
 	}
-	if err = lb.get(trusted.AppId, req).RemoveById(ctx, req.Ids...); err != nil {
+	if err = lb.get(trusted.AppId, req).RemoveById(ctx, req.Ids); err != nil {
 		return
 	}
 	resp = &v1.LeaderboardRemoveByIdResponse{}
@@ -157,15 +147,15 @@ func (lb *leaderboardServer) SetInfo(
 		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
 	}
 	if err = lb.get(trusted.AppId, req).SetInfo(
-		ctx, fromChartEntries(req.Entries)...); err != nil {
+		ctx, fromChartEntries(req.Entries)); err != nil {
 		return
 	}
 	return &v1.LeaderboardSetInfoResponse{}, nil
 }
 
-func (lb *leaderboardServer) RandByScore(
-	ctx context.Context, req *v1.LeaderboardRandByScoreRequest) (
-	resp *v1.LeaderboardRandByScoreResponse, err error) {
+func (lb *leaderboardServer) GetByScore(
+	ctx context.Context, req *v1.LeaderboardGetByScoreRequest) (
+	resp *v1.LeaderboardGetByScoreResponse, err error) {
 	trusted := L.RequireAuthBySecret(ctx)
 	if trusted == nil {
 		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
@@ -180,11 +170,11 @@ func (lb *leaderboardServer) RandByScore(
 		})
 	}
 
-	entries, err := lb.get(trusted.AppId, req).RandByScore(ctx, args...)
+	entries, err := lb.get(trusted.AppId, req).RandByScore(ctx, args)
 	if err != nil {
 		return
 	}
-	return &v1.LeaderboardRandByScoreResponse{
+	return &v1.LeaderboardGetByScoreResponse{
 		Entries: toChartEntries(entries),
 	}, nil
 }

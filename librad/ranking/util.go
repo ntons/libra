@@ -8,7 +8,7 @@ import (
 	"github.com/ntons/redchart"
 )
 
-func toChartEntry(in *redchart.Entry) (out *v1.ChartEntry) {
+func toChartEntry(in redchart.Entry) (out *v1.ChartEntry) {
 	return &v1.ChartEntry{
 		Rank:  in.Rank,
 		Id:    in.Id,
@@ -16,8 +16,8 @@ func toChartEntry(in *redchart.Entry) (out *v1.ChartEntry) {
 		Score: in.Score,
 	}
 }
-func fromChartEntry(in *v1.ChartEntry) (out *redchart.Entry) {
-	return &redchart.Entry{
+func fromChartEntry(in *v1.ChartEntry) (out redchart.Entry) {
+	return redchart.Entry{
 		Rank:  in.Rank,
 		Id:    in.Id,
 		Info:  in.Info,
@@ -25,13 +25,13 @@ func fromChartEntry(in *v1.ChartEntry) (out *redchart.Entry) {
 	}
 }
 
-func toChartEntries(in []*redchart.Entry) (out []*v1.ChartEntry) {
+func toChartEntries(in []redchart.Entry) (out []*v1.ChartEntry) {
 	for _, e := range in {
 		out = append(out, toChartEntry(e))
 	}
 	return
 }
-func fromChartEntries(in []*v1.ChartEntry) (out []*redchart.Entry) {
+func fromChartEntries(in []*v1.ChartEntry) (out []redchart.Entry) {
 	for _, e := range in {
 		out = append(out, fromChartEntry(e))
 	}
@@ -57,10 +57,10 @@ func fromChartOptions(appId string, in *v1.ChartOptions) (out []redchart.Option)
 		out = append(out, redchart.WithExpire(time.Duration(in.Expire)*time.Second))
 	}
 	if in.NoTrim {
-		out = append(out, redchart.WithNoTrim())
+		out = append(out, redchart.WithNoTrim(true))
 	}
 	if in.NoInfo {
-		out = append(out, redchart.WithNoInfo())
+		out = append(out, redchart.WithNoInfo(true))
 	}
 	return
 }
