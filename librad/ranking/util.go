@@ -44,8 +44,6 @@ func fromChartOptions(appId string, in *v1.ChartOptions) (out []redchart.Option)
 	}
 	if in.Capacity > 0 {
 		out = append(out, redchart.WithCapacity(in.Capacity))
-	} else {
-		out = append(out, redchart.WithCapacity(1000))
 	}
 	if in.ConstructFrom != nil {
 		out = append(out, redchart.WithConstructFrom(fromChartKey(appId, in.ConstructFrom)))
