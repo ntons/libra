@@ -12,7 +12,7 @@ require (
 	github.com/ntons/grpc-compressor v0.1.1
 	github.com/ntons/libra-go v0.0.0-20221014084753-f2770f7ca419
 	github.com/ntons/log-go v0.1.0
-	github.com/ntons/redchart v0.1.8-0.20221014075949-20a0d5d5d1c6
+	github.com/ntons/redchart v0.1.8
 	github.com/ntons/redis v0.1.3
 	github.com/ntons/redmq v0.0.0-20220222065331-070944d0f346
 	github.com/ntons/remon v0.1.7
