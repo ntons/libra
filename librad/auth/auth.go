@@ -44,21 +44,25 @@ func (srv authServer) Check(
 		// 如果route上没有配置，使用默认配置
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
+			log.Warnf("request miss metadata")
 			return errResponse(errInvalidMetadata)
 		}
 		if v := md.Get(L.XLibraAuthBy); len(v) != 1 {
+			log.Warnf("invalid auth-by metadata")
 			return errResponse(errInvalidMetadata)
 		} else if authBy = v[0]; authBy == "" {
+			log.Warnf("invalid auth-by metadata")
 			return errResponse(errInvalidMetadata)
 		}
 	}
 
 	handler, ok := srv.handlers[authBy]
 	if !ok {
-		log.Warnf("unknown auth-by: %v", authBy)
+		log.Warnf("unknown auth-by|%v", authBy)
 		return errResponse(errUnauthenticated)
 	}
 	if resp, err = handler(ctx, req); err != nil {
+		log.Warnf("auth check fail|%v", err)
 		return
 	}
 
@@ -80,5 +84,6 @@ func (srv authServer) Check(
 			okResp.HeadersToRemove = append(okResp.HeadersToRemove, key)
 		}
 	}
+	log.Debugf("auth check ok")
 	return
 }

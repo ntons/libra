@@ -7,6 +7,7 @@ import (
 	L "github.com/ntons/libra-go"
 	authpb "github.com/ntons/libra/librad/auth/envoy_service_auth_v3"
 	"github.com/ntons/libra/librad/db"
+	log "github.com/ntons/log-go"
 	statuspb "google.golang.org/genproto/googleapis/rpc/status"
 )
 
@@ -16,12 +17,18 @@ func (srv authServer) checkSecret(
 	appId := req.Attributes.Request.Http.Headers[L.XLibraAppId]
 	appSecret := req.Attributes.Request.Http.Headers[L.XLibraAppSecret]
 	if appId == "" || appSecret == "" {
+		log.Warnf("auth by secret|invalid app id or secret|%s|%s",
+			appId, appSecret)
 		return errResponse(errUnauthenticated)
 	}
 
 	if app := db.FindAppById(appId); app == nil || app.Secret != appSecret {
+		log.Warnf("auth by secret|invalid app id or secret|%s|%s",
+			appId, appSecret)
 		return errResponse(errInvalidAppSecret)
 	} else if !app.IsPermitted(req.Attributes.Request.Http.Path) {
+		log.Warnf("auth by secret|request path is not permitted|%s|%s",
+			appId, req.Attributes.Request.Http.Path)
 		return errResponse(errPermissionDenied)
 	}
 
