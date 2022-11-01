@@ -10,7 +10,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/ntons/distlock v0.2.0
 	github.com/ntons/grpc-compressor v0.1.1
-	github.com/ntons/libra-go v0.0.0-20221014084753-f2770f7ca419
+	github.com/ntons/libra-go v0.0.0-20221101122239-9fae0fc7a795
 	github.com/ntons/log-go v0.1.0
 	github.com/ntons/redchart v0.1.8
 	github.com/ntons/redis v0.1.3

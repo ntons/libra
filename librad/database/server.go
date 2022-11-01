@@ -359,6 +359,9 @@ func (srv *server) List(
 			return nil, fromProtoError(err)
 		}
 		resp.Mails = append(resp.Mails, m)
+		if req.Count > 0 && uint32(len(resp.Mails)) >= req.Count {
+			break
+		}
 	}
 	return resp, nil
 }
