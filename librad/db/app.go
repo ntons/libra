@@ -18,7 +18,7 @@ type App struct {
 	Key uint32 `bson:"key"`
 	// 应用签名密钥，授权访问
 	Secret string `bson:"secret,omitempty"`
-	// 应用指纹指纹，特异化应用数据，增加安全性
+	// 应用指纹，特异化应用数据，增加安全性
 	Fingerprint string `bson:"fingerprint,omitempty"`
 	// 允许的服务
 	Permissions []*Permission `bson:"permissions,omitempty"`
