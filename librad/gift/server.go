@@ -3,14 +3,10 @@ package gift
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"time"
 
 	L "github.com/ntons/libra-go"
 	v1pb "github.com/ntons/libra-go/api/libra/v1"
 	"github.com/ntons/libra/librad/db"
-	"github.com/ntons/log-go"
-	"github.com/ntons/redis"
 	"github.com/onemoreteam/httpframework/modularity"
 	"github.com/onemoreteam/httpframework/modularity/server"
 	"google.golang.org/grpc/codes"
@@ -22,7 +18,6 @@ func init() { modularity.Register(&giftServer{}) }
 type giftServer struct {
 	modularity.Skeleton
 	v1pb.UnimplementedGiftServer
-	cli redis.Client
 }
 
 func (giftServer) Name() string { return "gift" }
@@ -30,20 +25,7 @@ func (giftServer) Name() string { return "gift" }
 func (srv *giftServer) Initialize(jb json.RawMessage) (err error) {
 	if jb == nil {
 		return
-	} else if err = json.Unmarshal(jb, &cfg); err != nil {
-		return
-	} else if cfg.Redis == "" {
-		return fmt.Errorf("require redis configuration")
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	if srv.cli, err = redis.Dial(ctx, cfg.Redis); err != nil {
-		log.Warnf("failed to connect to redis: %v", err)
-		return fmt.Errorf("failed to connect to redis")
-	}
-
 	server.RegisterService(&v1pb.Gift_ServiceDesc, srv)
 	return
 }
