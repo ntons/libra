@@ -54,7 +54,7 @@ func getGiftCodeCollection(
 
 	collection, ok := dbGiftCodeCollection[appId]
 	if !ok {
-		const tblName = "libra.gift_codes"
+		const tblName = "libra.giftcodes"
 		dbName := getAppDBName(appId)
 		collection = mdb.Database(dbName).Collection(tblName)
 		if _, err := collection.Indexes().CreateOne(
