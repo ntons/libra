@@ -13,22 +13,22 @@ import (
 
 type Gift struct {
 	// ID
-	Id string `bson:"_id"`
+	Id string `bson:"_id,omitempty"`
 	// 创建时间
-	CreateAt time.Time `bson:"create_at"`
+	CreateAt time.Time `bson:"create_at,omitempty"`
 	// 更新时间
-	UpdateAt time.Time `bson:"update_at"`
+	UpdateAt time.Time `bson:"update_at,omitempty"`
 	// 过期时间
-	ExpireAt time.Time `bson:"expire_at"`
+	ExpireAt time.Time `bson:"expire_at,omitempty"`
 	// 有效载荷
-	Payload []byte `bson:"payload"`
+	Payload []byte `bson:"payload,omitempty"`
 }
 
 type GiftCode struct {
 	// 礼包码
-	Code string `bson:"_id"`
+	Code string `bson:"_id,omitempty"`
 	// 礼包ID
-	GiftId string `bson:"gift_id"`
+	GiftId string `bson:"gift_id,omitempty"`
 }
 
 func getGiftCollection(
