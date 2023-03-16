@@ -150,6 +150,24 @@ func UpdateGift(ctx context.Context, appId string, gift *Gift) (err error) {
 	return
 }
 
+func ListGifts(ctx context.Context, appId string) (gifts []*Gift, err error) {
+	giftCollection, err := getGiftCollection(ctx, appId)
+	if err != nil {
+		return
+	}
+
+	cursor, err := giftCollection.Find(ctx, bson.D{})
+	if err != nil {
+		return
+	}
+
+	if err = cursor.All(ctx, &gifts); err != nil {
+		return
+	}
+
+	return
+}
+
 func AddCodesToGift(ctx context.Context, appId, giftId string, giftCodes []string) (err error) {
 	codeCollection, err := getGiftCollection(ctx, appId)
 	if err != nil {

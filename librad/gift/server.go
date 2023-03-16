@@ -129,6 +129,30 @@ func (srv *giftServer) Update(
 	return &v1pb.GiftUpdateResponse{}, nil
 }
 
+func (srv *giftServer) List(
+	ctx context.Context, req *v1pb.GiftListRequest) (
+	_ *v1pb.GiftListResponse, err error) {
+
+	trusted := L.RequireAuthBySecret(ctx)
+	if trusted == nil {
+		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
+	}
+
+	gifts, err := db.ListGifts(ctx, trusted.AppId)
+	if err != nil {
+		return
+	}
+
+	resp := &v1pb.GiftListResponse{}
+	for _, gift := range gifts {
+		if data, err := giftToData(gift); err == nil {
+			resp.Data = append(resp.Data, data)
+		}
+	}
+
+	return resp, nil
+}
+
 func (srv *giftServer) Verify(
 	ctx context.Context, req *v1pb.GiftVerifyRequest) (
 	_ *v1pb.GiftVerifyResponse, err error) {
