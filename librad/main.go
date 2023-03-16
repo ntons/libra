@@ -24,6 +24,7 @@ import (
 	_ "github.com/ntons/libra/librad/database"
 	_ "github.com/ntons/libra/librad/db"
 	_ "github.com/ntons/libra/librad/gateway"
+	_ "github.com/ntons/libra/librad/gift"
 	_ "github.com/ntons/libra/librad/purchase"
 	_ "github.com/ntons/libra/librad/ranking"
 	_ "github.com/ntons/libra/librad/registry"

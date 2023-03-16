@@ -62,15 +62,8 @@ func (srv *giftServer) Create(
 		return
 	}
 
-	if err = db.CreateGift(ctx, trusted.AppId, gift); err != nil {
+	if err = db.CreateGift(ctx, trusted.AppId, gift, req.Codes); err != nil {
 		return
-	}
-
-	if len(req.Codes) > 0 {
-		if err = db.AddCodesToGift(
-			ctx, trusted.AppId, req.Data.Id, req.Codes); err != nil {
-			return
-		}
 	}
 
 	return &v1pb.GiftCreateResponse{}, nil

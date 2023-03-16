@@ -71,7 +71,7 @@ func getGiftCodeCollection(
 	return collection, nil
 }
 
-func CreateGift(ctx context.Context, appId string, gift *Gift) (err error) {
+func CreateGift(ctx context.Context, appId string, gift *Gift, codes []string) (err error) {
 	giftCollection, err := getGiftCollection(ctx, appId)
 	if err != nil {
 		return
@@ -79,13 +79,22 @@ func CreateGift(ctx context.Context, appId string, gift *Gift) (err error) {
 
 	now := time.Now()
 
-	// 已过期的话就不需要插入了
-	if gift.ExpireAt.IsZero() || gift.ExpireAt.After(now) {
-		gift.CreateAt, gift.UpdateAt = now, now
-		if _, err = giftCollection.InsertOne(ctx, gift); err != nil {
-			if mongo.IsDuplicateKeyError(err) {
-				err = newAlreadyExistsError("gift already exists")
-			}
+	// 已过期的话就不需要入库了
+	if !gift.ExpireAt.IsZero() && gift.ExpireAt.Before(now) {
+		return
+	}
+
+	gift.CreateAt, gift.UpdateAt = now, now
+
+	if _, err = giftCollection.InsertOne(ctx, gift); err != nil {
+		if mongo.IsDuplicateKeyError(err) {
+			err = newAlreadyExistsError("gift already exists")
+		}
+		return
+	}
+
+	if len(codes) > 0 {
+		if err = AddCodesToGift(ctx, appId, gift.Id, codes); err != nil {
 			return
 		}
 	}
@@ -169,7 +178,7 @@ func ListGifts(ctx context.Context, appId string) (gifts []*Gift, err error) {
 }
 
 func AddCodesToGift(ctx context.Context, appId, giftId string, giftCodes []string) (err error) {
-	codeCollection, err := getGiftCollection(ctx, appId)
+	codeCollection, err := getGiftCodeCollection(ctx, appId)
 	if err != nil {
 		return
 	}
@@ -193,7 +202,7 @@ func AddCodesToGift(ctx context.Context, appId, giftId string, giftCodes []strin
 }
 
 func DelCodesFromGift(ctx context.Context, appId string, codes []string) (err error) {
-	codeCollection, err := getGiftCollection(ctx, appId)
+	codeCollection, err := getGiftCodeCollection(ctx, appId)
 	if err != nil {
 		return
 	}
