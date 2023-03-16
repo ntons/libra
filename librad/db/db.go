@@ -38,15 +38,19 @@ var (
 	dbAppCollection   *mongo.Collection
 	dbAdminCollection *mongo.Collection
 
-	dbAcctCollectionMu  sync.Mutex
-	dbUserCollectionMu  sync.Mutex
-	dbRoleCollectionMu  sync.Mutex
-	dbBlockCollectionMu sync.Mutex
+	dbAcctCollectionMu     sync.Mutex
+	dbUserCollectionMu     sync.Mutex
+	dbRoleCollectionMu     sync.Mutex
+	dbBlockCollectionMu    sync.Mutex
+	dbGiftCollectionMu     sync.Mutex
+	dbGiftCodeCollectionMu sync.Mutex
 
-	dbAcctCollection  = make(map[string]*mongo.Collection)
-	dbUserCollection  = make(map[string]*mongo.Collection)
-	dbRoleCollection  = make(map[string]*mongo.Collection)
-	dbBlockCollection = make(map[string]*mongo.Collection)
+	dbAcctCollection     = make(map[string]*mongo.Collection)
+	dbUserCollection     = make(map[string]*mongo.Collection)
+	dbRoleCollection     = make(map[string]*mongo.Collection)
+	dbBlockCollection    = make(map[string]*mongo.Collection)
+	dbGiftCollection     = make(map[string]*mongo.Collection)
+	dbGiftCodeCollection = make(map[string]*mongo.Collection)
 
 	// app cache loaded from database
 	xApps = newAppIndex(nil)
