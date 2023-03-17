@@ -14,8 +14,6 @@ import (
 type Gift struct {
 	// ID
 	Id string `bson:"_id,omitempty"`
-	// 创建时间
-	CreateAt time.Time `bson:"create_at,omitempty"`
 	// 更新时间
 	UpdateAt time.Time `bson:"update_at,omitempty"`
 	// 过期时间
@@ -84,7 +82,7 @@ func CreateGift(ctx context.Context, appId string, gift *Gift, codes []string) (
 		return
 	}
 
-	gift.CreateAt, gift.UpdateAt = now, now
+	gift.UpdateAt = now
 
 	if _, err = giftCollection.InsertOne(ctx, gift); err != nil {
 		if mongo.IsDuplicateKeyError(err) {
@@ -144,12 +142,9 @@ func UpdateGift(ctx context.Context, appId string, gift *Gift) (err error) {
 		return
 	}
 
-	id := gift.Id
-	gift.Id = ""
-	gift.CreateAt = time.Time{}
 	gift.UpdateAt = time.Now()
 
-	if _, err = giftCollection.UpdateOne(ctx, &Gift{Id: id}, gift); err != nil {
+	if _, err = giftCollection.ReplaceOne(ctx, &Gift{Id: gift.Id}, gift); err != nil {
 		if err == mongo.ErrNoDocuments {
 			err = newNotFoundError("gift not exists")
 		}
