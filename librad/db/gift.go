@@ -7,6 +7,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -186,7 +187,8 @@ func AddCodesToGift(ctx context.Context, appId, giftId string, giftCodes []strin
 		})
 	}
 
-	if _, err = codeCollection.InsertMany(ctx, docs); err != nil {
+	if _, err = codeCollection.InsertMany(
+		ctx, docs, options.InsertMany().SetOrdered(false)); err != nil {
 		if mongo.IsDuplicateKeyError(err) {
 			err = newAlreadyExistsError("some codes already exists")
 		}
