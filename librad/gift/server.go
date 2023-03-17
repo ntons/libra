@@ -113,15 +113,30 @@ func (srv *giftServer) List(
 		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
 	}
 
-	gifts, err := db.ListGifts(ctx, trusted.AppId)
-	if err != nil {
-		return
+	var giftAndCodes = make(map[*db.Gift][]string)
+
+	if req.Id == "" {
+		var gifts []*db.Gift
+		if gifts, err = db.GetAllGifts(ctx, trusted.AppId); err != nil {
+			return
+		}
+		for _, gift := range gifts {
+			giftAndCodes[gift] = nil
+		}
+	} else {
+		var gift *db.Gift
+		var codes []string
+		if gift, codes, err = db.GetGiftAndCodes(
+			ctx, trusted.AppId, req.Id); err != nil {
+			return
+		}
+		giftAndCodes[gift] = codes
 	}
 
 	resp := &v1pb.GiftListResponse{}
-	for _, gift := range gifts {
+	for gift, codes := range giftAndCodes {
 		if data, err := giftToData(gift); err == nil {
-			resp.Data = append(resp.Data, data)
+			resp.List = append(resp.List, &v1pb.GiftListResponse_Data{Data: data, Codes: codes})
 		}
 	}
 

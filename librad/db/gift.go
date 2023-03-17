@@ -155,7 +155,7 @@ func UpdateGift(ctx context.Context, appId string, gift *Gift) (err error) {
 	return
 }
 
-func ListGifts(ctx context.Context, appId string) (gifts []*Gift, err error) {
+func GetAllGifts(ctx context.Context, appId string) (gifts []*Gift, err error) {
 	giftCollection, err := getGiftCollection(ctx, appId)
 	if err != nil {
 		return
@@ -171,6 +171,39 @@ func ListGifts(ctx context.Context, appId string) (gifts []*Gift, err error) {
 	}
 
 	return
+}
+
+func GetGiftAndCodes(ctx context.Context, appId, giftId string) (_ *Gift, _ []string, err error) {
+	giftCollection, err := getGiftCollection(ctx, appId)
+	if err != nil {
+		return
+	}
+	codeCollection, err := getGiftCodeCollection(ctx, appId)
+	if err != nil {
+		return
+	}
+
+	var gift Gift
+	if err = giftCollection.FindOne(ctx, &Gift{Id: giftId}).Decode(&gift); err != nil {
+		return
+	}
+
+	var giftCodes []*GiftCode
+	cursor, err := codeCollection.Find(ctx, &GiftCode{GiftId: giftId})
+	if err != nil {
+		return
+	}
+
+	if err = cursor.All(ctx, &giftCodes); err != nil {
+		return
+	}
+
+	var codes = make([]string, 0, len(giftCodes))
+	for _, giftCode := range giftCodes {
+		codes = append(codes, giftCode.Code)
+	}
+
+	return &gift, codes, nil
 }
 
 func AddCodesToGift(ctx context.Context, appId, giftId string, giftCodes []string) (err error) {
