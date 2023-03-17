@@ -8,8 +8,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type Gift struct {
@@ -28,6 +26,8 @@ type GiftCode struct {
 	Code string `bson:"_id,omitempty"`
 	// 礼包ID
 	GiftId string `bson:"gift_id,omitempty"`
+	// 已兑换
+	Redeemed bool `bson:"redeemed,omitempty"`
 }
 
 func getGiftCollection(
@@ -245,46 +245,14 @@ func DelCodesFromGift(ctx context.Context, appId string, codes []string) (err er
 }
 
 func VerifyGiftCode(ctx context.Context, appId, code string) (_ *Gift, err error) {
-	giftCollection, err := getGiftCollection(ctx, appId)
-	if err != nil {
-		return
-	}
-
-	codeCollection, err := getGiftCodeCollection(ctx, appId)
-	if err != nil {
-		return
-	}
-
-	var giftCode GiftCode
-	if err = codeCollection.FindOne(
-		ctx, &GiftCode{Code: code}).Decode(&giftCode); err != nil {
-		if err == mongo.ErrNoDocuments {
-			err = newNotFoundError("invalid gift code")
-		}
-		return
-	}
-
-	var gift Gift
-	if err = giftCollection.FindOne(
-		ctx, &Gift{Id: giftCode.GiftId}).Decode(&gift); err != nil {
-		if err == mongo.ErrNoDocuments {
-			err = newNotFoundError("invalid gift code")
-		}
-		return
-	}
-
-	if !gift.ExpireAt.IsZero() && gift.ExpireAt.Before(time.Now()) {
-		if err = doRevokeGift(
-			ctx, gift.Id, giftCollection, codeCollection); err != nil {
-			return
-		}
-		return nil, status.Errorf(codes.NotFound, "invalid gift code")
-	}
-
-	return &gift, nil
+	return doVerifyOrRedeemGiftCode(ctx, appId, code, false)
 }
 
 func RedeemGiftCode(ctx context.Context, appId, code string) (_ *Gift, err error) {
+	return doVerifyOrRedeemGiftCode(ctx, appId, code, true)
+}
+
+func doVerifyOrRedeemGiftCode(ctx context.Context, appId, code string, redeem bool) (_ *Gift, err error) {
 	giftCollection, err := getGiftCollection(ctx, appId)
 	if err != nil {
 		return
@@ -295,13 +263,30 @@ func RedeemGiftCode(ctx context.Context, appId, code string) (_ *Gift, err error
 		return
 	}
 
+	var res *mongo.SingleResult
+	if redeem {
+		res = codeCollection.FindOneAndUpdate(
+			ctx,
+			&GiftCode{Code: code},
+			bson.M{"$set": &GiftCode{Redeemed: true}},
+			options.FindOneAndUpdate().SetReturnDocument(options.Before),
+		)
+	} else {
+		res = codeCollection.FindOne(
+			ctx,
+			&GiftCode{Code: code},
+		)
+	}
+
 	var giftCode GiftCode
-	if err = codeCollection.FindOneAndDelete(
-		ctx, &GiftCode{Code: code}).Decode(&giftCode); err != nil {
+	if res.Decode(&giftCode); err != nil {
 		if err == mongo.ErrNoDocuments {
 			err = newNotFoundError("invalid gift code")
 		}
 		return
+	}
+	if giftCode.Redeemed {
+		return nil, newCustomError(101, "redeemed gift code")
 	}
 
 	var gift Gift
@@ -312,13 +297,8 @@ func RedeemGiftCode(ctx context.Context, appId, code string) (_ *Gift, err error
 		}
 		return
 	}
-
 	if !gift.ExpireAt.IsZero() && gift.ExpireAt.Before(time.Now()) {
-		if err = doRevokeGift(
-			ctx, gift.Id, giftCollection, codeCollection); err != nil {
-			return
-		}
-		return nil, status.Errorf(codes.NotFound, "invalid gift code")
+		return nil, newCustomError(102, "expired gift code")
 	}
 
 	return &gift, nil

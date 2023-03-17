@@ -32,6 +32,10 @@ func newError(code codes.Code, msg interface{}) error {
 	}
 }
 
+func newCustomError(code int, msg interface{}) error {
+	return newError(codes.Code(code), msg)
+}
+
 func newUnauthenticatedError(msg interface{}) error {
 	return newError(codes.Unauthenticated, msg)
 }
