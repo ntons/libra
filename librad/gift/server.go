@@ -7,6 +7,7 @@ import (
 	L "github.com/ntons/libra-go"
 	v1pb "github.com/ntons/libra-go/api/libra/v1"
 	"github.com/ntons/libra/librad/db"
+	"github.com/ntons/log-go"
 	"github.com/onemoreteam/httpframework/modularity"
 	"github.com/onemoreteam/httpframework/modularity/server"
 	"google.golang.org/grpc/codes"
@@ -183,6 +184,8 @@ func (srv *giftServer) Redeem(
 	if err != nil {
 		return
 	}
+
+	log.Infow("redeem gift", "code", req.Code, "gift", gift.Id)
 
 	return &v1pb.GiftRedeemResponse{Data: data}, nil
 }
