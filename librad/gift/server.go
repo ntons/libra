@@ -136,7 +136,7 @@ func (srv *giftServer) List(
 	resp := &v1pb.GiftListResponse{}
 	for gift, codes := range giftAndCodes {
 		if data, err := giftToData(gift); err == nil {
-			resp.List = append(resp.List, &v1pb.GiftListResponse_Data{Data: data, Codes: codes})
+			resp.List = append(resp.List, &v1pb.GiftListResponse_Entry{Data: data, Codes: codes})
 		}
 	}
 
