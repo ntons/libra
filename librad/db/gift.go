@@ -279,7 +279,7 @@ func doVerifyOrRedeemGiftCode(ctx context.Context, appId, code string, redeem bo
 	}
 
 	var giftCode GiftCode
-	if res.Decode(&giftCode); err != nil {
+	if err = res.Decode(&giftCode); err != nil {
 		if err == mongo.ErrNoDocuments {
 			err = newNotFoundError("invalid gift code")
 		}
