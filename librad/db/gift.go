@@ -248,7 +248,7 @@ func GetCodesByGiftId(ctx context.Context, appId, giftId string) (_ []*GiftCode,
 	if err = cursor.All(ctx, &giftCodes); err != nil {
 		return
 	}
-	return
+	return giftCodes, nil
 }
 
 func VerifyGiftCode(ctx context.Context, appId, code string) (_ *Gift, err error) {
