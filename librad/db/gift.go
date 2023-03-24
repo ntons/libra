@@ -173,39 +173,6 @@ func GetAllGifts(ctx context.Context, appId string) (gifts []*Gift, err error) {
 	return
 }
 
-func GetGiftAndCodes(ctx context.Context, appId, giftId string) (_ *Gift, _ []string, err error) {
-	giftCollection, err := getGiftCollection(ctx, appId)
-	if err != nil {
-		return
-	}
-	codeCollection, err := getGiftCodeCollection(ctx, appId)
-	if err != nil {
-		return
-	}
-
-	var gift Gift
-	if err = giftCollection.FindOne(ctx, &Gift{Id: giftId}).Decode(&gift); err != nil {
-		return
-	}
-
-	var giftCodes []*GiftCode
-	cursor, err := codeCollection.Find(ctx, &GiftCode{GiftId: giftId})
-	if err != nil {
-		return
-	}
-
-	if err = cursor.All(ctx, &giftCodes); err != nil {
-		return
-	}
-
-	var codes = make([]string, 0, len(giftCodes))
-	for _, giftCode := range giftCodes {
-		codes = append(codes, giftCode.Code)
-	}
-
-	return &gift, codes, nil
-}
-
 func AddCodesToGift(ctx context.Context, appId, giftId string, giftCodes []string) (err error) {
 	codeCollection, err := getGiftCodeCollection(ctx, appId)
 	if err != nil {
@@ -241,6 +208,46 @@ func DelCodesFromGift(ctx context.Context, appId string, codes []string) (err er
 		return
 	}
 
+	return
+}
+
+func GetGiftById(ctx context.Context, appId, giftId string) (_ *Gift, err error) {
+	giftCollection, err := getGiftCollection(ctx, appId)
+	if err != nil {
+		return
+	}
+	var gift Gift
+	if err = giftCollection.FindOne(ctx, &Gift{Id: giftId}).Decode(&gift); err != nil {
+		return
+	}
+	return &gift, nil
+}
+
+func GetGiftByCode(ctx context.Context, appId, code string) (_ *Gift, err error) {
+	codeCollection, err := getGiftCodeCollection(ctx, appId)
+	if err != nil {
+		return
+	}
+	var giftCode GiftCode
+	if err = codeCollection.FindOne(ctx, &GiftCode{Code: code}).Decode(&giftCode); err != nil {
+		return
+	}
+	return GetGiftById(ctx, appId, giftCode.GiftId)
+}
+
+func GetCodesByGiftId(ctx context.Context, appId, giftId string) (_ []*GiftCode, err error) {
+	codeCollection, err := getGiftCodeCollection(ctx, appId)
+	if err != nil {
+		return
+	}
+	var giftCodes []*GiftCode
+	cursor, err := codeCollection.Find(ctx, &GiftCode{GiftId: giftId})
+	if err != nil {
+		return
+	}
+	if err = cursor.All(ctx, &giftCodes); err != nil {
+		return
+	}
 	return
 }
 

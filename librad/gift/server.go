@@ -105,42 +105,59 @@ func (srv *giftServer) Update(
 	return &v1pb.GiftUpdateResponse{}, nil
 }
 
-func (srv *giftServer) List(
-	ctx context.Context, req *v1pb.GiftListRequest) (
-	_ *v1pb.GiftListResponse, err error) {
+func (srv *giftServer) Search(
+	ctx context.Context, req *v1pb.GiftSearchRequest) (
+	_ *v1pb.GiftSearchResponse, err error) {
 
 	trusted := L.RequireAuthBySecret(ctx)
 	if trusted == nil {
 		return nil, status.Errorf(codes.Unauthenticated, "unauthenticated")
 	}
 
-	var giftAndCodes = make(map[*db.Gift][]string)
-
-	if req.Id == "" {
-		var gifts []*db.Gift
-		if gifts, err = db.GetAllGifts(ctx, trusted.AppId); err != nil {
-			return
-		}
-		for _, gift := range gifts {
-			giftAndCodes[gift] = nil
-		}
-	} else {
+	var (
+		appId     = trusted.AppId
+		gifts     []*db.Gift
+		withCodes = false
+	)
+	if len(req.Id) > 0 {
 		var gift *db.Gift
-		var codes []string
-		if gift, codes, err = db.GetGiftAndCodes(
-			ctx, trusted.AppId, req.Id); err != nil {
+		if gift, err = db.GetGiftById(ctx, appId, req.Id); err != nil {
 			return
 		}
-		giftAndCodes[gift] = codes
-	}
-
-	resp := &v1pb.GiftListResponse{}
-	for gift, codes := range giftAndCodes {
-		if data, err := giftToData(gift); err == nil {
-			resp.List = append(resp.List, &v1pb.GiftListResponse_Entry{Data: data, Codes: codes})
+		gifts, withCodes = append(gifts, gift), true
+	} else if len(req.Code) > 0 {
+		var gift *db.Gift
+		if gift, err = db.GetGiftByCode(ctx, appId, req.Code); err != nil {
+			return
+		}
+		gifts = append(gifts, gift)
+	} else {
+		if gifts, err = db.GetAllGifts(ctx, appId); err != nil {
+			return
 		}
 	}
 
+	resp := &v1pb.GiftSearchResponse{}
+	for _, gift := range gifts {
+		e := &v1pb.GiftSearchResponse_Entry{}
+		resp.List = append(resp.List, e)
+		if e.Data, err = giftToData(gift); err != nil {
+			return
+		}
+		if !withCodes {
+			continue
+		}
+		var giftCodes []*db.GiftCode
+		if giftCodes, err = db.GetCodesByGiftId(ctx, appId, gift.Id); err != nil {
+			return
+		}
+		for _, giftCode := range giftCodes {
+			e.Codes = append(e.Codes, &v1pb.GiftCodeData{
+				Code:     giftCode.Code,
+				Redeemed: giftCode.Redeemed,
+			})
+		}
+	}
 	return resp, nil
 }
 
