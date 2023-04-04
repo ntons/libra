@@ -10,7 +10,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/ntons/distlock v0.2.0
 	github.com/ntons/grpc-compressor v0.1.1
-	github.com/ntons/libra-go v0.0.0-20230324105344-d7bfd151c291
+	github.com/ntons/libra-go v0.0.0-20230404134053-e5edd4715072
 	github.com/ntons/log-go v0.1.0
 	github.com/ntons/redchart v0.1.8
 	github.com/ntons/redis v0.1.3
@@ -21,6 +21,7 @@ require (
 	github.com/onemoreteam/httpframework v0.1.2-0.20220301023911-259e38a8a715
 	github.com/pierrec/lz4/v4 v4.1.3
 	github.com/sigurn/crc16 v0.0.0-20160107003519-da416fad5162
+	github.com/tencentyun/cos-go-sdk-v5 v0.7.41
 	github.com/vmihailenco/msgpack/v4 v4.3.12
 	go.mongodb.org/mongo-driver v1.5.3
 	google.golang.org/genproto v0.0.0-20220118154757-00ab72f36ad5
@@ -31,13 +32,17 @@ require (
 require (
 	github.com/aws/aws-sdk-go v1.34.28 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
+	github.com/clbanning/mxj v1.8.4 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/flosch/pongo2/v4 v4.0.2 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
+	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.7.3 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/klauspost/compress v1.9.5 // indirect
+	github.com/mitchellh/mapstructure v1.4.3 // indirect
+	github.com/mozillazg/go-httpheader v0.2.1 // indirect
 	github.com/onemoreteam/yaml v1.0.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sigurn/utils v0.0.0-20190728110027-e1fefb11a144 // indirect

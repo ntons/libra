@@ -28,6 +28,7 @@ import (
 	_ "github.com/ntons/libra/librad/purchase"
 	_ "github.com/ntons/libra/librad/ranking"
 	_ "github.com/ntons/libra/librad/registry"
+	_ "github.com/ntons/libra/librad/services"
 	_ "github.com/ntons/libra/librad/syncer"
 	_ "github.com/onemoreteam/httpframework/modularity/log"
 	_ "github.com/onemoreteam/httpframework/modularity/server"
