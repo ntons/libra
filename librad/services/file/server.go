@@ -82,7 +82,11 @@ func (srv *fileServer) Get(
 		nil)
 	if err != nil {
 		log.Warnf("failed to get file from cos: %v", err)
-		return nil, status.Errorf(codes.Internal, "failed to get file from storage")
+		if cos.IsNotFoundError(err) {
+			return nil, status.Errorf(codes.NotFound, "file not found")
+		} else {
+			return nil, status.Errorf(codes.Internal, "failed to get file from storage")
+		}
 	}
 	defer resp.Body.Close()
 
