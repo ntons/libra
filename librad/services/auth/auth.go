@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	L "github.com/ntons/libra-go"
-	authpb "github.com/ntons/libra/librad/auth/envoy_service_auth_v3"
+	authpb "github.com/ntons/libra/librad/common/envoy_service_auth_v3"
 	log "github.com/ntons/log-go"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/wrapperspb"

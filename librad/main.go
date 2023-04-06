@@ -19,15 +19,7 @@ import (
 	_ "google.golang.org/grpc/encoding/gzip"
 
 	// load modules
-	_ "github.com/ntons/libra/librad/auth"
-	_ "github.com/ntons/libra/librad/cache"
-	_ "github.com/ntons/libra/librad/database"
 	_ "github.com/ntons/libra/librad/db"
-	_ "github.com/ntons/libra/librad/gateway"
-	_ "github.com/ntons/libra/librad/gift"
-	_ "github.com/ntons/libra/librad/purchase"
-	_ "github.com/ntons/libra/librad/ranking"
-	_ "github.com/ntons/libra/librad/registry"
 	_ "github.com/ntons/libra/librad/services"
 	_ "github.com/ntons/libra/librad/syncer"
 	_ "github.com/onemoreteam/httpframework/modularity/log"

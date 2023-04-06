@@ -4,7 +4,7 @@ import (
 	"context"
 
 	L "github.com/ntons/libra-go"
-	authpb "github.com/ntons/libra/librad/auth/envoy_service_auth_v3"
+	authpb "github.com/ntons/libra/librad/common/envoy_service_auth_v3"
 )
 
 func (srv authServer) checkSecretAndOptionalToken(

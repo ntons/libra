@@ -5,30 +5,23 @@ import (
 
 	corepb "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	L "github.com/ntons/libra-go"
-	authpb "github.com/ntons/libra/librad/auth/envoy_service_auth_v3"
+	authpb "github.com/ntons/libra/librad/common/envoy_service_auth_v3"
 	"github.com/ntons/libra/librad/db"
-	log "github.com/ntons/log-go"
 	statuspb "google.golang.org/genproto/googleapis/rpc/status"
 )
 
-func (srv authServer) checkSecret(
+func (srv authServer) checkAdminSecret(
 	ctx context.Context, req *authpb.CheckRequest) (
 	_ *authpb.CheckResponse, err error) {
-	appId := req.Attributes.Request.Http.Headers[L.XLibraAppId]
-	appSecret := req.Attributes.Request.Http.Headers[L.XLibraAppSecret]
-	if appId == "" || appSecret == "" {
-		log.Warnf("auth by secret|invalid app id or secret|%s|%s",
-			appId, appSecret)
+	admId := req.Attributes.Request.Http.Headers[L.XLibraAdminId]
+	admSecret := req.Attributes.Request.Http.Headers[L.XLibraAdminSecret]
+	if admId == "" || admSecret == "" {
 		return errResponse(errUnauthenticated)
 	}
 
-	if app := db.FindAppById(appId); app == nil || app.Secret != appSecret {
-		log.Warnf("auth by secret|invalid app id or secret|%s|%s",
-			appId, appSecret)
-		return errResponse(errInvalidAppSecret)
-	} else if !app.IsPermitted(req.Attributes.Request.Http.Path) {
-		log.Warnf("auth by secret|request path is not permitted|%s|%s",
-			appId, req.Attributes.Request.Http.Path)
+	if adm := db.FindAdminById(admId); adm == nil || adm.Secret != admSecret {
+		return errResponse(errInvalidAdminSecret)
+	} else if !adm.IsPermitted(req.Attributes.Request.Http.Path) {
 		return errResponse(errPermissionDenied)
 	}
 
@@ -41,8 +34,8 @@ func (srv authServer) checkSecret(
 		},
 		{
 			Header: &corepb.HeaderValue{
-				Key:   L.XLibraTrustedAppId,
-				Value: appId,
+				Key:   L.XLibraTrustedAdminId,
+				Value: admId,
 			},
 		},
 	}
@@ -52,8 +45,8 @@ func (srv authServer) checkSecret(
 			OkResponse: &authpb.OkHttpResponse{
 				Headers: headers,
 				HeadersToRemove: []string{
-					L.XLibraAppId,
-					L.XLibraAppSecret,
+					L.XLibraAdminId,
+					L.XLibraAdminSecret,
 				},
 			},
 		},

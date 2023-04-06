@@ -6,7 +6,7 @@ import (
 
 	corepb "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	L "github.com/ntons/libra-go"
-	authpb "github.com/ntons/libra/librad/auth/envoy_service_auth_v3"
+	authpb "github.com/ntons/libra/librad/common/envoy_service_auth_v3"
 	"github.com/ntons/libra/librad/db"
 	log "github.com/ntons/log-go"
 	statuspb "google.golang.org/genproto/googleapis/rpc/status"
