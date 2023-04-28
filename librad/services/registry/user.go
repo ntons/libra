@@ -372,6 +372,25 @@ func (srv *userServer) Login(
 	return &v1pb.UserLoginResponse{User: fromDbUser(user)}, nil
 }
 
+func (srv *userServer) Logout(
+	ctx context.Context, req *v1pb.UserLogoutRequest) (
+	_ *v1pb.UserLogoutResponse, err error) {
+	var appId, userId string
+	if trusted := L.RequireAuthByToken(ctx); trusted != nil {
+		appId, userId = trusted.AppId, trusted.UserId
+	} else if trusted := L.RequireAuthBySecret(ctx); trusted != nil {
+		appId, userId = trusted.AppId, req.UserId
+	} else {
+		return nil, errLoginRequired
+	}
+	if err = db.LogoutUser(ctx); err != nil {
+		log.Warnf("failed to logout users: %v", err)
+		return nil, db.ErrDatabaseUnavailable
+	}
+	log.Infof("user logout: %v, %v", appId, userId)
+	return &v1pb.UserLogoutResponse{}, nil
+}
+
 func (srv *userServer) Bind(
 	ctx context.Context, req *v1pb.UserBindRequest) (
 	_ *v1pb.UserBindResponse, err error) {
