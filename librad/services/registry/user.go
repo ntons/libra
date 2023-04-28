@@ -383,7 +383,7 @@ func (srv *userServer) Logout(
 	} else {
 		return nil, errLoginRequired
 	}
-	if err = db.LogoutUser(ctx, roleId); err != nil {
+	if err = db.LogoutUser(ctx, userId); err != nil {
 		log.Warnf("failed to logout users: %v", err)
 		return nil, db.ErrDatabaseUnavailable
 	}
