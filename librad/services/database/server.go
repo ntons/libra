@@ -352,8 +352,9 @@ func (srv *server) List(
 	resp := &v1pb.MailboxListResponse{}
 	for _, e := range list {
 		m := &v1pb.Mail{
-			Id:   fmt.Sprintf("%x", e.Id),
-			Data: &anypb.Any{},
+			Id:         fmt.Sprintf("%x", e.Id),
+			Data:       &anypb.Any{},
+			Importance: int32(e.GetImportance()),
 		}
 		if err = decodeMessage(e.Val, m.Data); err != nil {
 			return nil, fromProtoError(err)
@@ -414,8 +415,10 @@ func (srv *server) Send(
 		if e.Overridable {
 			opts = append(opts, remon.WithRing())
 		}
-		if e.Importance != 0 {
-			opts = append(opts, remon.WithImportance(int8(e.Importance)))
+		if e.Importance > 255 {
+			opts = append(opts, remon.WithImportance(255))
+		} else if e.Importance > 0 {
+			opts = append(opts, remon.WithImportance(uint8(e.Importance)))
 		}
 
 		// we send these mails as many as possible, then return the first error

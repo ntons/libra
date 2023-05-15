@@ -10,12 +10,12 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/ntons/distlock v0.2.0
 	github.com/ntons/grpc-compressor v0.1.1
-	github.com/ntons/libra-go v0.0.0-20230515080153-b5455353502f
+	github.com/ntons/libra-go v0.0.0-20230515084102-d9cf2ed286bf
 	github.com/ntons/log-go v0.1.0
 	github.com/ntons/redchart v0.1.8
 	github.com/ntons/redis v0.1.4
 	github.com/ntons/redmq v0.0.0-20220222065331-070944d0f346
-	github.com/ntons/remon v0.1.8-0.20230515074222-9887038abcf0
+	github.com/ntons/remon v0.1.8-0.20230515083454-c27f79820ade
 	github.com/ntons/tongo/httputil v0.0.0-20210926235700-c0c0e6e56ff5
 	github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5
 	github.com/onemoreteam/httpframework v0.1.2-0.20220301023911-259e38a8a715
