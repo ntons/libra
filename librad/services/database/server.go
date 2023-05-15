@@ -352,9 +352,8 @@ func (srv *server) List(
 	resp := &v1pb.MailboxListResponse{}
 	for _, e := range list {
 		m := &v1pb.Mail{
-			Id:         fmt.Sprintf("%x", e.Id),
-			Data:       &anypb.Any{},
-			Importance: int32(e.GetImportance()),
+			Id:   fmt.Sprintf("%x", e.Id),
+			Data: &anypb.Any{},
 		}
 		if err = decodeMessage(e.Val, m.Data); err != nil {
 			return nil, fromProtoError(err)
