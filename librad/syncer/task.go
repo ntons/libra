@@ -13,9 +13,8 @@ import (
 )
 
 type task struct {
-	name    string
-	quit    chan struct{}
-	syncers []*remon.Syncer
+	name string
+	dbs  []*remon.Client
 }
 
 func dial(name, url string, urls []string) (t *task, err error) {
@@ -43,18 +42,15 @@ func dial(name, url string, urls []string) (t *task, err error) {
 		rdbs = append(rdbs, rdb)
 	}
 
-	t = &task{
-		name: name,
-		quit: make(chan struct{}, 1),
-	}
+	t = &task{name: name}
 	for i, rdb := range rdbs {
-		t.syncers = append(t.syncers,
-			remon.NewSyncer(
+		t.dbs = append(t.dbs,
+			remon.NewClient(
 				rdb,
 				mdb,
 				remon.OnSyncSave(t.onSave),
 				remon.OnSyncIdle(t.onIdle),
-				remon.OnSyncError(t.onError),
+				remon.OnSyncFail(t.onFail),
 			),
 		)
 		log.Infof("%s: %s => %s", name, urls[i], url)
@@ -63,25 +59,16 @@ func dial(name, url string, urls []string) (t *task, err error) {
 	return
 }
 
-func (t *task) Serve() {
+func (t *task) Serve(ctx context.Context) {
 	var wg sync.WaitGroup
 	defer wg.Wait()
 
-	for _, s := range t.syncers {
+	for _, db := range t.dbs {
 		wg.Add(1)
-		go func(s *remon.Syncer) {
+		go func(db *remon.Client) {
 			defer wg.Done()
-			s.Serve()
-		}(s)
-		defer s.Stop()
-	}
-
-	<-t.quit
-}
-func (t *task) Stop() {
-	select {
-	case t.quit <- struct{}{}:
-	default:
+			db.Sync(ctx)
+		}(db)
 	}
 }
 
@@ -92,7 +79,7 @@ func (t *task) onSave(key string) time.Duration {
 func (t *task) onIdle() time.Duration {
 	return time.Second
 }
-func (t *task) onError(err error) time.Duration {
-	log.Warnf("OnError: %s, %s", t.name, err)
+func (t *task) onFail(err error) time.Duration {
+	log.Warnf("OnFail: %s, %s", t.name, err)
 	return time.Second
 }

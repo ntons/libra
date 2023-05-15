@@ -8,10 +8,9 @@ import (
 	"io/ioutil"
 	"log"
 
+	"github.com/ntons/libra/librad/services/database"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
-
-	"github.com/ntons/libra/librad/database"
 )
 
 func LoadFromBase64File(fp string) {

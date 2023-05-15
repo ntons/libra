@@ -16,7 +16,7 @@ var (
 
 func fromRemonError(err error) error {
 	code := codes.Internal
-	if err == remon.ErrNotFound {
+	if err == remon.ErrNotExists {
 		code = codes.NotFound
 	} else if err == remon.ErrAlreadyExists {
 		code = codes.AlreadyExists

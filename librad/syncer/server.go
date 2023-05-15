@@ -1,6 +1,7 @@
 package syncer
 
 import (
+	"context"
 	"encoding/json"
 	"sync"
 )
@@ -40,14 +41,18 @@ func createServer(b json.RawMessage) (_ *server, err error) {
 func (srv *server) Serve() {
 	var wg sync.WaitGroup
 	defer wg.Wait()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	for _, t := range srv.tasks {
 		wg.Add(1)
 		go func(t *task) {
 			defer wg.Done()
-			t.Serve()
+			t.Serve(ctx)
 		}(t)
-		defer t.Stop()
 	}
+
 	<-srv.quit
 	return
 }

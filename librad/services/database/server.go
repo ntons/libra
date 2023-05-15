@@ -26,8 +26,8 @@ type server struct {
 	v1pb.UnimplementedDatabaseServer
 	v1pb.UnimplementedMailboxServer
 
-	db remon.Client     // database
-	mb remon.MailClient // mailbox
+	db *remon.Client    // database
+	mb *remon.Client    // mailbox
 	dl *distlock.Client // distlock
 }
 
@@ -63,7 +63,7 @@ func createServer(jb json.RawMessage) (*server, error) {
 	} else if mdb, err := dialMongo(ctx, cfg.Database.Mongo); err != nil {
 		return nil, err
 	} else {
-		srv.db = remon.New(rdb, mdb)
+		srv.db = remon.NewClient(rdb, mdb)
 	}
 
 	if rdb, err := redis.Dial(
@@ -72,7 +72,7 @@ func createServer(jb json.RawMessage) (*server, error) {
 	} else if mdb, err := dialMongo(ctx, cfg.MailBox.Mongo); err != nil {
 		return nil, err
 	} else {
-		srv.mb = remon.NewMailClient(remon.New(rdb, mdb))
+		srv.mb = remon.NewClient(rdb, mdb)
 	}
 
 	if rdb, err := redis.Dial(
@@ -272,7 +272,7 @@ func (srv *server) Get(
 		if buf, err := encodeMessage(req.AddIfNotFound); err != nil {
 			return nil, fromProtoError(err)
 		} else {
-			opts = append(opts, remon.AddIfNotFound(buf))
+			opts = append(opts, remon.AddIfNotExists(buf))
 		}
 	}
 	if rev, buf, err := srv.db.Get(ctx, key, opts...); err != nil {
@@ -343,7 +343,7 @@ func (srv *server) List(
 	}
 	list, err := srv.mb.List(ctx, key)
 	if err != nil {
-		if err == remon.ErrNotFound && req.Options.GetRegardNotFoundAsEmpty() {
+		if err == remon.ErrNotExists && req.Options.GetRegardNotFoundAsEmpty() {
 			list, err = nil, nil
 		} else {
 			return nil, fromRemonError(err)
@@ -362,25 +362,6 @@ func (srv *server) List(
 		if req.Count > 0 && uint32(len(resp.Mails)) >= req.Count {
 			break
 		}
-	}
-	return resp, nil
-}
-
-func (srv *server) Push(
-	ctx context.Context, req *v1pb.MailboxPushRequest) (
-	_ *v1pb.MailboxPushResponse, err error) {
-	_, key, err := getAppIdAndUniqKey(ctx, req.Key)
-	if err != nil {
-		return
-	}
-	resp := &v1pb.MailboxPushResponse{}
-	if buf, err := encodeMessage(req.Data); err != nil {
-		return nil, fromProtoError(err)
-	} else if id, err := srv.mb.Push(
-		ctx, key, buf, remon.WithCapacity(int(req.Capacity))); err != nil {
-		return nil, fromRemonError(err)
-	} else {
-		resp.Id = fmt.Sprintf("%x", id)
 	}
 	return resp, nil
 }
@@ -428,10 +409,13 @@ func (srv *server) Send(
 
 		opts := make([]remon.PushOption, 0, 2)
 		if e.Capacity > 0 {
-			opts = append(opts, remon.WithCapacity(int(e.Capacity)))
+			opts = append(opts, remon.WithCapacity(uint16(e.Capacity)))
 		}
-		if e.RemoveEarliestOnFull {
-			opts = append(opts, remon.WithPushStrategy(remon.PullOldestOnFull))
+		if e.Overridable {
+			opts = append(opts, remon.WithRing())
+		}
+		if e.Importance != 0 {
+			opts = append(opts, remon.WithImportance(int8(e.Importance)))
 		}
 
 		// we send these mails as many as possible, then return the first error
@@ -447,7 +431,7 @@ func (srv *server) Send(
 				continue
 			}
 			if _, _err = srv.mb.Push(ctx, _key, buf, opts...); err != nil {
-				if _err != remon.ErrMailFull {
+				if _err != remon.ErrMailBoxFull {
 					return nil, fromRemonError(err)
 				}
 				if err == nil {
