@@ -50,9 +50,6 @@ func newInternalError(msg interface{}) error {
 func newUnavailableError(msg interface{}) error {
 	return newError(codes.Unavailable, msg)
 }
-func newPermissionDeniedError(msg interface{}) error {
-	return newError(codes.PermissionDenied, msg)
-}
 
 func newErrorDetail(code v1pb.ErrorCode, data proto.Message) *v1pb.ErrorDetail {
 	r := &v1pb.ErrorDetail{Code: code}
@@ -75,7 +72,4 @@ var (
 	errInvalidMetadata  = newInvalidArgumentError("invalid metadata")
 
 	errMetadataTooLarge = newInvalidArgumentError("metadata too large")
-
-	////// PermissionDenied
-	errPermissionDenied = newPermissionDeniedError("permission denied")
 )
