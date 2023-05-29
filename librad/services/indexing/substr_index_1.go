@@ -25,10 +25,10 @@ func getKey(k *v1pb.EntryKey) string {
 type substrIndex1 struct {
 	// ID
 	Id string
-	// 后缀索引
-	tree *internal.SuffixTree
 	// 读写锁
 	mu sync.RWMutex
+	// 后缀索引
+	tree *internal.SuffixTree
 	// Id->Entry索引
 	keyIndex map[string]*v1pb.SubstrIndex1_Entry
 	// Value->Entry索引
@@ -37,9 +37,7 @@ type substrIndex1 struct {
 
 func newSubstrIndex1(id string) *substrIndex1 {
 	return &substrIndex1{
-		Id:       id,
-		keyIndex: make(map[string]*v1pb.SubstrIndex1_Entry),
-		valIndex: make(map[string]*v1pb.SubstrIndex1_Entry),
+		Id: id,
 	}
 }
 
@@ -48,7 +46,11 @@ func (idx *substrIndex1) tryLoad(ctx context.Context) (err error) {
 		return
 	}
 
-	tree := internal.NewSuffixTree()
+	var (
+		tree     = internal.NewSuffixTree()
+		keyIndex = make(map[string]*v1pb.SubstrIndex1_Entry)
+		valIndex = make(map[string]*v1pb.SubstrIndex1_Entry)
+	)
 
 	d, err := cli.HGetAll(ctx, idx.getRedisKey()).Result()
 	if err != nil {
@@ -56,15 +58,29 @@ func (idx *substrIndex1) tryLoad(ctx context.Context) (err error) {
 	}
 
 	for _, v := range d {
-		var e v1pb.SubstrIndex1_Entry
-		if err = proto.Unmarshal(util.StringToBytes(v), &e); err != nil {
+		e := &v1pb.SubstrIndex1_Entry{}
+		if err = proto.Unmarshal(util.StringToBytes(v), e); err != nil {
 			log.Warnf("failed to unmarshal index entry data")
 			return newInternalError("data error")
 		}
+		k := getKey(e.Key)
+		if _, ok := keyIndex[k]; ok {
+			log.Warnf("duplicate entry key: %s", k)
+			continue
+		}
+		if _, ok := valIndex[e.Value]; ok {
+			log.Warnf("duplicate entry val: %s", e.Value)
+			continue
+		}
 		idx.tree.Add(e.Value)
+		keyIndex[k] = e
+		valIndex[e.Value] = e
 	}
 
 	idx.tree = tree
+	idx.keyIndex = keyIndex
+	idx.valIndex = valIndex
+
 	return
 }
 
