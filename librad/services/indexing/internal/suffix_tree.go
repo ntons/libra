@@ -59,19 +59,22 @@ func (tree *SuffixTree) del(a []rune, s string) bool {
 	return true
 }
 
-func (tree *SuffixTree) search(a []rune) (r []string) {
+// 结果需要去重
+func (tree *SuffixTree) search(a []rune, m map[string]struct{}) {
 	if len(a) == 0 {
-		r = append(r, tree.Ends...)
+		for _, s := range tree.Ends {
+			m[s] = struct{}{}
+		}
 		for _, son := range tree.Sons {
-			r = append(r, son.search(a)...)
+			son.search(a, m)
 		}
 		return
 	}
 	son, ok := tree.Sons[a[0]]
 	if !ok {
-		return nil
+		return
 	}
-	return son.search(a[1:])
+	son.search(a[1:], m)
 }
 
 func (tree *SuffixTree) Add(s string) bool {
@@ -96,6 +99,11 @@ func (tree *SuffixTree) Del(s string) bool {
 	return true
 }
 
-func (tree *SuffixTree) Search(s string) []string {
-	return tree.search([]rune(s))
+func (tree *SuffixTree) Search(s string) (r []string) {
+	m := make(map[string]struct{})
+	tree.search([]rune(s), m)
+	for s := range m {
+		r = append(r, s)
+	}
+	return
 }
