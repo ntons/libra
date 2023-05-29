@@ -72,7 +72,7 @@ func (idx *substrIndex1) tryLoad(ctx context.Context) (err error) {
 			log.Warnf("duplicate entry val: %s", e.Value)
 			continue
 		}
-		idx.tree.Add(e.Value)
+		tree.Add(e.Value)
 		keyIndex[k] = e
 		valIndex[e.Value] = e
 	}
