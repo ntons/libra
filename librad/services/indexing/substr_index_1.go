@@ -103,41 +103,50 @@ func (idx *substrIndex1) Update(ctx context.Context, e *v1pb.SubstrIndex1_Entry)
 		return
 	}
 
-	k := getKey(e.Key)
+	k, v := getKey(e.Key), util.BytesToString(b)
 
-	// 删除之前的索引
 	if _e, ok := idx.keyIndex[k]; ok {
-		idx.tree.Del(_e.Value)
-		delete(idx.keyIndex, k)
-		delete(idx.valIndex, _e.Value)
-		defer func() {
-			if err == nil {
+		if _e.Value != e.Value {
+			idx.tree.Del(_e.Value)
+			defer func() {
+				if err != nil {
+					idx.tree.Add(_e.Value)
+				}
+			}()
+			if !idx.tree.Add(e.Value) {
+				err = newAlreadyExistsError("duplicate entry key")
 				return
 			}
-			idx.tree.Add(_e.Value)
-			idx.keyIndex[k] = _e
-			idx.valIndex[_e.Value] = _e
-		}()
-	}
-
-	// 构建索引
-	if !idx.tree.Add(e.Value) {
-		err = newAlreadyExistsError("duplicate entry key")
-		return
-	}
-	defer func() {
-		if err == nil {
+			defer func() {
+				if err != nil {
+					idx.tree.Del(e.Value)
+				}
+			}()
+		}
+		if !proto.Equal(_e, e) {
+			if err = cli.HSet(ctx, idx.getRedisKey(), k, v).Err(); err != nil {
+				log.Warnf("failed to set entry data: %v", err)
+				err = newUnavailableError("db error")
+				return
+			}
+		}
+	} else {
+		if !idx.tree.Add(e.Value) {
+			err = newAlreadyExistsError("duplicate entry key")
 			return
 		}
-		idx.tree.Del(e.Value)
-	}()
-
-	// 保存数据
-	if err = cli.HSet(ctx, idx.getRedisKey(), k, util.BytesToString(b)).Err(); err != nil {
-		log.Warnf("failed to set entry data: %v", err)
-		err = newUnavailableError("db error")
-		return
+		defer func() {
+			if err != nil {
+				idx.tree.Del(e.Value)
+			}
+		}()
+		if err = cli.HSet(ctx, idx.getRedisKey(), k, v).Err(); err != nil {
+			log.Warnf("failed to set entry data: %v", err)
+			err = newUnavailableError("db error")
+			return
+		}
 	}
+
 	idx.keyIndex[k] = e
 	idx.valIndex[e.Value] = e
 
