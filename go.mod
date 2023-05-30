@@ -15,7 +15,7 @@ require (
 	github.com/ntons/redchart v0.1.8
 	github.com/ntons/redis v0.1.4
 	github.com/ntons/redmq v0.0.0-20220222065331-070944d0f346
-	github.com/ntons/remon v0.1.8
+	github.com/ntons/remon v0.1.9
 	github.com/ntons/tongo/httputil v0.0.0-20210926235700-c0c0e6e56ff5
 	github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5
 	github.com/onemoreteam/httpframework v0.1.2-0.20220301023911-259e38a8a715

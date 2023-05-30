@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"time"
 
@@ -341,16 +342,23 @@ func (srv *server) List(
 	if err != nil {
 		return
 	}
-	list, err := srv.mb.List(ctx, key)
+	a, err := srv.mb.List(ctx, key)
 	if err != nil {
 		if err == remon.ErrNotExists && req.Options.GetRegardNotFoundAsEmpty() {
-			list, err = nil, nil
+			a, err = nil, nil
 		} else {
 			return nil, fromRemonError(err)
 		}
 	}
+
+	// 重要性逆序，时间正序
+	sort.Slice(a, func(i, j int) bool {
+		vi, vj := a[i].GetImportance(), a[j].GetImportance()
+		return vi > vj || vi == vj && a[i].Id < a[j].Id
+	})
+
 	resp := &v1pb.MailboxListResponse{}
-	for _, e := range list {
+	for _, e := range a {
 		m := &v1pb.Mail{
 			Id:   fmt.Sprintf("%x", e.Id),
 			Data: &anypb.Any{},
