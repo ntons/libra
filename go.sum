@@ -219,8 +219,8 @@ github.com/ntons/log-go v0.0.0-20200924092648-d9caee8882d8/go.mod h1:R+uLqm/b64q
 github.com/ntons/log-go v0.0.0-20210804015646-3ca0ced163e5/go.mod h1:YFK536HWWIMdNhjgvJnumUlvmq+rRn3IGDIBexpUO8A=
 github.com/ntons/log-go v0.1.0 h1:CiNY2inkHyvpm5ArV2mc1kMnKjI8nP6jeDiBLiqiRjM=
 github.com/ntons/log-go v0.1.0/go.mod h1:kpKvKE1dtOpvlZDNLAXx4zC+rylAo2Ob6jCeT0TQF60=
-github.com/ntons/redchart v0.1.8 h1:r6rPWQCtqTVJf6htNikStvWpNSrzhV1fnAcN5IpkdWE=
-github.com/ntons/redchart v0.1.8/go.mod h1:+s3Az5Rr0DaYRfBalcBU2n87elSWp8padYrU6UEAX8Y=
+github.com/ntons/redchart v0.1.9 h1:oD99EXniXIMNANnOLaBdPMPFsUZ2lYC0QBIkwCznILE=
+github.com/ntons/redchart v0.1.9/go.mod h1:/NyZ8alt7H5Xu8/cNG2SDPp4oZt/mCpMJ+ioJq3yxzw=
 github.com/ntons/redis v0.1.2-0.20220217100137-fe77685ec0b4/go.mod h1:kysondb8mIWDqiQXQBnK6+MsRg4NHMIAYSo5Lhwq6Pc=
 github.com/ntons/redis v0.1.4 h1:bsFYpo2e3DQ8+Jyf/sm8gCcF3yUEHuQN1o3pqb9JUNQ=
 github.com/ntons/redis v0.1.4/go.mod h1:kysondb8mIWDqiQXQBnK6+MsRg4NHMIAYSo5Lhwq6Pc=
