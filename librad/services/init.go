@@ -8,6 +8,7 @@ import (
 	_ "github.com/ntons/libra/librad/services/gateway"
 	_ "github.com/ntons/libra/librad/services/gift"
 	_ "github.com/ntons/libra/librad/services/indexing"
+	_ "github.com/ntons/libra/librad/services/pubsub"
 	_ "github.com/ntons/libra/librad/services/purchase"
 	_ "github.com/ntons/libra/librad/services/ranking"
 	_ "github.com/ntons/libra/librad/services/registry"
