@@ -48,31 +48,33 @@ func TestPubSubServer(t *testing.T) {
 
 	cli := v1pb.NewPubSubServiceClient(conn)
 
-	if _, err := cli.Send(
+	if _, err := cli.Publish(
 		metadata.NewOutgoingContext(ctx, metadata.New(map[string]string{
 			"x-libra-trusted-auth-by": "secret",
 			"x-libra-trusted-app-id":  "myapp",
 		})),
-		&v1pb.PubSub_SendRequest{
-			Msg: &v1pb.PubSub_Msg{
-				Topic: "test",
-				Value: &v1pb.PubSub_Msg_Str{
-					Str: "test",
+		&v1pb.PubSub_PublishRequest{
+			Msgs: []*v1pb.PubSub_Message{
+				&v1pb.PubSub_Message{
+					Topic: "test",
+					Value: &v1pb.PubSub_Message_Str{
+						Str: "test",
+					},
 				},
 			},
 		}); err != nil {
 		t.Fatalf("failed to send: %v", err)
 	}
 
-	stream, err := cli.Read(
+	sub, err := cli.Subscribe(
 		metadata.NewOutgoingContext(ctx, metadata.New(map[string]string{
 			"x-libra-trusted-auth-by": "secret",
 			"x-libra-trusted-app-id":  "myapp",
 		})),
-		&v1pb.PubSub_ReadRequest{
-			TopicStart: map[string]*v1pb.PubSub_ReadRequest_Start{
-				"test": &v1pb.PubSub_ReadRequest_Start{
-					At: &v1pb.PubSub_ReadRequest_Start_AfterId{
+		&v1pb.PubSub_SubscribeRequest{
+			TopicStart: map[string]*v1pb.PubSub_SubscribeRequest_Start{
+				"test": &v1pb.PubSub_SubscribeRequest_Start{
+					At: &v1pb.PubSub_SubscribeRequest_Start_AfterId{
 						AfterId: "0",
 					},
 				},
@@ -83,7 +85,7 @@ func TestPubSubServer(t *testing.T) {
 	}
 
 	for {
-		resp, err := stream.Recv()
+		resp, err := sub.Recv()
 		if err != nil {
 			t.Fatalf("failed to recv: %v", err)
 		}
