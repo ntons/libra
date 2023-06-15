@@ -70,7 +70,10 @@ func (*pubSubServer) Publish(
 	return &v1pb.PubSub_PublishResponse{}, nil
 }
 
-func (*pubSubServer) Subscribe(req *v1pb.PubSub_SubscribeRequest, stream v1pb.PubSubService_SubscribeServer) (err error) {
+func (*pubSubServer) Subscribe(
+	req *v1pb.PubSub_SubscribeRequest,
+	stream v1pb.PubSubService_SubscribeServer) (err error) {
+
 	appId, err := getAppId(stream.Context())
 	if err != nil {
 		return

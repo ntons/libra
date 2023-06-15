@@ -59,7 +59,7 @@ func (srv *fileServer) Initialize(jb json.RawMessage) (err error) {
 
 	srv.rootPath = u.Path
 
-	server.RegisterService(&v1pb.FileService_ServiceDesc, srv)
+	server.RegisterGrpcService(&v1pb.FileService_ServiceDesc, srv)
 	return
 }
 

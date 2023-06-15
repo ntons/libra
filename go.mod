@@ -18,7 +18,7 @@ require (
 	github.com/ntons/remon v0.1.9
 	github.com/ntons/tongo/httputil v0.0.0-20210926235700-c0c0e6e56ff5
 	github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5
-	github.com/onemoreteam/httpframework v0.1.2-0.20220301023911-259e38a8a715
+	github.com/onemoreteam/httpframework v0.2.2
 	github.com/pierrec/lz4/v4 v4.1.3
 	github.com/sigurn/crc16 v0.0.0-20160107003519-da416fad5162
 	github.com/tencentyun/cos-go-sdk-v5 v0.7.41
@@ -57,7 +57,7 @@ require (
 	go.uber.org/zap v1.17.0 // indirect
 	golang.org/x/crypto v0.6.0 // indirect
 	golang.org/x/net v0.7.0 // indirect
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
 	google.golang.org/appengine v1.6.6 // indirect

@@ -21,6 +21,6 @@ func (module) Initialize(jb json.RawMessage) (err error) {
 		// 那就算了吧
 		return
 	}
-	server.RegisterService(&v1pb.Order_ServiceDesc, newOrderServer())
+	server.RegisterGrpcService(&v1pb.Order_ServiceDesc, newOrderServer())
 	return
 }

@@ -37,7 +37,7 @@ func (module) Initalize(jb json.RawMessage) (err error) {
 		return
 	}
 
-	server.RegisterService(&v1pb.PubSubService_ServiceDesc, newPubSubServer())
+	server.RegisterGrpcService(&v1pb.PubSubService_ServiceDesc, newPubSubServer())
 
 	return
 }

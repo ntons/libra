@@ -27,7 +27,7 @@ func (m *rankingModule) Initialize(jb json.RawMessage) (err error) {
 	if err != nil {
 		return
 	}
-	servermodule.RegisterService(&v1pb.BubbleChart_ServiceDesc, srv.bubblechart)
-	servermodule.RegisterService(&v1pb.Leaderboard_ServiceDesc, srv.leaderboard)
+	servermodule.RegisterGrpcService(&v1pb.BubbleChart_ServiceDesc, srv.bubblechart)
+	servermodule.RegisterGrpcService(&v1pb.Leaderboard_ServiceDesc, srv.leaderboard)
 	return
 }

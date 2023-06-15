@@ -38,7 +38,7 @@ func (indexing) Initialize(jb json.RawMessage) (err error) {
 	}
 
 	// 子串索引
-	server.RegisterService(
+	server.RegisterGrpcService(
 		&v1pb.SubstrIndex1Service_ServiceDesc,
 		newSubstrIndex1Server())
 

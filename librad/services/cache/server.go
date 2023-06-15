@@ -42,7 +42,7 @@ func (srv *cacheServer) Initialize(jb json.RawMessage) (err error) {
 		return fmt.Errorf("failed to connect redis")
 	}
 
-	server.RegisterService(&v1pb.Cache_ServiceDesc, srv)
+	server.RegisterGrpcService(&v1pb.Cache_ServiceDesc, srv)
 	return
 }
 

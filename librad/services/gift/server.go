@@ -27,7 +27,7 @@ func (srv *giftServer) Initialize(jb json.RawMessage) (err error) {
 	if jb == nil {
 		return
 	}
-	server.RegisterService(&v1pb.Gift_ServiceDesc, srv)
+	server.RegisterGrpcService(&v1pb.Gift_ServiceDesc, srv)
 	return
 }
 
