@@ -235,8 +235,8 @@ github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5/go.mod h1:bm1yZHO
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
 github.com/nxadm/tail v1.4.8/go.mod h1:+ncqLTQzXmGhMZNUePPaPqPvBxHAIsmXswZKocGu+AU=
-github.com/onemoreteam/httpframework v0.2.3-0.20230615101652-f391cf0103ea h1:oNYQ4t61SAs4Cmc+zWfY9GYRqEAYShi9RHfrhKjB8Cw=
-github.com/onemoreteam/httpframework v0.2.3-0.20230615101652-f391cf0103ea/go.mod h1:I1k/sQiHEKYm/XX4FUuQbOTqPUdtGw+xUTges0k5FHw=
+github.com/onemoreteam/httpframework v0.2.3 h1:SjLcijAuuryKPSEfk2lcmUfItiSIgVG5OPweL4xPApk=
+github.com/onemoreteam/httpframework v0.2.3/go.mod h1:I1k/sQiHEKYm/XX4FUuQbOTqPUdtGw+xUTges0k5FHw=
 github.com/onemoreteam/yaml v1.0.2 h1:xID6oy1u8ncnpU12BzqzGIoTychZ2fQjZFBo4cL3BtQ=
 github.com/onemoreteam/yaml v1.0.2/go.mod h1:ltfE9nWwOjlN1LF0spMW3Y2ltwK8Ar46YPhybEqAcKk=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
