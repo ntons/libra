@@ -83,7 +83,7 @@ func (*pubSubServer) Subscribe(
 	// 当前会话的读取位置，重建会话时需要调用者提供起始位置
 	cursors := make(map[string]string)
 	for topic, start := range req.TopicStart {
-		id := fmt.Sprintf("%d-0", start.SinceTimestampMillis)
+		id := fmt.Sprintf("%d-0", start.SinceMilliTimestamp)
 		if start.AfterId != "" {
 			a := strings.SplitN(start.AfterId, "-", 2)
 			if len(a) != 2 {
@@ -99,7 +99,7 @@ func (*pubSubServer) Subscribe(
 				return newInvalidArgumentError(
 					"invalid start after id: %v", start.AfterId)
 			}
-			if v >= start.SinceTimestampMillis {
+			if v >= start.SinceMilliTimestamp {
 				id = id
 			}
 		}
@@ -113,6 +113,9 @@ func (*pubSubServer) Subscribe(
 		}
 		for _, cursor := range cursors {
 			args.Streams = append(args.Streams, cursor)
+		}
+		if req.BatchCount > 0 {
+			args.Count = int64(req.BatchCount)
 		}
 
 		var resp = &v1pb.PubSub_SubscribeResponse{}
