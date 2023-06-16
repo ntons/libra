@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/ntons/libra-go"
@@ -82,14 +83,25 @@ func (*pubSubServer) Subscribe(
 	// 当前会话的读取位置，重建会话时需要调用者提供起始位置
 	cursors := make(map[string]string)
 	for topic, start := range req.TopicStart {
-		var id string
-		switch v := start.At.(type) {
-		case *v1pb.PubSub_SubscribeRequest_Start_AfterId:
-			id = v.AfterId
-		case *v1pb.PubSub_SubscribeRequest_Start_SinceTimestampMillis:
-			id = fmt.Sprintf("%d-0", v.SinceTimestampMillis)
-		default:
-			id = "0-0"
+		id := fmt.Sprintf("%d-0", start.SinceTimestampMillis)
+		if start.AfterId != "" {
+			a := strings.SplitN(start.AfterId, "-", 2)
+			if len(a) != 2 {
+				return newInvalidArgumentError(
+					"invalid start after id: %v", start.AfterId)
+			}
+			var v int64
+			if v, err = strconv.ParseInt(a[0], 10, 64); err != nil {
+				return newInvalidArgumentError(
+					"invalid start after id: %v", start.AfterId)
+			}
+			if _, err = strconv.ParseInt(a[1], 10, 64); err != nil {
+				return newInvalidArgumentError(
+					"invalid start after id: %v", start.AfterId)
+			}
+			if v >= start.SinceTimestampMillis {
+				id = id
+			}
 		}
 		cursors[toStream(appId, topic)] = id
 	}
