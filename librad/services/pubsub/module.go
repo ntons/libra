@@ -19,7 +19,7 @@ type module struct {
 
 func (module) Name() string { return "pubsub" }
 
-func (module) Initalize(jb json.RawMessage) (err error) {
+func (module) Initialize(jb json.RawMessage) (err error) {
 	if jb == nil {
 		return
 	}
