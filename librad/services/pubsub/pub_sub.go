@@ -135,13 +135,13 @@ func (*pubSubServer) Subscribe(
 				if b, err = base64.StdEncoding.DecodeString(v.(string)); err != nil {
 					continue
 				}
-				m := &v1pb.PubSub_Message{}
-				if err = proto.Unmarshal(b, m); err != nil {
+				msg := &v1pb.PubSub_Message{}
+				if err = proto.Unmarshal(b, msg); err != nil {
 					continue
 				}
-				m.Topic = toTopic(e.Stream)
-				m.Id = m.Id
-				resp.Msgs = append(resp.Msgs, m)
+				msg.Topic = toTopic(e.Stream)
+				msg.Id = m.ID
+				resp.Msgs = append(resp.Msgs, msg)
 			}
 		}
 		if len(resp.Msgs) == 0 {
