@@ -28,11 +28,17 @@ func getAppId(ctx context.Context) (appId string, err error) {
 }
 
 func toStream(appId, topic string) string {
+	if strings.ContainsRune(appId, ':') {
+		panic("invalid app id")
+	}
 	return fmt.Sprintf("%s:%s", appId, topic)
 }
 
 func toTopic(stream string) string {
-	i := strings.LastIndexByte(stream, ':')
+	i := strings.IndexRune(stream, ':')
+	if i < 0 {
+		panic("invalid stream")
+	}
 	return stream[i+1:]
 }
 
