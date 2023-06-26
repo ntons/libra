@@ -95,15 +95,15 @@ func (*pubSubServer) Subscribe(
 	defer wg.Wait()
 
 	// 多个topic可能存在不同散列，需要分开read
-	for topic, start := range req.TopicStart {
-		id := fmt.Sprintf("%d-0", start.SinceMilliTimestamp)
-		if start.AfterId != "" {
-			a := strings.SplitN(start.AfterId, "-", 2)
+	for _, sub := range req.Subscriptions {
+		id := fmt.Sprintf("%d-0", sub.SinceMilliTimestamp)
+		if sub.AfterId != "" {
+			a := strings.SplitN(sub.AfterId, "-", 2)
 			if v, err := strconv.ParseInt(a[0], 10, 64); err != nil {
 				return newInvalidArgumentError(
-					"invalid start after id: %v", start.AfterId)
-			} else if v >= start.SinceMilliTimestamp {
-				id = start.AfterId
+					"invalid subscription after id: %v", sub.AfterId)
+			} else if v >= sub.SinceMilliTimestamp {
+				id = sub.AfterId
 			}
 		}
 		wg.Add(1)
@@ -151,8 +151,8 @@ func (*pubSubServer) Subscribe(
 				}
 			}
 		}(&redis.XReadArgs{
-			Streams: []string{toStream(appId, topic), id},
-			Count:   int64(req.BatchCount),
+			Streams: []string{toStream(appId, sub.Topic), id},
+			Count:   int64(sub.BatchSize),
 		})
 	}
 
