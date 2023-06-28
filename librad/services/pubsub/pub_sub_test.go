@@ -6,31 +6,38 @@ import (
 	"net"
 	"sync"
 	"testing"
+	"time"
 
 	v1pb "github.com/ntons/libra-go/api/libra/v1"
+	logcfg "github.com/ntons/log-go/config"
 	"github.com/ntons/redis"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
-func TestPubSubServer(t *testing.T) {
-	var (
-		err error
-		ctx = context.Background()
-	)
+var (
+	initTestOnce sync.Once
+)
 
-	if cli, err = redis.Dial(ctx, "redis://localhost:6379/1", redis.WithPingTest()); err != nil {
-		t.Fatalf("failed to dial db: %v", err)
-	}
+func tryInitTest(t *testing.T) {
+	initTestOnce.Do(func() {
+		logcfg.DefaultZapJsonConfig.Use()
+		var err error
+		if cli, err = redis.Dial(
+			context.Background(),
+			"redis://localhost:6379/1",
+			redis.WithPingTest(),
+		); err != nil {
+			t.Fatalf("failed to dial db: %v", err)
+		}
+	})
+}
 
+func getTestSrv(t *testing.T) *grpc.Server {
 	lis, err := net.Listen("tcp", "localhost:5000")
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}
-
-	var wg sync.WaitGroup
-	defer wg.Wait()
-
 	s := grpc.NewServer()
 	v1pb.RegisterPubSubServiceServer(s, newPubSubServer())
 	go func() {
@@ -38,15 +45,30 @@ func TestPubSubServer(t *testing.T) {
 			t.Fatalf("failed to serve: %v", err)
 		}
 	}()
-	defer s.GracefulStop()
+	return s
+}
 
+func getTestCli(t *testing.T) (*grpc.ClientConn, v1pb.PubSubServiceClient) {
 	conn, err := grpc.Dial("localhost:5000", grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("failed to dial: %v", err)
 	}
+	return conn, v1pb.NewPubSubServiceClient(conn)
+}
+
+func TestSubscribe(t *testing.T) {
+	tryInitTest(t)
+
+	srv := getTestSrv(t)
+	defer srv.GracefulStop()
+
+	conn, cli := getTestCli(t)
 	defer conn.Close()
 
-	cli := v1pb.NewPubSubServiceClient(conn)
+	var (
+		err error
+		ctx = context.Background()
+	)
 
 	if _, err := cli.Publish(
 		metadata.NewOutgoingContext(ctx, metadata.New(map[string]string{
@@ -72,12 +94,8 @@ func TestPubSubServer(t *testing.T) {
 			"x-libra-trusted-app-id":  "myapp",
 		})),
 		&v1pb.PubSub_SubscribeRequest{
-			TopicStart: map[string]*v1pb.PubSub_SubscribeRequest_Start{
-				"test": &v1pb.PubSub_SubscribeRequest_Start{
-					At: &v1pb.PubSub_SubscribeRequest_Start_AfterId{
-						AfterId: "0",
-					},
-				},
+			Subscriptions: []*v1pb.PubSub_Subscription{
+				&v1pb.PubSub_Subscription{Topic: "test", AfterId: "0"},
 			},
 		})
 	if err != nil {
@@ -91,4 +109,82 @@ func TestPubSubServer(t *testing.T) {
 		}
 		fmt.Printf("%v\n", resp)
 	}
+}
+
+func TestConsume(t *testing.T) {
+	tryInitTest(t)
+
+	srv := getTestSrv(t)
+	defer srv.GracefulStop()
+
+	conn, cli := getTestCli(t)
+	defer conn.Close()
+
+	var (
+		err  error
+		ctx  = context.Background()
+		resp *v1pb.PubSub_ConsumeResponse
+	)
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	// consumers
+	for i := 0; i < 3; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			for {
+				var req = &v1pb.PubSub_ConsumeRequest{
+					Consumptions: []*v1pb.PubSub_Consumption{
+						&v1pb.PubSub_Consumption{Topic: "test", AckTimeoutMilli: 1000},
+					},
+				}
+				if resp != nil {
+					for _, msg := range resp.Msgs {
+						req.Acks = append(req.Acks, &v1pb.PubSub_Ack{
+							Topic:  msg.Topic,
+							MsgIds: []string{msg.Id},
+						})
+					}
+				}
+				fmt.Printf("[%d]consuming: %v\n", i, req)
+				if resp, err = cli.Consume(
+					metadata.NewOutgoingContext(ctx, metadata.New(map[string]string{
+						"x-libra-trusted-auth-by": "secret",
+						"x-libra-trusted-app-id":  "myapp",
+					})),
+					req,
+				); err != nil {
+					t.Fatalf("failed to consume: %v", err)
+				}
+				fmt.Printf("[%d]: %v\n", i, resp)
+			}
+		}(i)
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			if _, err := cli.Publish(
+				metadata.NewOutgoingContext(ctx, metadata.New(map[string]string{
+					"x-libra-trusted-auth-by": "secret",
+					"x-libra-trusted-app-id":  "myapp",
+				})),
+				&v1pb.PubSub_PublishRequest{
+					Msgs: []*v1pb.PubSub_Message{
+						&v1pb.PubSub_Message{
+							Topic: "test",
+							Value: &v1pb.PubSub_Message_Str{
+								Str: "test",
+							},
+						},
+					},
+				}); err != nil {
+				t.Fatalf("failed to send: %v", err)
+			}
+			time.Sleep(3 * time.Second)
+		}
+	}()
 }
