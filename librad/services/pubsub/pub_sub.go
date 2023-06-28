@@ -85,9 +85,9 @@ func (*pubSubServer) Publish(
 		} else {
 			args.Stream = toStream(pub.AppId, pub.Topic)
 		}
-		if pub.TimeoutMilli > 0 {
-			timeout := time.Duration(pub.TimeoutMilli) * time.Millisecond
-			args.MinID = fmt.Sprintf("%d", time.Now().Add(-timeout).UnixMilli())
+		if pub.MaxTtl > 0 {
+			ttl := time.Duration(pub.MaxTtl) * time.Millisecond
+			args.MinID = fmt.Sprintf("%d", time.Now().Add(-ttl).UnixMilli())
 		}
 		for _, msg := range pub.Msgs {
 			msg.Topic, msg.Id, msg.GroupId = "", "", 0 // clear fields
@@ -258,7 +258,7 @@ func (srv *pubSubServer) readGroup(
 	var (
 		stream  = toStream(appId, con.Topic)
 		group   = fmt.Sprintf("%d", con.GroupId)
-		timeout = time.Duration(con.AckTimeoutMilli) * time.Millisecond
+		timeout = time.Duration(con.AckTimeout) * time.Millisecond
 
 		xAutoClaimArgs = &redis.XAutoClaimArgs{
 			Stream:   stream,
