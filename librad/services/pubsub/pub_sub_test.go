@@ -76,11 +76,15 @@ func TestSubscribe(t *testing.T) {
 			"x-libra-trusted-app-id":  "myapp",
 		})),
 		&v1pb.PubSub_PublishRequest{
-			Msgs: []*v1pb.PubSub_Message{
-				&v1pb.PubSub_Message{
+			Publications: []*v1pb.PubSub_Publication{
+				&v1pb.PubSub_Publication{
 					Topic: "test",
-					Value: &v1pb.PubSub_Message_Str{
-						Str: "test",
+					Msgs: []*v1pb.PubSub_Msg{
+						&v1pb.PubSub_Msg{
+							Value: &v1pb.PubSub_Msg_Str{
+								Str: "test",
+							},
+						},
 					},
 				},
 			},
@@ -173,11 +177,15 @@ func TestConsume(t *testing.T) {
 					"x-libra-trusted-app-id":  "myapp",
 				})),
 				&v1pb.PubSub_PublishRequest{
-					Msgs: []*v1pb.PubSub_Message{
-						&v1pb.PubSub_Message{
+					Publications: []*v1pb.PubSub_Publication{
+						&v1pb.PubSub_Publication{
 							Topic: "test",
-							Value: &v1pb.PubSub_Message_Str{
-								Str: "test",
+							Msgs: []*v1pb.PubSub_Msg{
+								&v1pb.PubSub_Msg{
+									Value: &v1pb.PubSub_Msg_Str{
+										Str: "test",
+									},
+								},
 							},
 						},
 					},

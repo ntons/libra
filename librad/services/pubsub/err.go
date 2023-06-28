@@ -21,6 +21,9 @@ func newOutOfRangeError(format string, a ...interface{}) error {
 func newUnavailableError(format string, a ...interface{}) error {
 	return status.Errorf(codes.Unavailable, format, a...)
 }
+func newNotFoundError(format string, a ...interface{}) error {
+	return status.Errorf(codes.NotFound, format, a...)
+}
 
 func errHasPrefix(err error, prefix string) bool {
 	return strings.HasPrefix(strings.TrimLeft(err.Error(), " "), prefix)

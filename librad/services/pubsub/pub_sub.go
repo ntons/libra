@@ -45,7 +45,7 @@ func toTopic(stream string) string {
 	return stream[i+1:]
 }
 
-func parseXMessage(m redis.XMessage, topic string) (*v1pb.PubSub_Message, error) {
+func fromXMessage(m redis.XMessage) (*v1pb.PubSub_Msg, error) {
 	v, ok := m.Values["pubsub"]
 	if !ok {
 		return nil, fmt.Errorf("failed to get pubsub message value")
@@ -54,11 +54,10 @@ func parseXMessage(m redis.XMessage, topic string) (*v1pb.PubSub_Message, error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode pubsub message: %e", err)
 	}
-	r := &v1pb.PubSub_Message{}
+	r := &v1pb.PubSub_Msg{}
 	if err = proto.Unmarshal(b, r); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal pubsub message: %v", err)
 	}
-	r.Topic = topic
 	r.Id = m.ID
 	return r, nil
 }
@@ -67,31 +66,44 @@ func (*pubSubServer) Publish(
 	ctx context.Context, req *v1pb.PubSub_PublishRequest) (
 	_ *v1pb.PubSub_PublishResponse, err error) {
 
-	appId, err := getAppId(ctx)
-	if err != nil {
-		return
+	var appId string
+	if trusted := libra.RequireAuthBySecret(ctx); trusted == nil {
+		return nil, errUnauthenticated
+	} else {
+		appId = trusted.AppId
 	}
 
-	args := &redis.XAddArgs{
-		Approx: true,
-		ID:     "*",
-	}
-	if req.Opts != nil {
-		args.NoMkStream = !req.Opts.CreateTopic
-		args.MaxLen = req.Opts.MaxLen
-		args.MinID = req.Opts.MinId
-	}
-
-	for _, msg := range req.Msgs {
-		var b []byte
-		if b, err = proto.Marshal(msg); err != nil {
-			err = newInvalidArgumentError("bad msg")
-			return
+	for _, pub := range req.Publications {
+		args := redis.XAddArgs{
+			NoMkStream: !pub.AutoCreateTopic,
+			MaxLen:     int64(pub.MaxLen),
+			Approx:     true,
+			ID:         "*",
 		}
-		args.Stream = toStream(appId, msg.Topic)
-		args.Values = append([]any{}, "pubsub", base64.StdEncoding.EncodeToString(b))
-		if err = cli.XAdd(ctx, args).Err(); err != nil {
-			return
+		if len(pub.AppId) == 0 {
+			args.Stream = toStream(appId, pub.Topic)
+		} else {
+			args.Stream = toStream(pub.AppId, pub.Topic)
+		}
+		if pub.TimeoutMilli > 0 {
+			timeout := time.Duration(pub.TimeoutMilli) * time.Millisecond
+			args.MinID = fmt.Sprintf("%d", time.Now().Add(-timeout).UnixMilli())
+		}
+		for _, msg := range pub.Msgs {
+			msg.Topic, msg.Id, msg.GroupId = "", "", 0 // clear fields
+			var b []byte
+			if b, err = proto.Marshal(msg); err != nil {
+				return nil, newInvalidArgumentError("bad msg")
+			}
+			args.Values = append([]any{}, "pubsub", base64.StdEncoding.EncodeToString(b))
+			if err = cli.XAdd(ctx, &args).Err(); err != nil {
+				if err == redis.Nil { // stream not found
+					return nil, newNotFoundError("stream not found")
+				} else {
+					log.Warnf("failed to add msg: %v", err)
+					return nil, newUnavailableError("db error")
+				}
+			}
 		}
 	}
 
@@ -102,9 +114,11 @@ func (*pubSubServer) Subscribe(
 	req *v1pb.PubSub_SubscribeRequest,
 	sess v1pb.PubSubService_SubscribeServer) error {
 
-	appId, err := getAppId(sess.Context())
-	if err != nil {
-		return err
+	var appId string
+	if trusted := libra.RequireAuthBySecret(sess.Context()); trusted == nil {
+		return errUnauthenticated
+	} else {
+		appId = trusted.AppId
 	}
 
 	var (
@@ -139,11 +153,12 @@ func (*pubSubServer) Subscribe(
 					topic := toTopic(e.Stream)
 					for _, m := range e.Messages {
 						args.Streams[1] = m.ID
-						msg, err := parseXMessage(m, topic)
+						msg, err := fromXMessage(m)
 						if err != nil {
 							log.Warnf("%v", err)
 							continue
 						}
+						msg.Topic = topic
 						resp.Msgs = append(resp.Msgs, msg)
 					}
 				}
@@ -170,9 +185,12 @@ func (*pubSubServer) Subscribe(
 func (srv *pubSubServer) Consume(
 	ctx context.Context, req *v1pb.PubSub_ConsumeRequest) (
 	_ *v1pb.PubSub_ConsumeResponse, err error) {
-	appId, err := getAppId(ctx)
-	if err != nil {
-		return
+
+	var appId string
+	if trusted := libra.RequireAuthBySecret(ctx); trusted == nil {
+		return nil, errUnauthenticated
+	} else {
+		appId = trusted.AppId
 	}
 
 	if err = srv.ack(ctx, appId, req.Acks); err != nil {
@@ -236,7 +254,7 @@ func (*pubSubServer) createGroup(
 
 func (srv *pubSubServer) readGroup(
 	ctx context.Context, appId string, con *v1pb.PubSub_Consumption) (
-	msgs []*v1pb.PubSub_Message, err error) {
+	msgs []*v1pb.PubSub_Msg, err error) {
 	var (
 		stream  = toStream(appId, con.Topic)
 		group   = fmt.Sprintf("%d", con.GroupId)
@@ -301,9 +319,11 @@ func (srv *pubSubServer) readGroup(
 		}
 
 		for _, m := range r {
-			if msg, err := parseXMessage(m, con.Topic); err != nil {
-				log.Warnf("failed to parse message: %v", err)
+			if msg, err := fromXMessage(m); err != nil {
+				log.Warnf("%v", err)
 			} else {
+				msg.Topic = con.Topic
+				msg.GroupId = con.GroupId
 				msgs = append(msgs, msg)
 			}
 		}
