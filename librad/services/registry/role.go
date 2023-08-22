@@ -167,3 +167,20 @@ func (srv *roleServer) GetMetadata(
 	}
 	return
 }
+func (srv *roleServer) AlterIndex(
+	ctx context.Context, req *v1pb.RoleAlterIndexRequest) (
+	resp *v1pb.RoleAlterIndexResponse, err error) {
+	var appId string
+	if trusted := L.RequireAuthByToken(ctx); trusted != nil {
+		appId = trusted.AppId
+	} else if trusted := L.RequireAuthBySecret(ctx); trusted != nil {
+		appId = trusted.AppId
+	} else {
+		return nil, errLoginRequired
+	}
+	role, err := db.AlterRoleIndex(ctx, appId, req.RoleId, req.Index)
+	if err != nil {
+		return
+	}
+	return &v1pb.RoleAlterIndexResponse{Role: fromDbRole(role)}, nil
+}

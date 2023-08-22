@@ -242,3 +242,27 @@ func SetRoleMetadata(
 	}
 	return
 }
+
+func AlterRoleIndex(
+	ctx context.Context, appId, roleId string, index uint32) (
+	_ *Role, err error) {
+	collection, err := getRoleCollection(ctx, appId)
+	if err != nil {
+		return
+	}
+	var role Role
+	if err = collection.FindOneAndUpdate(
+		ctx,
+		bson.M{"_id": roleId},
+		bson.M{"$set": bson.M{"index": index}},
+		options.FindOneAndUpdate().SetReturnDocument(options.After),
+	).Decode(&role); err != nil {
+		if err == mongo.ErrNoDocuments {
+			err = ErrRoleNotFound
+		} else {
+			err = ErrDatabaseUnavailable
+		}
+		return
+	}
+	return &role, nil
+}
