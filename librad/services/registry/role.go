@@ -15,6 +15,8 @@ func fromDbRole(x *db.Role) *v1pb.RoleData {
 		Id:       x.Id,
 		Index:    x.Index,
 		UserId:   x.UserId,
+		CreateAt: x.CreateAt.Unix(),
+		SignInAt: x.SignInAt.Unix(),
 		Metadata: x.Metadata,
 	}
 }
