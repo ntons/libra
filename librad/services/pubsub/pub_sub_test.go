@@ -56,6 +56,34 @@ func getTestCli(t *testing.T) (*grpc.ClientConn, v1pb.PubSubServiceClient) {
 	return conn, v1pb.NewPubSubServiceClient(conn)
 }
 
+func TestDelay(t *testing.T) {
+	tryInitTest(t)
+
+	ctx := context.Background()
+
+	srv := newPubSubServer()
+
+	if err := srv.delayPublish(ctx, time.Now().Unix()+3, &v1pb.PubSub_Publication{
+		AppId: "myapp",
+		Topic: "mytopic",
+	}); err != nil {
+		t.Fatalf("failed to add delay: %v", err)
+	}
+	fmt.Println(time.Now(), "added")
+
+	for {
+		time.Sleep(time.Second)
+		list, err := srv.tryPopDelay(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(list) > 0 {
+			fmt.Println(time.Now(), 1111)
+			break
+		}
+	}
+}
+
 func TestSubscribe(t *testing.T) {
 	tryInitTest(t)
 
@@ -141,7 +169,7 @@ func TestConsume(t *testing.T) {
 			for {
 				var req = &v1pb.PubSub_ConsumeRequest{
 					Consumptions: []*v1pb.PubSub_Consumption{
-						&v1pb.PubSub_Consumption{Topic: "test", AckTimeoutMilli: 1000},
+						&v1pb.PubSub_Consumption{Topic: "test", AckTimeout: 1000},
 					},
 				}
 				if resp != nil {

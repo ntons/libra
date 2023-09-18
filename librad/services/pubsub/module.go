@@ -11,15 +11,26 @@ import (
 	"github.com/onemoreteam/httpframework/modularity/server"
 )
 
-func init() { modularity.Register(&module{}) }
+func init() { modularity.Register(newModule()) }
 
 type module struct {
 	modularity.Skeleton
+	srv  *pubSubServer
+	ctx  context.Context
+	quit context.CancelFunc
+}
+
+func newModule() *module {
+	m := &module{
+		srv: newPubSubServer(),
+	}
+	m.ctx, m.quit = context.WithCancel(context.Background())
+	return m
 }
 
 func (module) Name() string { return "pubsub" }
 
-func (module) Initialize(jb json.RawMessage) (err error) {
+func (m module) Initialize(jb json.RawMessage) (err error) {
 	if jb == nil {
 		return
 	}
@@ -37,7 +48,20 @@ func (module) Initialize(jb json.RawMessage) (err error) {
 		return
 	}
 
-	server.RegisterGrpcService(&v1pb.PubSubService_ServiceDesc, newPubSubServer())
+	server.RegisterGrpcService(&v1pb.PubSubService_ServiceDesc, m.srv)
 
 	return
 }
+
+func (m module) Serve() error {
+	for {
+		select {
+		case <-m.ctx.Done():
+			break
+		case <-time.After(time.Second):
+			m.srv.tryDelayPublish(m.ctx)
+		}
+	}
+}
+
+func (m module) Shutdown() { m.quit() }

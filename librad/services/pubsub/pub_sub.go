@@ -11,6 +11,7 @@ import (
 
 	"github.com/ntons/libra-go"
 	v1pb "github.com/ntons/libra-go/api/libra/v1"
+	"github.com/ntons/libra/librad/common/util"
 	"github.com/ntons/log-go"
 	"github.com/ntons/redis"
 	"google.golang.org/protobuf/proto"
@@ -62,7 +63,7 @@ func fromXMessage(m redis.XMessage) (*v1pb.PubSub_Msg, error) {
 	return r, nil
 }
 
-func (*pubSubServer) Publish(
+func (srv *pubSubServer) Publish(
 	ctx context.Context, req *v1pb.PubSub_PublishRequest) (
 	_ *v1pb.PubSub_PublishResponse, err error) {
 
@@ -73,41 +74,65 @@ func (*pubSubServer) Publish(
 		appId = trusted.AppId
 	}
 
+	var delayTs int64 = 0
+	if req.Delay > 0 {
+		delayTs = time.Now().Unix() + req.Delay
+	}
 	for _, pub := range req.Publications {
-		args := redis.XAddArgs{
-			NoMkStream: !pub.AutoCreateTopic,
-			MaxLen:     int64(pub.MaxLen),
-			Approx:     true,
-			ID:         "*",
+		if pub.AppId == "" {
+			pub.AppId = appId
 		}
-		if len(pub.AppId) == 0 {
-			args.Stream = toStream(appId, pub.Topic)
-		} else {
-			args.Stream = toStream(pub.AppId, pub.Topic)
+		if pub.AppId == "" {
+			return nil, newInvalidArgumentError("bad appid")
 		}
-		if pub.MaxTtl > 0 {
-			ttl := time.Duration(pub.MaxTtl) * time.Millisecond
-			args.MinID = fmt.Sprintf("%d", time.Now().Add(-ttl).UnixMilli())
+		if pub.Topic == "" {
+			return nil, newInvalidArgumentError("bad topic")
 		}
-		for _, msg := range pub.Msgs {
-			msg.Topic, msg.Id, msg.GroupId = "", "", 0 // clear fields
-			var b []byte
-			if b, err = proto.Marshal(msg); err != nil {
-				return nil, newInvalidArgumentError("bad msg")
+		if delayTs > 0 {
+			if err = srv.delayPublish(ctx, delayTs, pub); err != nil {
+				log.Warnf("failed to delay publish: %v", err)
+				return
 			}
-			args.Values = append([]any{}, "pubsub", base64.StdEncoding.EncodeToString(b))
-			if err = cli.XAdd(ctx, &args).Err(); err != nil {
-				if err == redis.Nil { // stream not found
-					return nil, newNotFoundError("stream not found")
-				} else {
-					log.Warnf("failed to add msg: %v", err)
-					return nil, newUnavailableError("db error")
-				}
+		} else {
+			if err = srv.publish(ctx, pub); err != nil {
+				log.Warnf("failed to publish: %v", err)
+				return
 			}
 		}
 	}
 
 	return &v1pb.PubSub_PublishResponse{}, nil
+}
+
+func (*pubSubServer) publish(ctx context.Context, pub *v1pb.PubSub_Publication) (err error) {
+	args := redis.XAddArgs{
+		Stream:     toStream(pub.AppId, pub.Topic),
+		NoMkStream: !pub.AutoCreateTopic,
+		MaxLen:     int64(pub.MaxLen),
+		Approx:     true,
+		ID:         "*",
+	}
+	if pub.MaxTtl > 0 {
+		ttl := time.Duration(pub.MaxTtl) * time.Millisecond
+		args.MinID = fmt.Sprintf("%d", time.Now().Add(-ttl).UnixMilli())
+	}
+	for _, msg := range pub.Msgs {
+		msg.Topic, msg.Id, msg.GroupId = "", "", 0 // clear fields
+		var b []byte
+		if b, err = proto.Marshal(msg); err != nil {
+			return newInvalidArgumentError("bad msg")
+		}
+		args.Values = append([]any{}, "pubsub", base64.StdEncoding.EncodeToString(b))
+		if err = cli.XAdd(ctx, &args).Err(); err != nil {
+			if err == redis.Nil { // stream not found
+				return newNotFoundError("stream not found")
+			} else {
+				log.Warnf("failed to add msg: %v", err)
+				return newUnavailableError("db error")
+			}
+		}
+	}
+	return
 }
 
 func (*pubSubServer) Subscribe(
@@ -329,4 +354,46 @@ func (srv *pubSubServer) readGroup(
 		}
 	}
 	return
+}
+
+// 延迟发送消息
+func (srv *pubSubServer) delayPublish(ctx context.Context, ts int64, pub *v1pb.PubSub_Publication) (err error) {
+	b, err := proto.Marshal(pub)
+	if err != nil {
+		return
+	}
+	if err = luaDelay.Run(ctx, cli, []string{"$PUBSUB_DELAY$"}, "add", ts, util.BytesToString(b)).Err(); err != nil {
+		return
+	}
+	return
+}
+
+func (srv *pubSubServer) tryPopDelay(ctx context.Context) (list []*v1pb.PubSub_Publication, err error) {
+	r, err := luaDelay.Run(ctx, cli, []string{"$PUBSUB_DELAY$"}, "try_pop", time.Now().Unix()).Result()
+	if err != nil {
+		return
+	}
+
+	for _, v := range r.([]interface{}) {
+		pub := &v1pb.PubSub_Publication{}
+		if err = proto.Unmarshal(util.StringToBytes(v.(string)), pub); err != nil {
+			fmt.Println(err)
+			continue
+		}
+		list = append(list, pub)
+	}
+	return
+}
+
+func (srv *pubSubServer) tryDelayPublish(ctx context.Context) {
+	list, err := srv.tryPopDelay(ctx)
+	if err != nil {
+		log.Warnf("failed to pop delay: %v", err)
+		return
+	}
+	for _, pub := range list {
+		if err := srv.publish(ctx, pub); err != nil {
+			log.Warnf("failed to publish: %v", err)
+		}
+	}
 }
