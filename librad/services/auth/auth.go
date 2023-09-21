@@ -36,7 +36,7 @@ func newAuthServer() *authServer {
 func (srv authServer) Check(
 	ctx context.Context, req *authpb.CheckRequest) (
 	resp *authpb.CheckResponse, err error) {
-	log.Debugf("Auth.Check|%v", req)
+	//log.Debugf("Auth.Check|%v", req)
 
 	// 优先使用route上的配置的校验方式
 	authBy, ok := req.Attributes.ContextExtensions[L.XLibraAuthBy]
@@ -84,6 +84,5 @@ func (srv authServer) Check(
 			okResp.HeadersToRemove = append(okResp.HeadersToRemove, key)
 		}
 	}
-	log.Debugf("auth check ok")
 	return
 }

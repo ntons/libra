@@ -82,9 +82,6 @@ func (srv *pubSubServer) Publish(
 		if pub.AppId == "" {
 			pub.AppId = appId
 		}
-		if pub.AppId == "" {
-			return nil, newInvalidArgumentError("bad appid")
-		}
 		if pub.Topic == "" {
 			return nil, newInvalidArgumentError("bad topic")
 		}
@@ -360,9 +357,11 @@ func (srv *pubSubServer) readGroup(
 func (srv *pubSubServer) delayPublish(ctx context.Context, ts int64, pub *v1pb.PubSub_Publication) (err error) {
 	b, err := proto.Marshal(pub)
 	if err != nil {
+		log.Warnf("failed to marshal delay pub: %v", err)
 		return
 	}
 	if err = luaDelay.Run(ctx, cli, []string{"$PUBSUB_DELAY$"}, "add", ts, util.BytesToString(b)).Err(); err != nil {
+		log.Warnf("failed to add delay pub: %v", err)
 		return
 	}
 	return
@@ -371,13 +370,14 @@ func (srv *pubSubServer) delayPublish(ctx context.Context, ts int64, pub *v1pb.P
 func (srv *pubSubServer) tryPopDelay(ctx context.Context) (list []*v1pb.PubSub_Publication, err error) {
 	r, err := luaDelay.Run(ctx, cli, []string{"$PUBSUB_DELAY$"}, "try_pop", time.Now().Unix()).Result()
 	if err != nil {
+		log.Warnf("failed to pop delay pub: %v", err)
 		return
 	}
 
 	for _, v := range r.([]interface{}) {
 		pub := &v1pb.PubSub_Publication{}
 		if err = proto.Unmarshal(util.StringToBytes(v.(string)), pub); err != nil {
-			fmt.Println(err)
+			log.Warnf("failed to unmarshal delay pub: %v", err)
 			continue
 		}
 		list = append(list, pub)
