@@ -5,7 +5,7 @@
 while [ $# -gt 0 ]; do
     REGION=$1
     if [ "$REGION" = "cn" ]; then REGION=""; fi
-    REGISTRY="$1ccr.ccs.tencentyun.com"
+    REGISTRY="${REGION}ccr.ccs.tencentyun.com"
     IMAGE="onemore/librad"
     VERSION=$(cat VERSION)
     SOURCE=${IMAGE}:${VERSION}
