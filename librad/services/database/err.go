@@ -1,8 +1,8 @@
 package database
 
 import (
-	"github.com/ntons/distlock"
-	"github.com/ntons/remon"
+	"github.com/ntons/redlock"
+	"github.com/ntons/redmon"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -14,22 +14,22 @@ var (
 	errTooLarge        = status.Errorf(codes.Unauthenticated, "too large")
 )
 
-func fromRemonError(err error) error {
+func fromRedmonError(err error) error {
 	code := codes.Internal
-	if err == remon.ErrNotExists {
+	if err == redmon.ErrNotExists {
 		code = codes.NotFound
-	} else if err == remon.ErrAlreadyExists {
+	} else if err == redmon.ErrAlreadyExists {
 		code = codes.AlreadyExists
 	}
-	return status.Errorf(code, "remon: %s", err)
+	return status.Errorf(code, "redmon: %s", err)
 }
 
-func fromDistlockError(err error) error {
+func fromRedlockError(err error) error {
 	code := codes.Internal
-	if err == distlock.ErrNotObtained {
+	if err == redlock.ErrNotObtained {
 		code = codes.FailedPrecondition
 	}
-	return status.Errorf(code, "distlock: %s", err)
+	return status.Errorf(code, "redlock: %s", err)
 }
 
 func fromProtoError(err error) error {

@@ -8,14 +8,14 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v0.1.0
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/golang/protobuf v1.5.2
-	github.com/ntons/distlock v0.2.0
 	github.com/ntons/grpc-compressor v0.1.1
-	github.com/ntons/libra-go v0.0.0-20230918090307-8318bd648625
+	github.com/ntons/libra-go v0.0.0-20230921145914-8671a8c22c70
 	github.com/ntons/log-go v0.1.0
 	github.com/ntons/redchart v0.1.9
 	github.com/ntons/redis v0.1.4
+	github.com/ntons/redlock v0.2.1
+	github.com/ntons/redmon v0.2.0
 	github.com/ntons/redmq v0.0.0-20220222065331-070944d0f346
-	github.com/ntons/remon v0.1.9
 	github.com/ntons/tongo/httputil v0.0.0-20210926235700-c0c0e6e56ff5
 	github.com/ntons/tongo/sign v0.0.0-20201009033551-29ad62f045c5
 	github.com/onemoreteam/httpframework v0.2.3
@@ -65,7 +65,3 @@ require (
 )
 
 //replace github.com/ntons/libra-go => ../libra-go
-//replace github.com/ntons/remon => ../remon
-//replace github.com/ntons/distlock => ../distlock
-//replace github.com/ntons/ranking => ../ranking
-//replace github.com/onemoreteam/httpframework => ../../onemoreteam/httpframework

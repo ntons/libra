@@ -8,13 +8,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ntons/distlock"
 	L "github.com/ntons/libra-go"
 	v1pb "github.com/ntons/libra-go/api/libra/v1"
 	"github.com/ntons/libra/librad/common/util"
 	"github.com/ntons/log-go"
 	"github.com/ntons/redis"
-	"github.com/ntons/remon"
+	"github.com/ntons/redlock"
+	"github.com/ntons/redmon"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -27,9 +27,9 @@ type server struct {
 	v1pb.UnimplementedDatabaseServer
 	v1pb.UnimplementedMailboxServer
 
-	db *remon.Client    // database
-	mb *remon.Client    // mailbox
-	dl *distlock.Client // distlock
+	db *redmon.Client  // database
+	mb *redmon.Client  // mailbox
+	dl *redlock.Client // distlock
 }
 
 func createServer(jb json.RawMessage) (*server, error) {
@@ -64,7 +64,7 @@ func createServer(jb json.RawMessage) (*server, error) {
 	} else if mdb, err := dialMongo(ctx, cfg.Database.Mongo); err != nil {
 		return nil, err
 	} else {
-		srv.db = remon.NewClient(rdb, mdb)
+		srv.db = redmon.NewClient(rdb, mdb)
 	}
 
 	if rdb, err := redis.Dial(
@@ -73,22 +73,22 @@ func createServer(jb json.RawMessage) (*server, error) {
 	} else if mdb, err := dialMongo(ctx, cfg.MailBox.Mongo); err != nil {
 		return nil, err
 	} else {
-		srv.mb = remon.NewClient(rdb, mdb)
+		srv.mb = redmon.NewClient(rdb, mdb)
 	}
 
 	if rdb, err := redis.Dial(
 		ctx, cfg.Distlock.Redis, redis.WithPingTest()); err != nil {
 		return nil, err
 	} else {
-		srv.dl = distlock.New(rdb)
+		srv.dl = redlock.New(rdb)
 	}
 
 	return srv, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 // Key mapping strategy
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 type keyedRequest interface {
 	GetKey() *v1pb.EntryKey
 }
@@ -122,7 +122,7 @@ func getUniqKey(appId string, key *v1pb.EntryKey) (_ string, err error) {
 	if key == nil || !isValidStr(key.Kind, 1, 32) || !isValidStr(key.Id, 1, 64) {
 		return "", errInvalidArgument
 	}
-	// default remon key mapping strategy split key by ':'
+	// default redmon key mapping strategy split key by ':'
 	// into (database, collection, _id)
 	return fmt.Sprintf("%s:%s:%s", appId, key.Kind, key.Id), nil
 }
@@ -139,9 +139,9 @@ func getAppIdAndUniqKey(ctx context.Context, key *v1pb.EntryKey) (_, _ string, e
 	return appId, uniqKey, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 // Distlock Service
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 func (srv *server) lock(
 	ctx context.Context, key string, opts *v1pb.DistlockLockOptions) (
 	*anypb.Any, error) {
@@ -154,13 +154,13 @@ func (srv *server) lock(
 		return nil, errTimeoutTooLong
 	}
 	lock, err := srv.dl.Obtain(ctx, key, ttl,
-		distlock.WithRetryStrategy(distlock.LimitRetry(
+		redlock.WithRetryStrategy(redlock.LimitRetry(
 			// 32 + 32 + 32 + 32 + 32 + 64 + 128 + 256 + 512 + 512 = 1632
-			distlock.ExponentialBackoff(
+			redlock.ExponentialBackoff(
 				32*time.Millisecond,
 				512*time.Millisecond), 10)))
 	if err != nil {
-		return nil, fromDistlockError(err)
+		return nil, fromRedlockError(err)
 	}
 	return &anypb.Any{
 		TypeUrl: distlockTypeUrl,
@@ -173,9 +173,9 @@ func (srv *server) unlock(
 	if token == nil || token.TypeUrl != distlockTypeUrl {
 		return errInvalidArgument
 	}
-	lock := distlock.NewLock(key, util.BytesToString(token.Value))
+	lock := redlock.NewLock(key, util.BytesToString(token.Value))
 	if err := srv.dl.Release(ctx, lock); err != nil {
-		return fromDistlockError(err)
+		return fromRedlockError(err)
 	}
 	return nil
 }
@@ -185,13 +185,13 @@ func (srv *server) ensureLock(
 	if token == nil || token.TypeUrl != distlockTypeUrl {
 		return errInvalidArgument
 	}
-	lock := distlock.NewLock(key, util.BytesToString(token.Value))
+	lock := redlock.NewLock(key, util.BytesToString(token.Value))
 	ttl := cfg.Distlock.ttl
 	if t, ok := ctx.Deadline(); ok {
 		ttl = t.Sub(time.Now())
 	}
 	if err := srv.dl.Ensure(ctx, lock, ttl); err != nil {
-		return fromDistlockError(err)
+		return fromRedlockError(err)
 	}
 	return nil
 }
@@ -268,16 +268,16 @@ func (srv *server) Get(
 		}()
 	}
 	// get data
-	var opts []remon.GetOption
+	var opts []redmon.GetOption
 	if req.AddIfNotFound != nil {
 		if buf, err := encodeMessage(req.AddIfNotFound); err != nil {
 			return nil, fromProtoError(err)
 		} else {
-			opts = append(opts, remon.AddIfNotExists(buf))
+			opts = append(opts, redmon.AddIfNotExists(buf))
 		}
 	}
 	if rev, buf, err := srv.db.Get(ctx, key, opts...); err != nil {
-		return nil, fromRemonError(err)
+		return nil, fromRedmonError(err)
 	} else if err = decodeMessage(buf, resp.Data); err != nil {
 		return nil, fromProtoError(err)
 	} else {
@@ -327,14 +327,14 @@ func (srv *server) Set(
 	resp := &v1pb.DatabaseSetResponse{}
 	if resp.Revision, err = srv.db.Set(ctx, key, buf); err != nil {
 		log.Warnf("set: failed set to db: %s", err)
-		return nil, fromRemonError(err)
+		return nil, fromRedmonError(err)
 	}
 	return resp, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 // Mailbox Service
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 func (srv *server) List(
 	ctx context.Context, req *v1pb.MailboxListRequest) (
 	_ *v1pb.MailboxListResponse, err error) {
@@ -344,10 +344,10 @@ func (srv *server) List(
 	}
 	a, err := srv.mb.List(ctx, key)
 	if err != nil {
-		if err == remon.ErrNotExists && req.Options.GetRegardNotFoundAsEmpty() {
+		if err == redmon.ErrNotExists && req.Options.GetRegardNotFoundAsEmpty() {
 			a, err = nil, nil
 		} else {
-			return nil, fromRemonError(err)
+			return nil, fromRedmonError(err)
 		}
 	}
 
@@ -390,7 +390,7 @@ func (srv *server) Pull(
 		ids = append(ids, id)
 	}
 	if ids, err = srv.mb.Pull(ctx, key, ids...); err != nil {
-		return nil, fromRemonError(err)
+		return nil, fromRedmonError(err)
 	}
 	resp := &v1pb.MailboxPullResponse{
 		PulledIds: make([]string, len(ids)),
@@ -415,17 +415,17 @@ func (srv *server) Send(
 			return nil, fromProtoError(err)
 		}
 
-		opts := make([]remon.PushOption, 0, 2)
+		opts := make([]redmon.PushOption, 0, 2)
 		if e.Capacity > 0 {
-			opts = append(opts, remon.WithCapacity(uint16(e.Capacity)))
+			opts = append(opts, redmon.WithCapacity(uint16(e.Capacity)))
 		}
 		if e.Overridable {
-			opts = append(opts, remon.WithRing())
+			opts = append(opts, redmon.WithRing())
 		}
 		if e.Importance > 255 {
-			opts = append(opts, remon.WithImportance(255))
+			opts = append(opts, redmon.WithImportance(255))
 		} else if e.Importance > 0 {
-			opts = append(opts, remon.WithImportance(uint8(e.Importance)))
+			opts = append(opts, redmon.WithImportance(uint8(e.Importance)))
 		}
 
 		// we send these mails as many as possible, then return the first error
@@ -441,8 +441,8 @@ func (srv *server) Send(
 				continue
 			}
 			if _, _err = srv.mb.Push(ctx, _key, buf, opts...); err != nil {
-				if _err != remon.ErrMailBoxFull {
-					return nil, fromRemonError(err)
+				if _err != redmon.ErrMailBoxFull {
+					return nil, fromRedmonError(err)
 				}
 				if err == nil {
 					err = _err

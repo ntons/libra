@@ -7,14 +7,14 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/ntons/log-go"
-	"github.com/ntons/remon"
+	"github.com/ntons/redmon"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type task struct {
 	name string
-	dbs  []*remon.Client
+	dbs  []*redmon.Client
 }
 
 func dial(name, url string, urls []string) (t *task, err error) {
@@ -45,12 +45,12 @@ func dial(name, url string, urls []string) (t *task, err error) {
 	t = &task{name: name}
 	for i, rdb := range rdbs {
 		t.dbs = append(t.dbs,
-			remon.NewClient(
+			redmon.NewClient(
 				rdb,
 				mdb,
-				remon.OnSyncSave(t.onSave),
-				remon.OnSyncIdle(t.onIdle),
-				remon.OnSyncFail(t.onFail),
+				redmon.OnSyncSave(t.onSave),
+				redmon.OnSyncIdle(t.onIdle),
+				redmon.OnSyncFail(t.onFail),
 			),
 		)
 		log.Infof("%s: %s => %s", name, urls[i], url)
@@ -65,7 +65,7 @@ func (t *task) Serve(ctx context.Context) {
 
 	for _, db := range t.dbs {
 		wg.Add(1)
-		go func(db *remon.Client) {
+		go func(db *redmon.Client) {
 			defer wg.Done()
 			db.Sync(ctx)
 		}(db)
